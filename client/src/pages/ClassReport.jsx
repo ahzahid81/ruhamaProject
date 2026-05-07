@@ -5,6 +5,7 @@ import api from "../services/api";
 import logo from "../assets/logo.png";
 
 const ClassReport = () => {
+
   const reportRef = useRef();
 
   const [className, setClassName] = useState("");
@@ -29,6 +30,7 @@ const ClassReport = () => {
 
   // GET REPORT
   const getReport = async () => {
+
     if (!className) {
       return alert("Select class");
     }
@@ -36,29 +38,39 @@ const ClassReport = () => {
     setLoading(true);
 
     try {
+
       const res = await api.get(
         `/reports/class-report?className=${className}&date=${date}`
       );
 
       setReport(res.data);
+
     } catch (error) {
+
       alert(error.response?.data?.message);
+
     } finally {
+
       setLoading(false);
     }
   };
 
   // DOWNLOAD IMAGE
   const downloadImage = async () => {
-    const dataUrl = await htmlToImage.toPng(reportRef.current, {
-      quality: 1,
-      pixelRatio: 3,
-      backgroundColor: "#ffffff",
-    });
+
+    const dataUrl = await htmlToImage.toPng(
+      reportRef.current,
+      {
+        quality: 1,
+        pixelRatio: 4,
+        backgroundColor: "#ffffff",
+      }
+    );
 
     const link = document.createElement("a");
 
-    link.download = `${report.className}-${report.date}.png`;
+    link.download =
+      `${report.className}-${report.date}.png`;
 
     link.href = dataUrl;
 
@@ -67,12 +79,17 @@ const ClassReport = () => {
 
   // SHARE IMAGE
   const shareImage = async () => {
+
     try {
-      const dataUrl = await htmlToImage.toPng(reportRef.current, {
-        quality: 1,
-        pixelRatio: 3,
-        backgroundColor: "#ffffff",
-      });
+
+      const dataUrl = await htmlToImage.toPng(
+        reportRef.current,
+        {
+          quality: 1,
+          pixelRatio: 4,
+          backgroundColor: "#ffffff",
+        }
+      );
 
       const response = await fetch(dataUrl);
 
@@ -92,25 +109,38 @@ const ClassReport = () => {
           files: [file],
         })
       ) {
+
         await navigator.share({
-          title: "RUHAMA UNITED SCHOOL",
-          text: "Daily Academic Report",
+          title:
+            "RUHAMA UNITED SCHOOL",
+
+          text:
+            "Daily Academic Report",
+
           files: [file],
         });
+
       } else {
-        alert("Sharing not supported");
+
+        alert(
+          "Sharing not supported on this device"
+        );
       }
+
     } catch (error) {
+
       console.log(error);
     }
   };
 
   return (
+
     <div className="max-w-6xl mx-auto px-3 md:px-6 py-5 md:py-8">
 
-      {/* TOP CARD */}
+      {/* TOP FILTER CARD */}
       <div className="bg-white rounded-[35px] border border-gray-100 shadow-xl p-5 md:p-8 mb-6">
 
+        {/* TOP */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-7">
 
           {/* LEFT */}
@@ -216,7 +246,7 @@ const ClassReport = () => {
 
         <>
 
-          {/* ACTIONS */}
+          {/* ACTION BUTTONS */}
           <div className="grid grid-cols-2 gap-4 mb-6">
 
             {/* DOWNLOAD */}
@@ -241,16 +271,16 @@ const ClassReport = () => {
 
           </div>
 
-          {/* PREMIUM REPORT */}
+          {/* REPORT CARD */}
           <div
             ref={reportRef}
-            className="w-full max-w-[1080px] mx-auto bg-white rounded-[40px] overflow-hidden shadow-2xl"
+            className="w-full max-w-[820px] mx-auto bg-white rounded-[40px] overflow-hidden shadow-2xl"
           >
 
             {/* HEADER */}
-            <div className="bg-gradient-to-br from-[#07153B] via-[#0B1E4F] to-[#142F7A] px-5 py-8 md:px-10 md:py-12 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-[#07153B] via-[#0B1E4F] to-[#142F7A] px-5 py-6 md:px-8 md:py-8 relative overflow-hidden">
 
-              {/* Glow */}
+              {/* GLOW */}
               <div className="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
 
               <div className="absolute bottom-0 left-0 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl"></div>
@@ -261,7 +291,7 @@ const ClassReport = () => {
                 <div className="flex flex-col items-center text-center">
 
                   {/* LOGO */}
-                  <div className="w-28 h-28 md:w-36 md:h-36 bg-white rounded-[35px] p-4 shadow-2xl mb-5">
+                  <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-[28px] p-3 shadow-2xl mb-5">
 
                     <img
                       src={logo}
@@ -272,7 +302,7 @@ const ClassReport = () => {
                   </div>
 
                   {/* TITLE */}
-                  <h1 className="text-3xl md:text-6xl font-black text-white leading-tight tracking-tight uppercase">
+                  <h1 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight uppercase">
 
                     Ruhama
                     <br />
@@ -280,9 +310,10 @@ const ClassReport = () => {
 
                   </h1>
 
-                  <p className="text-blue-100 mt-4 text-sm md:text-xl max-w-2xl leading-relaxed">
+                  <p className="text-blue-100 mt-4 text-sm md:text-lg max-w-2xl leading-relaxed">
 
-                    Smart Digital Daily Academic Reporting System
+                    Smart Digital Diary &
+                    Academic Reporting System
 
                   </p>
 
@@ -292,7 +323,7 @@ const ClassReport = () => {
                 <div className="grid grid-cols-2 gap-4 mt-8">
 
                   {/* CLASS */}
-                  <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[30px] p-5 text-center">
+                  <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[28px] p-5 text-center">
 
                     <p className="text-white/60 uppercase tracking-[3px] text-xs mb-2">
 
@@ -309,7 +340,7 @@ const ClassReport = () => {
                   </div>
 
                   {/* DATE */}
-                  <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[30px] p-5 text-center">
+                  <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[28px] p-5 text-center">
 
                     <p className="text-white/60 uppercase tracking-[3px] text-xs mb-2">
 
@@ -332,61 +363,144 @@ const ClassReport = () => {
             </div>
 
             {/* BODY */}
-            <div className="bg-[#f8fbff] p-4 md:p-8 space-y-5">
+            <div className="bg-[#f8fbff] p-4 md:p-6">
 
-              {report.entries.map((entry, index) => (
+              <div className="space-y-4">
 
-                <div
-                  key={index}
-                  className="bg-white rounded-[35px] overflow-hidden shadow-lg border border-gray-100"
-                >
+                {report.entries.map((entry, index) => (
 
-                  {/* TOP */}
-                  <div className="bg-gradient-to-r from-[#0B1E4F] to-[#142F7A] p-5 md:p-7 text-white">
+                  <div
+                    key={index}
+                    className="bg-white rounded-[28px] border border-gray-100 shadow-sm overflow-hidden"
+                  >
 
-                    <div className="flex flex-col gap-5">
+                    {/* SUBJECT TOP */}
+                    <div className="bg-gradient-to-r from-[#0B1E4F] to-[#142F7A] px-4 py-4 text-white">
 
-                      {/* SUBJECT */}
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-between gap-3">
 
-                        <div className="w-14 h-14 rounded-[20px] bg-white/10 flex items-center justify-center text-2xl font-black">
+                        {/* LEFT */}
+                        <div className="flex items-center gap-3">
 
-                          {index + 1}
+                          <div className="w-11 h-11 rounded-[14px] bg-white/10 flex items-center justify-center font-black text-lg">
+
+                            {index + 1}
+
+                          </div>
+
+                          <div>
+
+                            <p className="text-[10px] tracking-[3px] text-white/60 uppercase">
+
+                              Subject
+
+                            </p>
+
+                            <h2 className="text-xl md:text-2xl font-black">
+
+                              {entry.subject}
+
+                            </h2>
+
+                          </div>
 
                         </div>
 
-                        <div>
+                        {/* TEACHER */}
+                        <div className="bg-white/10 rounded-[16px] px-3 py-2 text-right">
 
-                          <p className="text-white/60 uppercase tracking-[3px] text-xs mb-1">
+                          <p className="text-[9px] tracking-[3px] text-white/60 uppercase">
 
-                            SUBJECT
+                            Teacher
 
                           </p>
 
-                          <h2 className="text-2xl md:text-4xl font-black">
+                          <h3 className="text-sm md:text-base font-bold">
 
-                            {entry.subject}
+                            {entry.teacherId?.name}
 
-                          </h2>
+                          </h3>
 
                         </div>
 
                       </div>
 
-                      {/* TEACHER */}
-                      <div className="bg-white/10 rounded-[22px] px-5 py-4 w-fit">
+                    </div>
 
-                        <p className="text-white/60 uppercase tracking-[3px] text-xs mb-1">
+                    {/* CONTENT */}
+                    <div className="grid md:grid-cols-2 gap-3 p-4">
 
-                          TEACHER
+                      {/* CLASS WORK */}
+                      <div className="bg-blue-50 rounded-[22px] p-4 border border-blue-100">
+
+                        <div className="flex items-center gap-2 mb-3">
+
+                          <div className="w-10 h-10 rounded-[12px] bg-blue-100 flex items-center justify-center text-lg">
+
+                            📘
+
+                          </div>
+
+                          <div>
+
+                            <p className="text-[10px] tracking-[3px] text-gray-500 uppercase">
+
+                              Class Work
+
+                            </p>
+
+                            <h3 className="text-[#0B1E4F] font-black text-lg">
+
+                              Lesson
+
+                            </h3>
+
+                          </div>
+
+                        </div>
+
+                        <p className="text-gray-700 text-[14px] md:text-[15px] leading-6 whitespace-pre-wrap font-medium">
+
+                          {entry.classWork}
 
                         </p>
 
-                        <h3 className="text-lg md:text-2xl font-bold">
+                      </div>
 
-                          {entry.teacherId?.name}
+                      {/* HOME WORK */}
+                      <div className="bg-emerald-50 rounded-[22px] p-4 border border-emerald-100">
 
-                        </h3>
+                        <div className="flex items-center gap-2 mb-3">
+
+                          <div className="w-10 h-10 rounded-[12px] bg-emerald-100 flex items-center justify-center text-lg">
+
+                            🏠
+
+                          </div>
+
+                          <div>
+
+                            <p className="text-[10px] tracking-[3px] text-gray-500 uppercase">
+
+                              Home Work
+
+                            </p>
+
+                            <h3 className="text-emerald-700 font-black text-lg">
+
+                              Task
+
+                            </h3>
+
+                          </div>
+
+                        </div>
+
+                        <p className="text-gray-700 text-[14px] md:text-[15px] leading-6 whitespace-pre-wrap font-medium">
+
+                          {entry.homeWork}
+
+                        </p>
 
                       </div>
 
@@ -394,93 +508,14 @@ const ClassReport = () => {
 
                   </div>
 
-                  {/* CONTENT */}
-                  <div className="p-5 md:p-7 space-y-5">
+                ))}
 
-                    {/* CLASS WORK */}
-                    <div className="bg-blue-50 border border-blue-100 rounded-[30px] p-5">
-
-                      <div className="flex items-center gap-3 mb-4">
-
-                        <div className="w-12 h-12 rounded-[18px] bg-blue-100 flex items-center justify-center text-2xl">
-
-                          📘
-
-                        </div>
-
-                        <div>
-
-                          <p className="text-gray-500 uppercase tracking-[3px] text-xs">
-
-                            CLASS WORK
-
-                          </p>
-
-                          <h3 className="text-[#0B1E4F] text-xl md:text-2xl font-black">
-
-                            Today's Lesson
-
-                          </h3>
-
-                        </div>
-
-                      </div>
-
-                      <p className="text-gray-700 text-base md:text-xl leading-8 whitespace-pre-wrap font-medium">
-
-                        {entry.classWork}
-
-                      </p>
-
-                    </div>
-
-                    {/* HOME WORK */}
-                    <div className="bg-emerald-50 border border-emerald-100 rounded-[30px] p-5">
-
-                      <div className="flex items-center gap-3 mb-4">
-
-                        <div className="w-12 h-12 rounded-[18px] bg-emerald-100 flex items-center justify-center text-2xl">
-
-                          🏠
-
-                        </div>
-
-                        <div>
-
-                          <p className="text-gray-500 uppercase tracking-[3px] text-xs">
-
-                            HOME WORK
-
-                          </p>
-
-                          <h3 className="text-emerald-700 text-xl md:text-2xl font-black">
-
-                            Practice Task
-
-                          </h3>
-
-                        </div>
-
-                      </div>
-
-                      <p className="text-gray-700 text-base md:text-xl leading-8 whitespace-pre-wrap font-medium">
-
-                        {entry.homeWork}
-
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              ))}
+              </div>
 
             </div>
 
             {/* FOOTER */}
-            <div className="bg-white border-t border-gray-100 px-5 py-6 text-center">
+            <div className="bg-white border-t border-gray-100 px-5 py-4 text-center">
 
               <h3 className="font-black text-2xl md:text-3xl text-[#0B1E4F]">
 
@@ -490,7 +525,15 @@ const ClassReport = () => {
 
               <p className="text-gray-500 mt-2 text-sm md:text-lg">
 
-                Excellence • Discipline • Knowledge
+                Excellence • Discipline • Achievement
+
+              </p>
+
+              <div className="w-44 border-b-2 border-gray-300 mx-auto mt-5 mb-2"></div>
+
+              <p className="text-gray-500 text-sm">
+
+                Principal Signature
 
               </p>
 

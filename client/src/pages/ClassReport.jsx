@@ -1,38 +1,21 @@
-import {
-  useRef,
-  useState,
-} from "react";
-
+import { useRef, useState } from "react";
 import * as htmlToImage from "html-to-image";
 
 import api from "../services/api";
-
 import logo from "../assets/logo.png";
 
 const ClassReport = () => {
-
   const reportRef = useRef();
 
-  const [className,
-    setClassName] =
-    useState("");
+  const [className, setClassName] = useState("");
 
-  const [date,
-    setDate] =
-    useState(
-      new Date()
-        .toISOString()
-        .split("T")[0]
-    );
+  const [date, setDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
-  const [report,
-    setReport] =
-    useState(null);
+  const [report, setReport] = useState(null);
 
-  const [loading,
-    setLoading] =
-    useState(false);
-
+  const [loading, setLoading] = useState(false);
 
   // CLASSES
   const classes = [
@@ -44,92 +27,64 @@ const ClassReport = () => {
     "Class 3",
   ];
 
-
   // GET REPORT
   const getReport = async () => {
-
     if (!className) {
-
-      return alert(
-        "Select class"
-      );
+      return alert("Select class");
     }
 
     setLoading(true);
 
     try {
-
       const res = await api.get(
         `/reports/class-report?className=${className}&date=${date}`
       );
 
       setReport(res.data);
-
     } catch (error) {
-
-      alert(
-        error.response?.data?.message
-      );
-
+      alert(error.response?.data?.message);
     } finally {
-
       setLoading(false);
     }
   };
 
-
   // DOWNLOAD IMAGE
   const downloadImage = async () => {
+    const dataUrl = await htmlToImage.toPng(reportRef.current, {
+      quality: 1,
+      pixelRatio: 3,
+      backgroundColor: "#ffffff",
+    });
 
-    const dataUrl =
-      await htmlToImage.toPng(
-        reportRef.current,
-        {
-          quality: 1,
-          pixelRatio: 3,
-        }
-      );
+    const link = document.createElement("a");
 
-    const link =
-      document.createElement("a");
-
-    link.download =
-      `${report.className}-${report.date}.png`;
+    link.download = `${report.className}-${report.date}.png`;
 
     link.href = dataUrl;
 
     link.click();
   };
 
-
   // SHARE IMAGE
   const shareImage = async () => {
-
     try {
+      const dataUrl = await htmlToImage.toPng(reportRef.current, {
+        quality: 1,
+        pixelRatio: 3,
+        backgroundColor: "#ffffff",
+      });
 
-      const dataUrl =
-        await htmlToImage.toPng(
-          reportRef.current,
-          {
-            quality: 1,
-            pixelRatio: 3,
-          }
-        );
+      const response = await fetch(dataUrl);
 
-      const response =
-        await fetch(dataUrl);
+      const blob = await response.blob();
 
-      const blob =
-        await response.blob();
-
-      const file =
-        new File(
-          [blob],
-          "ruhama-report.png",
-          {
-            type: "image/png",
-          }
-        );
+      const file = new File(
+        [blob],
+        "ruhama-report.png",
+        {
+          type: "image/png",
+        }
+      );
 
       if (
         navigator.canShare &&
@@ -137,26 +92,15 @@ const ClassReport = () => {
           files: [file],
         })
       ) {
-
         await navigator.share({
-          title:
-            "RUHAMA UNITED SCHOOL",
-
-          text:
-            "Daily Academic Report",
-
+          title: "RUHAMA UNITED SCHOOL",
+          text: "Daily Academic Report",
           files: [file],
         });
-
       } else {
-
-        alert(
-          "Sharing not supported"
-        );
+        alert("Sharing not supported");
       }
-
     } catch (error) {
-
       console.log(error);
     }
   };
@@ -164,14 +108,15 @@ const ClassReport = () => {
   return (
     <div className="max-w-6xl mx-auto px-3 md:px-6 py-5 md:py-8">
 
-      {/* FILTER CARD */}
-      <div className="bg-white border border-gray-100 rounded-[35px] p-5 md:p-8 shadow-sm mb-5">
+      {/* TOP CARD */}
+      <div className="bg-white rounded-[35px] border border-gray-100 shadow-xl p-5 md:p-8 mb-6">
 
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-7">
 
+          {/* LEFT */}
           <div>
 
-            <h1 className="text-4xl md:text-6xl font-black text-[#0B1E4F] leading-tight tracking-tight">
+            <h1 className="text-4xl md:text-6xl font-black leading-tight text-[#0B1E4F]">
 
               Premium
               <br />
@@ -187,17 +132,18 @@ const ClassReport = () => {
 
           </div>
 
-          <div className="bg-gradient-to-r from-[#0B1E4F] to-[#142f7a] text-white px-5 py-4 rounded-[25px] shadow-lg w-fit">
+          {/* RIGHT */}
+          <div className="bg-gradient-to-r from-[#07153B] to-[#142F7A] text-white px-6 py-5 rounded-[30px] shadow-xl w-fit">
 
-            <h3 className="font-bold text-lg">
+            <h2 className="font-black text-2xl">
 
               WhatsApp Ready
 
-            </h3>
+            </h2>
 
-            <p className="text-white/70 text-sm mt-1">
+            <p className="text-white/70 mt-2">
 
-              Premium HD Share
+              HD Premium Share Design
 
             </p>
 
@@ -213,9 +159,7 @@ const ClassReport = () => {
             className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none text-lg font-semibold text-gray-700"
             value={className}
             onChange={(e) =>
-              setClassName(
-                e.target.value
-              )
+              setClassName(e.target.value)
             }
           >
 
@@ -223,23 +167,18 @@ const ClassReport = () => {
               Select Class
             </option>
 
-            {classes.map(
-              (
-                item,
-                index
-              ) => (
+            {classes.map((item, index) => (
 
-                <option
-                  key={index}
-                  value={item}
-                >
+              <option
+                key={index}
+                value={item}
+              >
 
-                  {item}
+                {item}
 
-                </option>
+              </option>
 
-              )
-            )}
+            ))}
 
           </select>
 
@@ -249,9 +188,7 @@ const ClassReport = () => {
             className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none text-lg font-semibold text-gray-700"
             value={date}
             onChange={(e) =>
-              setDate(
-                e.target.value
-              )
+              setDate(e.target.value)
             }
           />
 
@@ -259,12 +196,12 @@ const ClassReport = () => {
           <button
             onClick={getReport}
             disabled={loading}
-            className="bg-gradient-to-r from-[#0B1E4F] to-[#142f7a] hover:scale-[1.02] transition text-white rounded-2xl text-lg font-bold shadow-xl"
+            className="bg-gradient-to-r from-[#07153B] via-[#0B1E4F] to-[#142F7A] hover:scale-[1.02] transition-all duration-300 text-white rounded-2xl text-lg font-black shadow-xl"
           >
 
             {
               loading
-                ? "Loading..."
+                ? "Generating..."
                 : "Generate Report"
             }
 
@@ -280,20 +217,22 @@ const ClassReport = () => {
         <>
 
           {/* ACTIONS */}
-          <div className="grid grid-cols-2 gap-4 mb-5">
+          <div className="grid grid-cols-2 gap-4 mb-6">
 
+            {/* DOWNLOAD */}
             <button
               onClick={downloadImage}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-2xl font-bold text-base md:text-lg shadow-xl"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-2xl font-black text-base md:text-lg shadow-xl hover:scale-[1.02] transition-all"
             >
 
               Download HD
 
             </button>
 
+            {/* SHARE */}
             <button
               onClick={shareImage}
-              className="bg-gradient-to-r from-emerald-600 to-green-600 text-white py-4 rounded-2xl font-bold text-base md:text-lg shadow-xl"
+              className="bg-gradient-to-r from-emerald-600 to-green-600 text-white py-4 rounded-2xl font-black text-base md:text-lg shadow-xl hover:scale-[1.02] transition-all"
             >
 
               Share Now
@@ -305,67 +244,63 @@ const ClassReport = () => {
           {/* PREMIUM REPORT */}
           <div
             ref={reportRef}
-            className="bg-[#f7f9fc] rounded-[45px] overflow-hidden shadow-2xl border border-gray-200"
+            className="w-full max-w-[1080px] mx-auto bg-white rounded-[40px] overflow-hidden shadow-2xl"
           >
 
-            {/* HERO */}
-            <div className="bg-gradient-to-br from-[#07153B] via-[#0B1E4F] to-[#142f7a] p-6 md:p-12 text-white relative overflow-hidden">
+            {/* HEADER */}
+            <div className="bg-gradient-to-br from-[#07153B] via-[#0B1E4F] to-[#142F7A] px-5 py-8 md:px-10 md:py-12 relative overflow-hidden">
 
               {/* Glow */}
               <div className="absolute top-0 right-0 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
 
-              <div className="absolute bottom-0 left-0 w-60 h-60 bg-blue-500/20 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl"></div>
 
               <div className="relative z-10">
 
-                {/* Top */}
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+                {/* TOP */}
+                <div className="flex flex-col items-center text-center">
 
-                  {/* Left */}
-                  <div className="flex items-center gap-5">
+                  {/* LOGO */}
+                  <div className="w-28 h-28 md:w-36 md:h-36 bg-white rounded-[35px] p-4 shadow-2xl mb-5">
 
-                    {/* Logo */}
-                    <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-[35px] shadow-2xl p-3 flex items-center justify-center overflow-hidden">
-
-                      <img
-                        src={logo}
-                        alt="logo"
-                        className="w-full h-full object-contain"
-                      />
-
-                    </div>
-
-                    {/* Title */}
-                    <div>
-
-                      <h1 className="text-3xl md:text-6xl font-black leading-tight tracking-tight">
-
-                        RUHAMA
-                        <br />
-                        UNITED SCHOOL
-
-                      </h1>
-
-                      <p className="mt-3 text-white/70 text-base md:text-xl font-medium">
-
-                        Smart Digital Diary & Academic Reporting System
-
-                      </p>
-
-                    </div>
+                    <img
+                      src={logo}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
 
                   </div>
 
-                  {/* Badge */}
-                  <div className="bg-white/10 border border-white/20 backdrop-blur-xl rounded-[30px] px-6 py-5 shadow-xl w-fit">
+                  {/* TITLE */}
+                  <h1 className="text-3xl md:text-6xl font-black text-white leading-tight tracking-tight uppercase">
 
-                    <p className="text-white/60 uppercase tracking-[4px] text-xs mb-2 text-center">
+                    Ruhama
+                    <br />
+                    United School
+
+                  </h1>
+
+                  <p className="text-blue-100 mt-4 text-sm md:text-xl max-w-2xl leading-relaxed">
+
+                    Smart Digital Daily Academic Reporting System
+
+                  </p>
+
+                </div>
+
+                {/* INFO */}
+                <div className="grid grid-cols-2 gap-4 mt-8">
+
+                  {/* CLASS */}
+                  <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[30px] p-5 text-center">
+
+                    <p className="text-white/60 uppercase tracking-[3px] text-xs mb-2">
 
                       CLASS
 
                     </p>
 
-                    <h2 className="text-3xl md:text-4xl font-black text-center">
+                    <h2 className="text-white text-2xl md:text-4xl font-black">
 
                       {report.className}
 
@@ -373,21 +308,16 @@ const ClassReport = () => {
 
                   </div>
 
-                </div>
-
-                {/* STATS */}
-                <div className="grid grid-cols-2 gap-4 mt-8">
-
                   {/* DATE */}
-                  <div className="bg-white/10 border border-white/10 backdrop-blur-xl rounded-[30px] p-5">
+                  <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[30px] p-5 text-center">
 
-                    <p className="text-white/60 uppercase tracking-[4px] text-xs mb-2">
+                    <p className="text-white/60 uppercase tracking-[3px] text-xs mb-2">
 
-                      REPORT DATE
+                      DATE
 
                     </p>
 
-                    <h2 className="text-xl md:text-3xl font-bold">
+                    <h2 className="text-white text-lg md:text-3xl font-black">
 
                       {report.date}
 
@@ -395,90 +325,100 @@ const ClassReport = () => {
 
                   </div>
 
-                  {/* SUBJECT COUNT */}
-                  <div className="bg-white/10 border border-white/10 backdrop-blur-xl rounded-[30px] p-5 text-right">
-
-                    <p className="text-white/60 uppercase tracking-[4px] text-xs mb-2">
-
-                      SUBJECTS
-
-                    </p>
-
-                    <h2 className="text-xl md:text-3xl font-bold">
-
-                      {report.entries.length}
-
-                    </h2>
-
-                  </div>
-
                 </div>
 
               </div>
 
             </div>
 
-            {/* CONTENT */}
-            <div className="p-4 md:p-8 space-y-5">
+            {/* BODY */}
+            <div className="bg-[#f8fbff] p-4 md:p-8 space-y-5">
 
-              {report.entries.map(
-                (
-                  entry,
-                  index
-                ) => (
+              {report.entries.map((entry, index) => (
 
-                  <div
-                    key={index}
-                    className="bg-white rounded-[35px] border border-gray-100 shadow-sm overflow-hidden"
-                  >
+                <div
+                  key={index}
+                  className="bg-white rounded-[35px] overflow-hidden shadow-lg border border-gray-100"
+                >
 
-                    {/* SUBJECT TOP */}
-                    <div className="bg-gradient-to-r from-[#0B1E4F] to-[#142f7a] px-5 md:px-7 py-5 text-white">
+                  {/* TOP */}
+                  <div className="bg-gradient-to-r from-[#0B1E4F] to-[#142F7A] p-5 md:p-7 text-white">
 
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex flex-col gap-5">
 
-                        {/* Subject */}
-                        <div className="flex items-center gap-4">
+                      {/* SUBJECT */}
+                      <div className="flex items-center gap-4">
 
-                          <div className="w-14 h-14 rounded-[20px] bg-white/10 flex items-center justify-center text-2xl font-black">
+                        <div className="w-14 h-14 rounded-[20px] bg-white/10 flex items-center justify-center text-2xl font-black">
 
-                            {index + 1}
-
-                          </div>
-
-                          <div>
-
-                            <p className="text-white/60 uppercase tracking-[4px] text-xs mb-1">
-
-                              SUBJECT
-
-                            </p>
-
-                            <h2 className="text-2xl md:text-4xl font-black">
-
-                              {entry.subject}
-
-                            </h2>
-
-                          </div>
+                          {index + 1}
 
                         </div>
 
-                        {/* Teacher */}
-                        <div className="bg-white/10 border border-white/10 rounded-[22px] px-5 py-4 w-fit">
+                        <div>
 
-                          <p className="text-white/60 uppercase tracking-[4px] text-xs mb-1">
+                          <p className="text-white/60 uppercase tracking-[3px] text-xs mb-1">
 
-                            TEACHER
+                            SUBJECT
 
                           </p>
 
-                          <h3 className="text-lg md:text-2xl font-bold">
+                          <h2 className="text-2xl md:text-4xl font-black">
 
-                            {
-                              entry.teacherId
-                                ?.name
-                            }
+                            {entry.subject}
+
+                          </h2>
+
+                        </div>
+
+                      </div>
+
+                      {/* TEACHER */}
+                      <div className="bg-white/10 rounded-[22px] px-5 py-4 w-fit">
+
+                        <p className="text-white/60 uppercase tracking-[3px] text-xs mb-1">
+
+                          TEACHER
+
+                        </p>
+
+                        <h3 className="text-lg md:text-2xl font-bold">
+
+                          {entry.teacherId?.name}
+
+                        </h3>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  {/* CONTENT */}
+                  <div className="p-5 md:p-7 space-y-5">
+
+                    {/* CLASS WORK */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-[30px] p-5">
+
+                      <div className="flex items-center gap-3 mb-4">
+
+                        <div className="w-12 h-12 rounded-[18px] bg-blue-100 flex items-center justify-center text-2xl">
+
+                          📘
+
+                        </div>
+
+                        <div>
+
+                          <p className="text-gray-500 uppercase tracking-[3px] text-xs">
+
+                            CLASS WORK
+
+                          </p>
+
+                          <h3 className="text-[#0B1E4F] text-xl md:text-2xl font-black">
+
+                            Today's Lesson
 
                           </h3>
 
@@ -486,130 +426,73 @@ const ClassReport = () => {
 
                       </div>
 
+                      <p className="text-gray-700 text-base md:text-xl leading-8 whitespace-pre-wrap font-medium">
+
+                        {entry.classWork}
+
+                      </p>
+
                     </div>
 
-                    {/* WORK SECTION */}
-                    <div className="grid md:grid-cols-2 gap-5 p-5 md:p-7 bg-[#f8fbff]">
+                    {/* HOME WORK */}
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-[30px] p-5">
 
-                      {/* CLASS WORK */}
-                      <div className="bg-white border border-blue-100 rounded-[30px] p-5 md:p-7 shadow-sm">
+                      <div className="flex items-center gap-3 mb-4">
 
-                        <div className="flex items-center gap-4 mb-5">
+                        <div className="w-12 h-12 rounded-[18px] bg-emerald-100 flex items-center justify-center text-2xl">
 
-                          <div className="w-14 h-14 rounded-[22px] bg-blue-100 flex items-center justify-center text-3xl">
-
-                            📘
-
-                          </div>
-
-                          <div>
-
-                            <p className="text-gray-500 uppercase tracking-[4px] text-xs mb-1">
-
-                              CLASS WORK
-
-                            </p>
-
-                            <h3 className="text-2xl font-black text-[#0B1E4F]">
-
-                              Today's Lesson
-
-                            </h3>
-
-                          </div>
+                          🏠
 
                         </div>
 
-                        <p className="text-gray-700 leading-9 text-lg md:text-xl font-medium whitespace-pre-wrap">
+                        <div>
 
-                          {entry.classWork}
+                          <p className="text-gray-500 uppercase tracking-[3px] text-xs">
 
-                        </p>
+                            HOME WORK
 
-                      </div>
+                          </p>
 
-                      {/* HOME WORK */}
-                      <div className="bg-white border border-emerald-100 rounded-[30px] p-5 md:p-7 shadow-sm">
+                          <h3 className="text-emerald-700 text-xl md:text-2xl font-black">
 
-                        <div className="flex items-center gap-4 mb-5">
+                            Practice Task
 
-                          <div className="w-14 h-14 rounded-[22px] bg-emerald-100 flex items-center justify-center text-3xl">
-
-                            🏠
-
-                          </div>
-
-                          <div>
-
-                            <p className="text-gray-500 uppercase tracking-[4px] text-xs mb-1">
-
-                              HOME WORK
-
-                            </p>
-
-                            <h3 className="text-2xl font-black text-emerald-700">
-
-                              Practice Task
-
-                            </h3>
-
-                          </div>
+                          </h3>
 
                         </div>
 
-                        <p className="text-gray-700 leading-9 text-lg md:text-xl font-medium whitespace-pre-wrap">
-
-                          {entry.homeWork}
-
-                        </p>
-
                       </div>
+
+                      <p className="text-gray-700 text-base md:text-xl leading-8 whitespace-pre-wrap font-medium">
+
+                        {entry.homeWork}
+
+                      </p>
 
                     </div>
 
                   </div>
 
-                )
-              )}
+                </div>
+
+              ))}
 
             </div>
 
             {/* FOOTER */}
-            <div className="bg-white border-t border-gray-100 px-6 py-6">
+            <div className="bg-white border-t border-gray-100 px-5 py-6 text-center">
 
-              <div className="flex flex-col md:flex-row justify-between items-center gap-5">
+              <h3 className="font-black text-2xl md:text-3xl text-[#0B1E4F]">
 
-                {/* Left */}
-                <div className="text-center md:text-left">
+                RUHAMA UNITED SCHOOL
 
-                  <h3 className="font-black text-2xl text-[#0B1E4F]">
+              </h3>
 
-                    RUHAMA UNITED SCHOOL
+              <p className="text-gray-500 mt-2 text-sm md:text-lg">
 
-                  </h3>
+                Excellence • Discipline • Knowledge
 
-                  <p className="text-gray-500 text-sm mt-2">
-
-                    Excellence • Discipline • Achievement
-
-                  </p>
-
-                </div>
-
-                {/* Signature */}
-                <div className="text-center">
-
-                  <div className="w-44 border-b-2 border-gray-400 mb-2"></div>
-
-                  <p className="text-gray-500 text-sm font-medium">
-
-                    Principal Signature
-
-                  </p>
-
-                </div>
-
-              </div>
+              </p>
 
             </div>
 

@@ -428,79 +428,87 @@ const ClassReport = () => {
                     </div>
 
                     {/* CONTENT */}
-                    <div className="grid md:grid-cols-2 gap-3 p-4">
+                    <div className="p-4">
 
-                      {/* CLASS WORK */}
-                      <div className="bg-blue-50 rounded-[22px] p-4 border border-blue-100">
+                      <div className="grid grid-cols-1 gap-3">
 
-                        <div className="flex items-center gap-2 mb-3">
+                        {/* CLASS WORK */}
+                        <div className="bg-blue-50 rounded-[20px] p-4 border border-blue-100">
 
-                          <div className="w-10 h-10 rounded-[12px] bg-blue-100 flex items-center justify-center text-lg">
+                          <div className="flex items-start gap-3">
 
-                            📘
+                            {/* ICON */}
+                            <div className="w-12 h-12 rounded-[14px] bg-blue-100 flex items-center justify-center text-xl shrink-0">
 
-                          </div>
+                              📘
 
-                          <div>
+                            </div>
 
-                            <p className="text-[10px] tracking-[3px] text-gray-500 uppercase">
+                            {/* TEXT */}
+                            <div className="flex-1 min-w-0">
 
-                              Class Work
+                              <p className="text-[10px] tracking-[3px] text-gray-500 uppercase mb-1">
 
-                            </p>
+                                Class Work
 
-                            <h3 className="text-[#0B1E4F] font-black text-lg">
+                              </p>
 
-                              Lesson
+                              <h3 className="text-[#0B1E4F] font-black text-lg mb-2">
 
-                            </h3>
+                                Today's Lesson
 
-                          </div>
+                              </h3>
 
-                        </div>
+                              <p className="text-gray-700 text-[14px] leading-6 whitespace-pre-wrap font-medium break-words">
 
-                        <p className="text-gray-700 text-[14px] md:text-[15px] leading-6 whitespace-pre-wrap font-medium">
+                                {entry.classWork}
 
-                          {entry.classWork}
+                              </p>
 
-                        </p>
-
-                      </div>
-
-                      {/* HOME WORK */}
-                      <div className="bg-emerald-50 rounded-[22px] p-4 border border-emerald-100">
-
-                        <div className="flex items-center gap-2 mb-3">
-
-                          <div className="w-10 h-10 rounded-[12px] bg-emerald-100 flex items-center justify-center text-lg">
-
-                            🏠
-
-                          </div>
-
-                          <div>
-
-                            <p className="text-[10px] tracking-[3px] text-gray-500 uppercase">
-
-                              Home Work
-
-                            </p>
-
-                            <h3 className="text-emerald-700 font-black text-lg">
-
-                              Task
-
-                            </h3>
+                            </div>
 
                           </div>
 
                         </div>
 
-                        <p className="text-gray-700 text-[14px] md:text-[15px] leading-6 whitespace-pre-wrap font-medium">
+                        {/* HOME WORK */}
+                        <div className="bg-emerald-50 rounded-[20px] p-4 border border-emerald-100">
 
-                          {entry.homeWork}
+                          <div className="flex items-start gap-3">
 
-                        </p>
+                            {/* ICON */}
+                            <div className="w-12 h-12 rounded-[14px] bg-emerald-100 flex items-center justify-center text-xl shrink-0">
+
+                              🏠
+
+                            </div>
+
+                            {/* TEXT */}
+                            <div className="flex-1 min-w-0">
+
+                              <p className="text-[10px] tracking-[3px] text-gray-500 uppercase mb-1">
+
+                                Home Work
+
+                              </p>
+
+                              <h3 className="text-emerald-700 font-black text-lg mb-2">
+
+                                Practice Task
+
+                              </h3>
+
+                              <p className="text-gray-700 text-[14px] leading-6 whitespace-pre-wrap font-medium break-words">
+
+                                {entry.homeWork}
+
+                              </p>
+
+                            </div>
+
+                          </div>
+
+                        </div>
 
                       </div>
 

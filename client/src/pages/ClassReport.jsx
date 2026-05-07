@@ -5,16 +5,20 @@ import api from "../services/api";
 import logo from "../assets/logo.png";
 
 const ClassReport = () => {
+
   const reportRef = useRef();
 
   const [className, setClassName] = useState("");
+
   const [date, setDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
   const [report, setReport] = useState(null);
+
   const [loading, setLoading] = useState(false);
 
+  // CLASSES
   const classes = [
     "Play Group",
     "Nursery",
@@ -26,6 +30,7 @@ const ClassReport = () => {
 
   // GET REPORT
   const getReport = async () => {
+
     if (!className) {
       return alert("Select class");
     }
@@ -33,140 +38,249 @@ const ClassReport = () => {
     setLoading(true);
 
     try {
+
       const res = await api.get(
         `/reports/class-report?className=${className}&date=${date}`
       );
 
       setReport(res.data);
+
     } catch (error) {
-      alert(error.response?.data?.message);
+
+      alert(
+        error.response?.data?.message
+      );
+
     } finally {
+
       setLoading(false);
     }
   };
 
-  // DOWNLOAD
+  // DOWNLOAD IMAGE
   const downloadImage = async () => {
+
     try {
+
       if (!reportRef.current) return;
 
-      const blob = await htmlToImage.toBlob(
-        reportRef.current,
-        {
-          pixelRatio: 2,
-          cacheBust: true,
-          backgroundColor: "#ffffff",
-        }
-      );
+      const dataUrl =
+        await htmlToImage.toPng(
+          reportRef.current,
+          {
+            pixelRatio: 2,
+            cacheBust: true,
+            backgroundColor: "#ffffff",
+          }
+        );
 
-      if (!blob) return;
+      const link =
+        document.createElement("a");
 
-      const url = URL.createObjectURL(blob);
+      link.download =
+        `${report.className}-${report.date}.png`;
 
-      const link = document.createElement("a");
-
-      link.download = `${report.className}-${report.date}.png`;
-
-      link.href = url;
+      link.href = dataUrl;
 
       link.click();
 
-      URL.revokeObjectURL(url);
     } catch (error) {
+
       console.log(error);
     }
   };
 
-  // SHARE
+  // SHARE IMAGE
   const shareImage = async () => {
+
     try {
+
       if (!reportRef.current) return;
 
-      const blob = await htmlToImage.toBlob(
-        reportRef.current,
-        {
-          pixelRatio: 2,
-          cacheBust: true,
-          backgroundColor: "#ffffff",
-        }
-      );
+      const dataUrl =
+        await htmlToImage.toPng(
+          reportRef.current,
+          {
+            pixelRatio: 2,
+            cacheBust: true,
+            backgroundColor: "#ffffff",
+          }
+        );
 
-      if (!blob) return;
+      // CONVERT TO FILE
+      const response =
+        await fetch(dataUrl);
 
-      const file = new File(
-        [blob],
-        "ruhama-report.png",
-        {
-          type: "image/png",
-        }
-      );
+      const blob =
+        await response.blob();
 
+      const file =
+        new File(
+          [blob],
+          "ruhama-report.png",
+          {
+            type: "image/png",
+          }
+        );
+
+      // MOBILE SHARE
       if (
+        navigator.share &&
         navigator.canShare &&
         navigator.canShare({
           files: [file],
         })
       ) {
+
         await navigator.share({
-          title: "RUHAMA UNITED SCHOOL",
-          text: "Daily Academic Report",
+          title:
+            "RUHAMA UNITED SCHOOL",
+
+          text:
+            "Daily Academic Report",
+
           files: [file],
         });
-      } else {
-        alert("Sharing not supported");
+
       }
+
+      // DESKTOP
+      else {
+
+        const newWindow =
+          window.open();
+
+        newWindow.document.write(`
+          <html>
+
+            <head>
+
+              <title>
+                RUHAMA REPORT
+              </title>
+
+              <style>
+
+                body{
+                  margin:0;
+                  padding:40px;
+                  display:flex;
+                  justify-content:center;
+                  align-items:center;
+                  flex-direction:column;
+                  background:#eef2ff;
+                  font-family:sans-serif;
+                }
+
+                img{
+                  width:100%;
+                  max-width:1080px;
+                  border-radius:24px;
+                  box-shadow:0 10px 40px rgba(0,0,0,0.12);
+                }
+
+                a{
+                  margin-top:25px;
+                  background:#07153B;
+                  color:white;
+                  text-decoration:none;
+                  padding:16px 28px;
+                  border-radius:14px;
+                  font-weight:bold;
+                  font-size:18px;
+                }
+
+              </style>
+
+            </head>
+
+            <body>
+
+              <img src="${dataUrl}" />
+
+              <a
+                href="${dataUrl}"
+                download="ruhama-report.png"
+              >
+                Download Image
+              </a>
+
+            </body>
+
+          </html>
+        `);
+      }
+
     } catch (error) {
+
       console.log(error);
     }
   };
 
   return (
+
     <div className="min-h-screen bg-[#eef2ff] px-3 py-6 md:px-6">
 
       {/* TOP PANEL */}
       <div className="max-w-6xl mx-auto bg-white rounded-[28px] border border-slate-200 p-5 md:p-8 shadow-sm mb-6">
 
+        {/* HEADER */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
 
+          {/* LEFT */}
           <div>
 
-            <h1 className="text-3xl md:text-5xl font-black text-[#07153B] leading-tight">
-
-              Premium
-              <br />
-              Class Report
-
-            </h1>
-
-            <p className="mt-2 text-slate-500 text-sm md:text-base">
+            <p className="uppercase tracking-[5px] text-[#1B44D1] text-xs font-bold mb-3">
 
               RUHAMA UNITED SCHOOL
 
             </p>
 
+            <h1 className="text-4xl md:text-6xl font-black text-[#07153B] leading-tight">
+
+              Premium
+              <br />
+              Daily Report
+
+            </h1>
+
+            <p className="mt-4 text-slate-500 text-base md:text-lg leading-relaxed">
+
+              Smart Digital Academic Reporting System
+
+            </p>
+
           </div>
 
-          <div className="bg-[#07153B] text-white px-5 py-4 rounded-2xl">
+          {/* RIGHT */}
+          <div className="bg-gradient-to-br from-[#07153B] to-[#12308f] text-white px-7 py-6 rounded-[24px] shadow-md">
 
-            <h3 className="font-bold text-lg">
-              WhatsApp Ready
-            </h3>
+            <h2 className="text-3xl font-black">
 
-            <p className="text-white/70 text-sm mt-1">
-              Fast HD Export
+              HD Export
+
+            </h2>
+
+            <p className="text-white/70 mt-2">
+
+              WhatsApp & Facebook Ready
+
             </p>
 
           </div>
 
         </div>
 
-        {/* FILTER */}
-        <div className="grid md:grid-cols-3 gap-4 mt-7">
+        {/* FILTERS */}
+        <div className="grid md:grid-cols-3 gap-4 mt-8">
 
+          {/* CLASS */}
           <select
             value={className}
             onChange={(e) =>
-              setClassName(e.target.value)
+              setClassName(
+                e.target.value
+              )
             }
             className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-700 font-semibold outline-none"
           >
@@ -175,35 +289,50 @@ const ClassReport = () => {
               Select Class
             </option>
 
-            {classes.map((item, index) => (
-              <option
-                key={index}
-                value={item}
-              >
-                {item}
-              </option>
-            ))}
+            {classes.map(
+              (
+                item,
+                index
+              ) => (
+
+                <option
+                  key={index}
+                  value={item}
+                >
+
+                  {item}
+
+                </option>
+
+              )
+            )}
 
           </select>
 
+          {/* DATE */}
           <input
             type="date"
             value={date}
             onChange={(e) =>
-              setDate(e.target.value)
+              setDate(
+                e.target.value
+              )
             }
             className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-700 font-semibold outline-none"
           />
 
+          {/* BUTTON */}
           <button
             onClick={getReport}
             disabled={loading}
-            className="bg-[#07153B] hover:bg-[#0B1E4F] transition text-white rounded-2xl font-bold"
+            className="bg-[#07153B] hover:bg-[#0B1E4F] transition-all text-white rounded-2xl font-bold"
           >
 
-            {loading
-              ? "Loading..."
-              : "Generate Report"}
+            {
+              loading
+                ? "Loading..."
+                : "Generate Report"
+            }
 
           </button>
 
@@ -213,23 +342,26 @@ const ClassReport = () => {
 
       {/* REPORT */}
       {report && (
+
         <div className="max-w-6xl mx-auto">
 
           {/* ACTIONS */}
           <div className="grid grid-cols-2 gap-4 mb-5">
 
+            {/* DOWNLOAD */}
             <button
               onClick={downloadImage}
-              className="bg-[#0B1E4F] text-white py-4 rounded-2xl font-bold shadow-sm"
+              className="bg-[#07153B] hover:bg-[#0B1E4F] transition-all text-white py-4 rounded-2xl font-bold shadow-sm"
             >
 
               Download HD
 
             </button>
 
+            {/* SHARE */}
             <button
               onClick={shareImage}
-              className="bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 transition-all text-white py-4 rounded-2xl font-bold shadow-sm"
             >
 
               Share Now
@@ -254,7 +386,8 @@ const ClassReport = () => {
                   {/* LEFT */}
                   <div className="flex items-center gap-6">
 
-                    <div className="bg-white rounded-[24px] p-4 w-28 h-28 flex items-center justify-center">
+                    {/* LOGO */}
+                    <div className="bg-white rounded-[24px] p-4 w-28 h-28 flex items-center justify-center shrink-0">
 
                       <img
                         src={logo}
@@ -264,13 +397,14 @@ const ClassReport = () => {
 
                     </div>
 
+                    {/* TITLE */}
                     <div>
 
-                      <h1 className="text-6xl font-black leading-tight">
+                      <h1 className="text-6xl font-black leading-tight uppercase">
 
-                        RUHAMA
+                        Ruhama
                         <br />
-                        UNITED SCHOOL
+                        United School
 
                       </h1>
 
@@ -294,7 +428,7 @@ const ClassReport = () => {
 
                     </p>
 
-                    <h2 className="text-4xl font-black">
+                    <h2 className="text-4xl font-black break-words">
 
                       {report.className}
 
@@ -307,6 +441,7 @@ const ClassReport = () => {
                 {/* STATS */}
                 <div className="grid grid-cols-2 gap-5 mt-8">
 
+                  {/* DATE */}
                   <div className="bg-white/10 rounded-[24px] p-5">
 
                     <p className="text-white/60 text-sm tracking-[4px] uppercase mb-2">
@@ -323,6 +458,7 @@ const ClassReport = () => {
 
                   </div>
 
+                  {/* SUBJECTS */}
                   <div className="bg-white/10 rounded-[24px] p-5 text-right">
 
                     <p className="text-white/60 text-sm tracking-[4px] uppercase mb-2">
@@ -348,40 +484,60 @@ const ClassReport = () => {
 
                 <div className="overflow-hidden rounded-[24px] border border-slate-200">
 
-                  {/* TABLE HEADER */}
+                  {/* TABLE HEAD */}
                   <div className="grid grid-cols-12 bg-[#07153B] text-white font-bold text-lg">
 
                     <div className="col-span-1 p-5 border-r border-white/10">
+
                       #
+
                     </div>
 
                     <div className="col-span-2 p-5 border-r border-white/10">
+
                       Subject
+
                     </div>
 
                     <div className="col-span-2 p-5 border-r border-white/10">
+
                       Teacher
+
                     </div>
 
                     <div className="col-span-3 p-5 border-r border-white/10">
-                      Today's Lesson
+
+                      Class Work
+
                     </div>
 
                     <div className="col-span-4 p-5">
-                      Practice Task
+
+                      Home Work
+
                     </div>
 
                   </div>
 
                   {/* ROWS */}
                   {report.entries.map(
-                    (entry, index) => (
+                    (
+                      entry,
+                      index
+                    ) => (
+
                       <div
                         key={index}
-                        className="grid grid-cols-12 border-t border-slate-200 text-slate-700"
+                        className={`grid grid-cols-12 border-t border-slate-200
+                        ${
+                          index % 2 === 0
+                            ? "bg-white"
+                            : "bg-slate-50"
+                        }`}
                       >
 
-                        <div className="col-span-1 p-5 font-black text-[#07153B] text-xl border-r border-slate-200">
+                        {/* NUMBER */}
+                        <div className="col-span-1 p-5 border-r border-slate-200 font-black text-[#07153B] text-xl">
 
                           {(index + 1)
                             .toString()
@@ -389,31 +545,52 @@ const ClassReport = () => {
 
                         </div>
 
-                        <div className="col-span-2 p-5 font-bold text-[#07153B] text-xl border-r border-slate-200">
+                        {/* SUBJECT */}
+                        <div className="col-span-2 p-5 border-r border-slate-200">
 
-                          {entry.subject}
+                          <h2 className="text-[#07153B] font-black text-xl leading-8">
 
-                        </div>
+                            {entry.subject}
 
-                        <div className="col-span-2 p-5 font-semibold border-r border-slate-200 leading-7">
-
-                          {entry.teacherId?.name}
-
-                        </div>
-
-                        <div className="col-span-3 p-5 border-r border-slate-200 leading-8 whitespace-pre-wrap">
-
-                          {entry.classWork}
+                          </h2>
 
                         </div>
 
-                        <div className="col-span-4 p-5 leading-8 whitespace-pre-wrap">
+                        {/* TEACHER */}
+                        <div className="col-span-2 p-5 border-r border-slate-200">
 
-                          {entry.homeWork}
+                          <p className="text-slate-700 font-semibold leading-7">
+
+                            {entry.teacherId?.name}
+
+                          </p>
+
+                        </div>
+
+                        {/* CLASS WORK */}
+                        <div className="col-span-3 p-5 border-r border-slate-200">
+
+                          <p className="text-slate-700 leading-8 whitespace-pre-wrap break-words">
+
+                            {entry.classWork}
+
+                          </p>
+
+                        </div>
+
+                        {/* HOME WORK */}
+                        <div className="col-span-4 p-5">
+
+                          <p className="text-slate-700 leading-8 whitespace-pre-wrap break-words">
+
+                            {entry.homeWork}
+
+                          </p>
 
                         </div>
 
                       </div>
+
                     )
                   )}
 
@@ -424,8 +601,9 @@ const ClassReport = () => {
               {/* FOOTER */}
               <div className="bg-[#f8faff] border-t border-slate-200 px-10 py-8">
 
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
 
+                  {/* LEFT */}
                   <div>
 
                     <h2 className="text-4xl font-black text-[#07153B]">
@@ -442,6 +620,7 @@ const ClassReport = () => {
 
                   </div>
 
+                  {/* RIGHT */}
                   <div className="text-center">
 
                     <div className="w-60 border-b-2 border-slate-400 mb-3"></div>
@@ -463,6 +642,7 @@ const ClassReport = () => {
           </div>
 
         </div>
+
       )}
 
     </div>

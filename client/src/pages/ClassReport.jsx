@@ -25,9 +25,12 @@ const ClassReport = () => {
         "Play Group",
         "Nursery",
         "KG",
-        "Class 1",
-        "Class 2",
-        "Class 3",
+        "STD-I",
+        "STD-II",
+        "STD-III",
+        "STD-IV",
+        "STD-V",
+
     ];
 
     // GET REPORT
@@ -429,11 +432,15 @@ const ClassReport = () => {
                                                 United School
 
                                             </h1>
+                                            <h1 className="text-xl text-yellow-300 leading-tight">
+
+                                                An English Version School with Tahfizul Quran
+
+                                            </h1>
 
                                             <p className="mt-4 text-white/70 text-2xl">
 
-                                                Smart Digital Diary &
-                                                Academic Reporting System
+                                                Change yourself, Decorate the world
 
                                             </p>
 
@@ -509,31 +516,31 @@ const ClassReport = () => {
                                     {/* TABLE HEAD */}
                                     <div className="grid grid-cols-12 bg-[#07153B] text-white font-bold text-lg">
 
-                                        <div className="col-span-1 p-5 border-r border-white/10">
+                                        <div className="col-span-1 text-center p-5 border-r border-white/10">
 
                                             #
 
                                         </div>
 
-                                        <div className="col-span-2 p-5 border-r border-white/10">
+                                        <div className="col-span-2 p-5 text-center border-r border-white/10">
 
                                             Subject
 
                                         </div>
 
-                                        <div className="col-span-2 p-5 border-r border-white/10">
+                                        <div className="col-span-2 text-center p-5 border-r border-white/10">
 
                                             Teacher
 
                                         </div>
 
-                                        <div className="col-span-3 p-5 border-r border-white/10">
+                                        <div className="col-span-3 text-center p-5 border-r border-white/10">
 
                                             Class Work
 
                                         </div>
 
-                                        <div className="col-span-4 p-5">
+                                        <div className="col-span-4 text-center p-5">
 
                                             Home Work
 
@@ -569,7 +576,7 @@ const ClassReport = () => {
                                                 {/* SUBJECT */}
                                                 <div className="col-span-2 p-5 border-r border-slate-200">
 
-                                                    <h2 className="text-[#07153B] font-black text-xl leading-8">
+                                                    <h2 className="text-[#07153B] text-center font-black text-xl leading-8">
 
                                                         {entry.subject}
 
@@ -578,7 +585,7 @@ const ClassReport = () => {
                                                 </div>
 
                                                 {/* TEACHER */}
-                                                <div className="col-span-2 p-5 border-r border-slate-200">
+                                                <div className="col-span-2 text-center p-5 border-r border-slate-200">
 
                                                     <p className="text-slate-700 font-semibold leading-7">
 
@@ -589,7 +596,7 @@ const ClassReport = () => {
                                                 </div>
 
                                                 {/* CLASS WORK */}
-                                                <div className="col-span-3 p-5 border-r border-slate-200">
+                                                <div className="col-span-3 text-center p-5 border-r border-slate-200">
 
                                                     <p className="text-slate-700 leading-8 whitespace-pre-wrap break-words">
 
@@ -602,7 +609,7 @@ const ClassReport = () => {
                                                 {/* HOME WORK */}
                                                 <div className="col-span-4 p-5">
 
-                                                    <p className="text-slate-700 leading-8 whitespace-pre-wrap break-words">
+                                                    <p className="text-slate-700 text-center leading-8 whitespace-pre-wrap break-words">
 
                                                         {entry.homeWork}
 
@@ -620,32 +627,36 @@ const ClassReport = () => {
                             </div>
 
                             {/* FOOTER */}
-                            <div className="bg-[#f8faff] border-t border-slate-200 px-10 py-8">
+                            {/* <div className="bg-[#f8faff] border-t border-slate-200 px-10 py-8"> */}
 
-                                <div className="flex items-center justify-between">
+                                {/* <div className="flex items-center justify-between"> */}
 
                                     {/* LEFT */}
-                                    <div>
-
-                                        <h2 className="text-4xl font-black text-[#07153B]">
-
-                                            RUHAMA UNITED SCHOOL
-
-                                        </h2>
-
-                                        <p className="text-slate-500 mt-2 text-lg">
-
-                                            Excellence • Discipline • Achievement
-
-                                        </p>
-
-                                    </div>
-
-                                    {/* RIGHT */}
-                                    <div className="text-center">
-
+                                    {/* <div className="text-center"> */}
+                                        {/* <img */}
+                                            {/* src={logo}
+                                            alt="logo"
+                                            className="w-full h-full object-contain" */}
+                                        {/* /> */}
+{/* 
                                         <div className="w-60 border-b-2 border-slate-400 mb-3"></div>
 
+                                        <p className="text-slate-500">
+
+                                            Incharge Signature
+
+                                        </p> */}
+
+                                    {/* </div> */}
+
+                                    {/* RIGHT */}
+                                    {/* <div className="text-center"> */}
+                                        {/* <img
+                                            src={logo}
+                                            alt="logo"
+                                            className="w-full h-full object-contain"
+                                        /> */}
+                                        {/* <div className="w-60 border-b-2 border-slate-400 mb-3"></div>
                                         <p className="text-slate-500">
 
                                             Principal Signature
@@ -656,7 +667,7 @@ const ClassReport = () => {
 
                                 </div>
 
-                            </div>
+                            </div> */}
 
                         </div>
 

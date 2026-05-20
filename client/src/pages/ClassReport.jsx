@@ -432,15 +432,14 @@ const ClassReport = () => {
                                                 United School
 
                                             </h1>
-                                            <h1 className="text-xl text-yellow-300 leading-tight">
-
-                                                An English Version School with Tahfizul Quran
+                                            <h1 className="text-2xl text-yellow-300 leading-tight">
+                                                Change yourself, Decorate the world
 
                                             </h1>
 
                                             <p className="mt-4 text-white/70 text-2xl">
 
-                                                Change yourself, Decorate the world
+                                                An English Version School with Tahfizul Quran
 
                                             </p>
 
@@ -629,16 +628,16 @@ const ClassReport = () => {
                             {/* FOOTER */}
                             {/* <div className="bg-[#f8faff] border-t border-slate-200 px-10 py-8"> */}
 
-                                {/* <div className="flex items-center justify-between"> */}
+                            {/* <div className="flex items-center justify-between"> */}
 
-                                    {/* LEFT */}
-                                    {/* <div className="text-center"> */}
-                                        {/* <img */}
-                                            {/* src={logo}
+                            {/* LEFT */}
+                            {/* <div className="text-center"> */}
+                            {/* <img */}
+                            {/* src={logo}
                                             alt="logo"
                                             className="w-full h-full object-contain" */}
-                                        {/* /> */}
-{/* 
+                            {/* /> */}
+                            {/* 
                                         <div className="w-60 border-b-2 border-slate-400 mb-3"></div>
 
                                         <p className="text-slate-500">
@@ -647,16 +646,16 @@ const ClassReport = () => {
 
                                         </p> */}
 
-                                    {/* </div> */}
+                            {/* </div> */}
 
-                                    {/* RIGHT */}
-                                    {/* <div className="text-center"> */}
-                                        {/* <img
+                            {/* RIGHT */}
+                            {/* <div className="text-center"> */}
+                            {/* <img
                                             src={logo}
                                             alt="logo"
                                             className="w-full h-full object-contain"
                                         /> */}
-                                        {/* <div className="w-60 border-b-2 border-slate-400 mb-3"></div>
+                            {/* <div className="w-60 border-b-2 border-slate-400 mb-3"></div>
                                         <p className="text-slate-500">
 
                                             Principal Signature

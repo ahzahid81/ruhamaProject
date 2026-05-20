@@ -46,6 +46,7 @@ const Teachers = () => {
     "BGS",
     "Science",
     "MDP",
+    "Islamic Studies",
   ];
 
 

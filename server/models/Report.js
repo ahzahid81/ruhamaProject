@@ -8,6 +8,13 @@ const entrySchema = new mongoose.Schema({
     ref: "Teacher",
   },
 
+  // ACTUAL TEACHER WHO TOOK THE CLASS
+  takenBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Teacher",
+    default: null,
+  },
+
   classWork: String,
 
   homeWork: String,
@@ -20,6 +27,7 @@ const reportSchema = new mongoose.Schema(
     date: String,
 
     entries: [entrySchema],
+
   },
   {
     timestamps: true,

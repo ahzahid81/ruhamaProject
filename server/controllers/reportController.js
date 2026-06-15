@@ -10,6 +10,7 @@ const createEntry = async (req, res) => {
             date,
             subject,
             teacherId,
+            takenBy,
             classWork,
             homeWork,
         } = req.body;
@@ -48,6 +49,7 @@ const createEntry = async (req, res) => {
         report.entries.push({
             subject,
             teacherId,
+            takenBy,
             classWork,
             homeWork,
         });
@@ -84,10 +86,15 @@ const getClassReport = async (
             await Report.findOne({
                 className,
                 date,
-            }).populate(
-                "entries.teacherId",
-                "name"
-            );
+            })
+                .populate(
+                    "entries.teacherId",
+                    "name"
+                )
+                .populate(
+                    "entries.takenBy",
+                    "name"
+                );
 
         if (!report) {
 
@@ -116,6 +123,10 @@ const getAllReports = async (
             await Report.find()
                 .populate(
                     "entries.teacherId",
+                    "name"
+                )
+                .populate(
+                    "entries.takenBy",
                     "name"
                 )
                 .sort({

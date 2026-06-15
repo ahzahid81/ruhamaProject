@@ -12,6 +12,9 @@ const getTeachers = async (
 
     const teachers =
       await Teacher.find()
+        .select(
+          "_id name role assignments"
+        )
         .sort({
           createdAt: -1,
         });

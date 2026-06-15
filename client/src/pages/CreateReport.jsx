@@ -1,3 +1,4 @@
+import ProxyReport from "./ProxyReport";
 import {
   useEffect,
   useState,
@@ -41,6 +42,10 @@ const CreateReport = () => {
   const [loading,
     setLoading] =
     useState(false);
+
+  const [activeTab,
+    setActiveTab] =
+    useState("my");
 
 
   // LOAD ASSIGNMENTS
@@ -179,327 +184,377 @@ const CreateReport = () => {
 
       </div>
 
-      {/* ASSIGNMENTS */}
-      <div className="mb-6">
+      {/* TABS */}
+      <div className="bg-white rounded-[30px] p-2 shadow-sm mb-6 flex gap-2">
 
-        <div className="flex items-center justify-between mb-5">
+        <button
+          type="button"
+          onClick={() =>
+            setActiveTab("my")
+          }
+          className={`flex-1 py-4 rounded-[22px] font-bold transition
 
-          <h2 className="text-2xl md:text-4xl font-black text-[#0B1E4F]">
+      ${activeTab === "my"
+              ? "bg-[#07153B] text-white"
+              : "bg-gray-100 text-gray-700"
+            }`}
+        >
 
-            Select Subject
+          My Classes
 
-          </h2>
+        </button>
 
-          <div className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full font-bold text-sm">
+        <button
+          type="button"
+          onClick={() =>
+            setActiveTab("proxy")
+          }
+          className={`flex-1 py-4 rounded-[22px] font-bold transition
 
-            {assignments.length}
-            {" "}
-            Assignments
+      ${activeTab === "proxy"
+              ? "bg-[#07153B] text-white"
+              : "bg-gray-100 text-gray-700"
+            }`}
+        >
 
-          </div>
+          Proxy Classes
 
-        </div>
+        </button>
 
-        {/* Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      </div>
 
-          {assignments.map(
-            (
-              item,
-              index
-            ) => (
 
-              <button
-                key={index}
-                type="button"
-                onClick={() =>
-                  setSelectedAssignment(
-                    item
-                  )
-                }
-                className={`text-left rounded-[30px] p-5 border transition-all duration-300 shadow-sm
+      {activeTab === "my" && (
+
+        <>
+          {/* ASSIGNMENTS */}
+
+          <div className="mb-6">
+
+            <div className="flex items-center justify-between mb-5">
+
+              <h2 className="text-2xl md:text-4xl font-black text-[#0B1E4F]">
+
+                Select Subject
+
+              </h2>
+
+              <div className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full font-bold text-sm">
+
+                {assignments.length}
+                {" "}
+                Assignments
+
+              </div>
+
+            </div>
+
+            {/* Cards */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+              {assignments.map(
+                (
+                  item,
+                  index
+                ) => (
+
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() =>
+                      setSelectedAssignment(
+                        item
+                      )
+                    }
+                    className={`text-left rounded-[30px] p-5 border transition-all duration-300 shadow-sm
                     
-                    ${
-                      selectedAssignment
+                    ${selectedAssignment
                         ?.subject ===
                         item.subject &&
-                      selectedAssignment
-                        ?.className ===
+                        selectedAssignment
+                          ?.className ===
                         item.className
 
                         ? "bg-gradient-to-br from-[#07153B] to-[#142f7a] text-white scale-[1.02] border-transparent shadow-2xl"
 
                         : "bg-white hover:shadow-xl border-gray-100"
-                    }`}
-              >
+                      }`}
+                  >
 
-                <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start">
 
-                  <div>
+                      <div>
 
-                    <p
-                      className={`uppercase tracking-[4px] text-xs mb-2
+                        <p
+                          className={`uppercase tracking-[4px] text-xs mb-2
                         
-                        ${
-                          selectedAssignment
+                        ${selectedAssignment
+                              ?.subject ===
+                              item.subject &&
+                              selectedAssignment
+                                ?.className ===
+                              item.className
+
+                              ? "text-white/60"
+
+                              : "text-gray-400"
+                            }`}
+                        >
+
+                          Subject
+
+                        </p>
+
+                        <h2 className="text-3xl font-black">
+
+                          {item.subject}
+
+                        </h2>
+
+                      </div>
+
+                      <div
+                        className={`w-14 h-14 rounded-[20px] flex items-center justify-center text-2xl
+                      
+                      ${selectedAssignment
                             ?.subject ===
                             item.subject &&
-                          selectedAssignment
-                            ?.className ===
+                            selectedAssignment
+                              ?.className ===
+                            item.className
+
+                            ? "bg-white/10"
+
+                            : "bg-blue-100"
+                          }`}
+                      >
+
+                        📘
+
+                      </div>
+
+                    </div>
+
+                    <div className="mt-6">
+
+                      <p
+                        className={`uppercase tracking-[4px] text-xs mb-2
+                      
+                      ${selectedAssignment
+                            ?.subject ===
+                            item.subject &&
+                            selectedAssignment
+                              ?.className ===
                             item.className
 
                             ? "text-white/60"
 
                             : "text-gray-400"
-                        }`}
-                    >
+                          }`}
+                      >
 
-                      Subject
+                        Class
+
+                      </p>
+
+                      <h3 className="text-xl font-bold">
+
+                        {item.className}
+
+                      </h3>
+
+                    </div>
+
+                  </button>
+
+                )
+              )}
+
+            </div>
+
+          </div>
+
+          {/* FORM */}
+          {selectedAssignment && (
+
+            <form
+              onSubmit={handleSubmit}
+              className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden"
+            >
+
+              {/* TOP */}
+              <div className="bg-gradient-to-r from-[#0B1E4F] to-[#142f7a] p-6 md:p-8 text-white">
+
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+
+                  <div>
+
+                    <p className="uppercase tracking-[4px] text-xs text-white/60 mb-2">
+
+                      Creating Report For
 
                     </p>
 
-                    <h2 className="text-3xl font-black">
+                    <h1 className="text-3xl md:text-5xl font-black">
 
-                      {item.subject}
+                      {
+                        selectedAssignment.subject
+                      }
 
-                    </h2>
+                    </h1>
+
+                    <p className="mt-3 text-white/70 text-lg">
+
+                      {
+                        selectedAssignment.className
+                      }
+
+                    </p>
 
                   </div>
 
-                  <div
-                    className={`w-14 h-14 rounded-[20px] flex items-center justify-center text-2xl
-                      
-                      ${
-                        selectedAssignment
-                          ?.subject ===
-                          item.subject &&
-                        selectedAssignment
-                          ?.className ===
-                          item.className
+                  {/* Date */}
+                  <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[25px] p-5 min-w-[220px]">
 
-                          ? "bg-white/10"
+                    <p className="uppercase tracking-[4px] text-xs text-white/60 mb-2">
 
-                          : "bg-blue-100"
-                      }`}
-                  >
+                      Date
 
-                    📘
+                    </p>
+
+                    <input
+                      type="date"
+                      className="bg-transparent outline-none text-xl font-bold w-full"
+                      value={date}
+                      onChange={(e) =>
+                        setDate(
+                          e.target.value
+                        )
+                      }
+                    />
 
                   </div>
 
                 </div>
 
-                <div className="mt-6">
+              </div>
 
-                  <p
-                    className={`uppercase tracking-[4px] text-xs mb-2
-                      
-                      ${
-                        selectedAssignment
-                          ?.subject ===
-                          item.subject &&
-                        selectedAssignment
-                          ?.className ===
-                          item.className
+              {/* BODY */}
+              <div className="p-5 md:p-8 space-y-6 bg-[#f8fbff]">
 
-                          ? "text-white/60"
+                {/* CLASS WORK */}
+                <div className="bg-white rounded-[35px] border border-blue-100 p-5 md:p-7 shadow-sm">
 
-                          : "text-gray-400"
-                      }`}
-                  >
+                  <div className="flex items-center gap-4 mb-5">
 
-                    Class
+                    <div className="w-16 h-16 rounded-[24px] bg-blue-100 flex items-center justify-center text-3xl">
 
-                  </p>
+                      📘
 
-                  <h3 className="text-xl font-bold">
+                    </div>
 
-                    {item.className}
+                    <div>
 
-                  </h3>
+                      <p className="uppercase tracking-[4px] text-xs text-gray-400 mb-2">
+
+                        Class Work
+
+                      </p>
+
+                      <h2 className="text-3xl font-black text-[#0B1E4F]">
+
+                        Today's Lesson
+
+                      </h2>
+
+                    </div>
+
+                  </div>
+
+                  <textarea
+                    rows={7}
+                    placeholder="Write today's class lesson..."
+                    className="w-full bg-[#f8fbff] border border-gray-200 rounded-[28px] p-5 outline-none resize-none text-lg leading-9 font-medium"
+                    value={classWork}
+                    onChange={(e) =>
+                      setClassWork(
+                        e.target.value
+                      )
+                    }
+                  />
 
                 </div>
 
-              </button>
+                {/* HOME WORK */}
+                <div className="bg-white rounded-[35px] border border-emerald-100 p-5 md:p-7 shadow-sm">
 
-            )
+                  <div className="flex items-center gap-4 mb-5">
+
+                    <div className="w-16 h-16 rounded-[24px] bg-emerald-100 flex items-center justify-center text-3xl">
+
+                      🏠
+
+                    </div>
+
+                    <div>
+
+                      <p className="uppercase tracking-[4px] text-xs text-gray-400 mb-2">
+
+                        Home Work
+
+                      </p>
+
+                      <h2 className="text-3xl font-black text-emerald-700">
+
+                        Practice Task
+
+                      </h2>
+
+                    </div>
+
+                  </div>
+
+                  <textarea
+                    rows={7}
+                    placeholder="Write homework or practice tasks..."
+                    className="w-full bg-[#f8fbff] border border-gray-200 rounded-[28px] p-5 outline-none resize-none text-lg leading-9 font-medium"
+                    value={homeWork}
+                    onChange={(e) =>
+                      setHomeWork(
+                        e.target.value
+                      )
+                    }
+                  />
+
+                </div>
+
+                {/* SUBMIT */}
+                <button
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-[#07153B] via-[#0B1E4F] to-[#142f7a] hover:scale-[1.01] transition-all duration-300 text-white py-5 rounded-[30px] font-black text-xl shadow-2xl"
+                >
+
+                  {
+                    loading
+                      ? "Creating Report..."
+                      : "Create Premium Report"
+                  }
+
+                </button>
+
+              </div>
+
+            </form>
+
           )}
 
-        </div>
+        </>
 
-      </div>
+      )}
 
-      {/* FORM */}
-      {selectedAssignment && (
+      {activeTab === "proxy" && (
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden"
-        >
-
-          {/* TOP */}
-          <div className="bg-gradient-to-r from-[#0B1E4F] to-[#142f7a] p-6 md:p-8 text-white">
-
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-
-              <div>
-
-                <p className="uppercase tracking-[4px] text-xs text-white/60 mb-2">
-
-                  Creating Report For
-
-                </p>
-
-                <h1 className="text-3xl md:text-5xl font-black">
-
-                  {
-                    selectedAssignment.subject
-                  }
-
-                </h1>
-
-                <p className="mt-3 text-white/70 text-lg">
-
-                  {
-                    selectedAssignment.className
-                  }
-
-                </p>
-
-              </div>
-
-              {/* Date */}
-              <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[25px] p-5 min-w-[220px]">
-
-                <p className="uppercase tracking-[4px] text-xs text-white/60 mb-2">
-
-                  Date
-
-                </p>
-
-                <input
-                  type="date"
-                  className="bg-transparent outline-none text-xl font-bold w-full"
-                  value={date}
-                  onChange={(e) =>
-                    setDate(
-                      e.target.value
-                    )
-                  }
-                />
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* BODY */}
-          <div className="p-5 md:p-8 space-y-6 bg-[#f8fbff]">
-
-            {/* CLASS WORK */}
-            <div className="bg-white rounded-[35px] border border-blue-100 p-5 md:p-7 shadow-sm">
-
-              <div className="flex items-center gap-4 mb-5">
-
-                <div className="w-16 h-16 rounded-[24px] bg-blue-100 flex items-center justify-center text-3xl">
-
-                  📘
-
-                </div>
-
-                <div>
-
-                  <p className="uppercase tracking-[4px] text-xs text-gray-400 mb-2">
-
-                    Class Work
-
-                  </p>
-
-                  <h2 className="text-3xl font-black text-[#0B1E4F]">
-
-                    Today's Lesson
-
-                  </h2>
-
-                </div>
-
-              </div>
-
-              <textarea
-                rows={7}
-                placeholder="Write today's class lesson..."
-                className="w-full bg-[#f8fbff] border border-gray-200 rounded-[28px] p-5 outline-none resize-none text-lg leading-9 font-medium"
-                value={classWork}
-                onChange={(e) =>
-                  setClassWork(
-                    e.target.value
-                  )
-                }
-              />
-
-            </div>
-
-            {/* HOME WORK */}
-            <div className="bg-white rounded-[35px] border border-emerald-100 p-5 md:p-7 shadow-sm">
-
-              <div className="flex items-center gap-4 mb-5">
-
-                <div className="w-16 h-16 rounded-[24px] bg-emerald-100 flex items-center justify-center text-3xl">
-
-                  🏠
-
-                </div>
-
-                <div>
-
-                  <p className="uppercase tracking-[4px] text-xs text-gray-400 mb-2">
-
-                    Home Work
-
-                  </p>
-
-                  <h2 className="text-3xl font-black text-emerald-700">
-
-                    Practice Task
-
-                  </h2>
-
-                </div>
-
-              </div>
-
-              <textarea
-                rows={7}
-                placeholder="Write homework or practice tasks..."
-                className="w-full bg-[#f8fbff] border border-gray-200 rounded-[28px] p-5 outline-none resize-none text-lg leading-9 font-medium"
-                value={homeWork}
-                onChange={(e) =>
-                  setHomeWork(
-                    e.target.value
-                  )
-                }
-              />
-
-            </div>
-
-            {/* SUBMIT */}
-            <button
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-[#07153B] via-[#0B1E4F] to-[#142f7a] hover:scale-[1.01] transition-all duration-300 text-white py-5 rounded-[30px] font-black text-xl shadow-2xl"
-            >
-
-              {
-                loading
-                  ? "Creating Report..."
-                  : "Create Premium Report"
-              }
-
-            </button>
-
-          </div>
-
-        </form>
+        <ProxyReport />
 
       )}
 

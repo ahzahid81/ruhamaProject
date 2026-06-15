@@ -564,7 +564,7 @@ const ClassReport = () => {
                                             >
 
                                                 {/* NUMBER */}
-                                                <div className="col-span-1 p-5 border-r border-slate-200 font-black text-[#07153B] text-xl">
+                                                <div className=" col-span-1 p-5 border-r border-slate-200 font-black text-[#07153B] text-xl text-center items-center">
 
                                                     {(index + 1)
                                                         .toString()
@@ -588,7 +588,20 @@ const ClassReport = () => {
 
                                                     <p className="text-slate-700 font-semibold leading-7">
 
-                                                        {entry.teacherId?.name}
+                                                        {entry.teacherId?.name} <br></br>
+                                                        {entry.takenBy &&
+                                                            entry.takenBy?._id !==
+                                                            entry.teacherId?._id && (
+
+                                                                <p className="text-orange-600 text-sm font-bold mt-2">
+
+                                                                    Taken By:
+                                                                    {" "}
+                                                                    {entry.takenBy?.name}
+
+                                                                </p>
+
+                                                            )}
 
                                                     </p>
 

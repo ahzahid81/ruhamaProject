@@ -440,6 +440,10 @@ const Teachers = () => {
                 Admin
               </option>
 
+              <option value="account-manager">
+                Account Manager
+              </option>
+
             </select>
 
           </div>

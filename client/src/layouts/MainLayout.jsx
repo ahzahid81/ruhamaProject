@@ -86,7 +86,7 @@ const MainLayout = () => {
 
           <p className="text-gray-500 mt-2">
 
-            Daily Report System 
+            Daily Report System
 
           </p>
 
@@ -103,11 +103,10 @@ const MainLayout = () => {
                 to={item.path}
                 className={`flex items-center gap-4 p-4 rounded-2xl transition font-medium
                   
-                  ${
-                    location.pathname ===
+                  ${location.pathname ===
                     item.path
-                      ? "bg-emerald-600 text-white shadow-lg"
-                      : "hover:bg-gray-100 text-gray-700"
+                    ? "bg-emerald-600 text-white shadow-lg"
+                    : "hover:bg-gray-100 text-gray-700"
                   }`}
               >
 
@@ -127,7 +126,14 @@ const MainLayout = () => {
 
             )
           )}
+          <button
+            onClick={handleLogout}
+            className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-2xl font-semibold"
+          >
 
+            Logout
+
+          </button>
         </div>
 
         {/* User */}
@@ -152,11 +158,10 @@ const MainLayout = () => {
               <span
                 className={`px-4 py-2 rounded-full text-sm font-medium
                   
-                  ${
-                    teacher?.role ===
+                  ${teacher?.role ===
                     "admin"
-                      ? "bg-purple-100 text-purple-700"
-                      : "bg-blue-100 text-blue-700"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-blue-100 text-blue-700"
                   }`}
               >
 
@@ -222,12 +227,11 @@ const MainLayout = () => {
       <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t shadow-lg z-50">
 
         <div
-          className={`grid ${
-            teacher?.role ===
+          className={`grid ${teacher?.role ===
             "admin"
-              ? "grid-cols-5"
-              : "grid-cols-3"
-          }`}
+            ? "grid-cols-5"
+            : "grid-cols-3"
+            }`}
         >
 
           {navItems.map(
@@ -238,12 +242,11 @@ const MainLayout = () => {
                 to={item.path}
                 className={`flex flex-col items-center justify-center py-4 transition
                     
-                    ${
-                      location.pathname ===
-                      item.path
-                        ? "text-emerald-600"
-                        : "text-gray-500"
-                    }`}
+                    ${location.pathname ===
+                    item.path
+                    ? "text-emerald-600"
+                    : "text-gray-500"
+                  }`}
               >
 
                 <span className="text-2xl">

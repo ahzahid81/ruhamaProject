@@ -32,6 +32,7 @@ const teacherSchema =
         enum: [
           "admin",
           "teacher",
+          "account-manager",
         ],
 
         default: "teacher",

@@ -7,6 +7,7 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
+const studentRoutes = require("./routes/studentRoutes");
 
 dotenv.config();
 
@@ -29,6 +30,11 @@ app.use("/api/reports", reportRoutes);
 app.use(
   "/api/teachers",
   teacherRoutes
+);
+
+app.use(
+  "/api/students",
+  studentRoutes
 );
 
 

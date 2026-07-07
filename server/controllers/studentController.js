@@ -488,6 +488,11 @@ const importStudents = async (req, res) => {
                     }
                 );
 
+
+                const admissionNo =
+                    await generateAdmissionNo(
+                        "2026"
+                    );
                 // --------------------------
                 // CREATE
                 // --------------------------
@@ -499,7 +504,7 @@ const importStudents = async (req, res) => {
                     password:
                         hashedPassword,
 
-                    admissionNo: "",
+                    admissionNo,
 
                     name,
 
@@ -634,205 +639,205 @@ const importStudents = async (req, res) => {
 // ======================================================
 
 const createStudent = async (req, res) => {
-  try {
+    try {
 
-    const {
-      name,
-      photo,
-      roll,
-      className,
-      section = "A",
-      session = "2026",
-      studentType = "Regular",
+        const {
+            name,
+            photo,
+            roll,
+            className,
+            section = "A",
+            session = "2026",
+            studentType = "Regular",
 
-      gender,
-      religion = "Islam",
-      bloodGroup = "",
-      nationality = "Bangladeshi",
-      dateOfBirth,
+            gender,
+            religion = "Islam",
+            bloodGroup = "",
+            nationality = "Bangladeshi",
+            dateOfBirth,
 
-      fatherName,
-      fatherMobile,
+            fatherName,
+            fatherMobile,
 
-      motherName = "",
-      motherMobile = "",
+            motherName = "",
+            motherMobile = "",
 
-      guardianName = "",
-      guardianRelation = "",
-      guardianMobile = "",
+            guardianName = "",
+            guardianRelation = "",
+            guardianMobile = "",
 
-      emergencyContact = "",
+            emergencyContact = "",
 
-      presentAddress = "",
-      permanentAddress = "",
+            presentAddress = "",
+            permanentAddress = "",
 
-      admissionDate,
+            admissionDate,
 
-      remarks = "",
-    } = req.body;
+            remarks = "",
+        } = req.body;
 
-    // ==========================
-    // VALIDATION
-    // ==========================
+        // ==========================
+        // VALIDATION
+        // ==========================
 
-    if (
-      !name ||
-      !className ||
-      !gender ||
-      !fatherName ||
-      !fatherMobile
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Please fill all required fields.",
-      });
-    }
+        if (
+            !name ||
+            !className ||
+            !gender ||
+            !fatherName ||
+            !fatherMobile
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Please fill all required fields.",
+            });
+        }
 
-    // ==========================
-    // DUPLICATE ROLL
-    // ==========================
+        // ==========================
+        // DUPLICATE ROLL
+        // ==========================
 
-    if (roll && Number(roll) > 0) {
+        if (roll && Number(roll) > 0) {
 
-      const duplicateRoll =
-        await Student.findOne({
-          className,
-          section,
-          session,
-          roll,
+            const duplicateRoll =
+                await Student.findOne({
+                    className,
+                    section,
+                    session,
+                    roll,
+                });
+
+            if (duplicateRoll) {
+
+                return res.status(400).json({
+                    success: false,
+                    message: "Roll already exists.",
+                });
+
+            }
+
+        }
+
+        // ==========================
+        // STUDENT ID
+        // ==========================
+
+        const studentId =
+            await generateStudentId(
+                className,
+                gender,
+                session
+            );
+
+        // ==========================
+        // ADMISSION NO
+        // ==========================
+
+        const admissionNo =
+            await generateAdmissionNo(
+                session
+            );
+
+        // ==========================
+        // PASSWORD
+        // ==========================
+
+        const hashedPassword =
+            await bcrypt.hash(
+                fatherMobile,
+                10
+            );
+
+        // ==========================
+        // SAVE
+        // ==========================
+
+        const student =
+            await Student.create({
+
+                studentId,
+
+                admissionNo,
+
+                password:
+                    hashedPassword,
+
+                name,
+
+                photo,
+
+                roll:
+                    Number(roll) || 0,
+
+                className,
+
+                section,
+
+                session,
+
+                studentType,
+
+                gender,
+
+                religion,
+
+                bloodGroup,
+
+                nationality,
+
+                dateOfBirth,
+
+                fatherName,
+
+                fatherMobile,
+
+                motherName,
+
+                motherMobile,
+
+                guardianName,
+
+                guardianRelation,
+
+                guardianMobile,
+
+                emergencyContact,
+
+                presentAddress,
+
+                permanentAddress,
+
+                admissionDate,
+
+                remarks,
+
+                status: "Active",
+
+            });
+
+        return res.status(201).json({
+
+            success: true,
+
+            message: "Student created successfully.",
+
+            student,
+
         });
 
-      if (duplicateRoll) {
-
-        return res.status(400).json({
-          success: false,
-          message: "Roll already exists.",
-        });
-
-      }
-
     }
 
-    // ==========================
-    // STUDENT ID
-    // ==========================
+    catch (error) {
 
-    const studentId =
-      await generateStudentId(
-        className,
-        gender,
-        session
-      );
+        return res.status(500).json({
 
-    // ==========================
-    // ADMISSION NO
-    // ==========================
+            success: false,
 
-    const admissionNo =
-      await generateAdmissionNo(
-        session
-      );
+            message: error.message,
 
-    // ==========================
-    // PASSWORD
-    // ==========================
+        });
 
-    const hashedPassword =
-      await bcrypt.hash(
-        fatherMobile,
-        10
-      );
-
-    // ==========================
-    // SAVE
-    // ==========================
-
-    const student =
-      await Student.create({
-
-        studentId,
-
-        admissionNo,
-
-        password:
-          hashedPassword,
-
-        name,
-
-        photo,
-
-        roll:
-          Number(roll) || 0,
-
-        className,
-
-        section,
-
-        session,
-
-        studentType,
-
-        gender,
-
-        religion,
-
-        bloodGroup,
-
-        nationality,
-
-        dateOfBirth,
-
-        fatherName,
-
-        fatherMobile,
-
-        motherName,
-
-        motherMobile,
-
-        guardianName,
-
-        guardianRelation,
-
-        guardianMobile,
-
-        emergencyContact,
-
-        presentAddress,
-
-        permanentAddress,
-
-        admissionDate,
-
-        remarks,
-
-        status: "Active",
-
-      });
-
-    return res.status(201).json({
-
-      success: true,
-
-      message: "Student created successfully.",
-
-      student,
-
-    });
-
-  }
-
-  catch (error) {
-
-    return res.status(500).json({
-
-      success: false,
-
-      message: error.message,
-
-    });
-
-  }
+    }
 
 };
 
@@ -842,80 +847,80 @@ const createStudent = async (req, res) => {
 
 const getStudents = async (req, res) => {
 
-  try {
+    try {
 
-    const {
+        const {
 
-      className,
+            className,
 
-      section,
+            section,
 
-      status,
+            status,
 
-      search,
+            search,
 
-    } = req.query;
+        } = req.query;
 
-    const filter = {};
+        const filter = {};
 
-    if (className)
-      filter.className = className;
+        if (className)
+            filter.className = className;
 
-    if (section)
-      filter.section = section;
+        if (section)
+            filter.section = section;
 
-    if (status)
-      filter.status = status;
+        if (status)
+            filter.status = status;
 
-    if (search) {
+        if (search) {
 
-      filter.$or = [
+            filter.$or = [
 
-        {
-          name: {
-            $regex: search,
-            $options: "i",
-          },
-        },
+                {
+                    name: {
+                        $regex: search,
+                        $options: "i",
+                    },
+                },
 
-        {
-          studentId: {
-            $regex: search,
-            $options: "i",
-          },
-        },
+                {
+                    studentId: {
+                        $regex: search,
+                        $options: "i",
+                    },
+                },
 
-        {
-          fatherMobile: {
-            $regex: search,
-            $options: "i",
-          },
-        },
+                {
+                    fatherMobile: {
+                        $regex: search,
+                        $options: "i",
+                    },
+                },
 
-      ];
+            ];
+
+        }
+
+        const students =
+            await Student.find(filter)
+                .sort({
+                    className: 1,
+                    roll: 1,
+                    createdAt: 1,
+                });
+
+        res.status(200).json(students);
 
     }
 
-    const students =
-      await Student.find(filter)
-        .sort({
-          className: 1,
-          roll: 1,
-          createdAt: 1,
+    catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
         });
 
-    res.status(200).json(students);
-
-  }
-
-  catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
-  }
+    }
 
 };
 
@@ -925,41 +930,41 @@ const getStudents = async (req, res) => {
 
 const getStudent = async (req, res) => {
 
-  try {
+    try {
 
-    const student =
-      await Student.findById(
-        req.params.id
-      );
+        const student =
+            await Student.findById(
+                req.params.id
+            );
 
-    if (!student) {
+        if (!student) {
 
-      return res.status(404).json({
+            return res.status(404).json({
 
-        success: false,
+                success: false,
 
-        message:
-          "Student not found.",
+                message:
+                    "Student not found.",
 
-      });
+            });
+
+        }
+
+        res.status(200).json(student);
 
     }
 
-    res.status(200).json(student);
+    catch (error) {
 
-  }
+        res.status(500).json({
 
-  catch (error) {
+            success: false,
 
-    res.status(500).json({
+            message: error.message,
 
-      success: false,
+        });
 
-      message: error.message,
-
-    });
-
-  }
+    }
 
 };
 
@@ -969,160 +974,160 @@ const getStudent = async (req, res) => {
 
 const updateStudent = async (req, res) => {
 
-  try {
+    try {
 
-    const student =
-      await Student.findById(req.params.id);
+        const student =
+            await Student.findById(req.params.id);
 
-    if (!student) {
+        if (!student) {
 
-      return res.status(404).json({
+            return res.status(404).json({
 
-        success: false,
+                success: false,
 
-        message: "Student not found.",
+                message: "Student not found.",
 
-      });
+            });
 
-    }
+        }
 
-    const {
+        const {
 
-      name,
-      photo,
-      roll,
-      className,
-      section,
-      session,
-      studentType,
+            name,
+            photo,
+            roll,
+            className,
+            section,
+            session,
+            studentType,
 
-      gender,
-      religion,
-      bloodGroup,
-      nationality,
-      dateOfBirth,
+            gender,
+            religion,
+            bloodGroup,
+            nationality,
+            dateOfBirth,
 
-      fatherName,
-      fatherMobile,
+            fatherName,
+            fatherMobile,
 
-      motherName,
-      motherMobile,
+            motherName,
+            motherMobile,
 
-      guardianName,
-      guardianRelation,
-      guardianMobile,
+            guardianName,
+            guardianRelation,
+            guardianMobile,
 
-      emergencyContact,
+            emergencyContact,
 
-      presentAddress,
-      permanentAddress,
+            presentAddress,
+            permanentAddress,
 
-      admissionDate,
+            admissionDate,
 
-      remarks,
+            remarks,
 
-      status,
+            status,
 
-    } = req.body;
+        } = req.body;
 
-    // Duplicate Roll Check
+        // Duplicate Roll Check
 
-    if (roll && Number(roll) > 0) {
+        if (roll && Number(roll) > 0) {
 
-      const duplicate =
-        await Student.findOne({
+            const duplicate =
+                await Student.findOne({
 
-          _id: {
-            $ne: req.params.id,
-          },
+                    _id: {
+                        $ne: req.params.id,
+                    },
 
-          className,
+                    className,
 
-          section,
+                    section,
 
-          session,
+                    session,
 
-          roll,
+                    roll,
+
+                });
+
+            if (duplicate) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message: "Roll already exists.",
+
+                });
+
+            }
+
+        }
+
+        student.name = name;
+        student.photo = photo;
+
+        student.roll = Number(roll);
+
+        student.className = className;
+        student.section = section;
+        student.session = session;
+
+        student.studentType = studentType;
+
+        student.gender = gender;
+        student.religion = religion;
+        student.bloodGroup = bloodGroup;
+        student.nationality = nationality;
+        student.dateOfBirth = dateOfBirth;
+
+        student.fatherName = fatherName;
+        student.fatherMobile = fatherMobile;
+
+        student.motherName = motherName;
+        student.motherMobile = motherMobile;
+
+        student.guardianName = guardianName;
+        student.guardianRelation = guardianRelation;
+        student.guardianMobile = guardianMobile;
+
+        student.emergencyContact = emergencyContact;
+
+        student.presentAddress = presentAddress;
+        student.permanentAddress = permanentAddress;
+
+        student.admissionDate = admissionDate;
+
+        student.remarks = remarks;
+
+        student.status = status;
+
+        await student.save();
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "Student updated successfully.",
+
+            student,
 
         });
 
-      if (duplicate) {
+    }
 
-        return res.status(400).json({
+    catch (error) {
 
-          success: false,
+        res.status(500).json({
 
-          message: "Roll already exists.",
+            success: false,
+
+            message: error.message,
 
         });
 
-      }
-
     }
-
-    student.name = name;
-    student.photo = photo;
-
-    student.roll = Number(roll);
-
-    student.className = className;
-    student.section = section;
-    student.session = session;
-
-    student.studentType = studentType;
-
-    student.gender = gender;
-    student.religion = religion;
-    student.bloodGroup = bloodGroup;
-    student.nationality = nationality;
-    student.dateOfBirth = dateOfBirth;
-
-    student.fatherName = fatherName;
-    student.fatherMobile = fatherMobile;
-
-    student.motherName = motherName;
-    student.motherMobile = motherMobile;
-
-    student.guardianName = guardianName;
-    student.guardianRelation = guardianRelation;
-    student.guardianMobile = guardianMobile;
-
-    student.emergencyContact = emergencyContact;
-
-    student.presentAddress = presentAddress;
-    student.permanentAddress = permanentAddress;
-
-    student.admissionDate = admissionDate;
-
-    student.remarks = remarks;
-
-    student.status = status;
-
-    await student.save();
-
-    res.status(200).json({
-
-      success: true,
-
-      message: "Student updated successfully.",
-
-      student,
-
-    });
-
-  }
-
-  catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message,
-
-    });
-
-  }
 
 };
 
@@ -1132,46 +1137,46 @@ const updateStudent = async (req, res) => {
 
 const deleteStudent = async (req, res) => {
 
-  try {
+    try {
 
-    const student =
-      await Student.findById(req.params.id);
+        const student =
+            await Student.findById(req.params.id);
 
-    if (!student) {
+        if (!student) {
 
-      return res.status(404).json({
+            return res.status(404).json({
 
-        success: false,
+                success: false,
 
-        message: "Student not found.",
+                message: "Student not found.",
 
-      });
+            });
+
+        }
+
+        await student.deleteOne();
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "Student deleted successfully.",
+
+        });
 
     }
 
-    await student.deleteOne();
+    catch (error) {
 
-    res.status(200).json({
+        res.status(500).json({
 
-      success: true,
+            success: false,
 
-      message: "Student deleted successfully.",
+            message: error.message,
 
-    });
+        });
 
-  }
-
-  catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message,
-
-    });
-
-  }
+    }
 
 };
 
@@ -1181,56 +1186,56 @@ const deleteStudent = async (req, res) => {
 
 const resetPassword = async (req, res) => {
 
-  try {
+    try {
 
-    const student =
-      await Student.findById(req.params.id);
+        const student =
+            await Student.findById(req.params.id);
 
-    if (!student) {
+        if (!student) {
 
-      return res.status(404).json({
+            return res.status(404).json({
 
-        success: false,
+                success: false,
 
-        message: "Student not found.",
+                message: "Student not found.",
 
-      });
+            });
+
+        }
+
+        student.password =
+            await bcrypt.hash(
+
+                student.fatherMobile,
+
+                10
+
+            );
+
+        await student.save();
+
+        res.status(200).json({
+
+            success: true,
+
+            message:
+                "Password reset successfully.",
+
+        });
 
     }
 
-    student.password =
-      await bcrypt.hash(
+    catch (error) {
 
-        student.fatherMobile,
+        res.status(500).json({
 
-        10
+            success: false,
 
-      );
+            message: error.message,
 
-    await student.save();
+        });
 
-    res.status(200).json({
-
-      success: true,
-
-      message:
-        "Password reset successfully.",
-
-    });
-
-  }
-
-  catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message,
-
-    });
-
-  }
+    }
 
 };
 
@@ -1240,68 +1245,68 @@ const resetPassword = async (req, res) => {
 
 const generateRollNumbers = async (req, res) => {
 
-  try {
+    try {
 
-    const {
+        const {
 
-      className,
+            className,
 
-      section = "A",
+            section = "A",
 
-      session = "2026",
+            session = "2026",
 
-    } = req.body;
+        } = req.body;
 
-    const students =
-      await Student.find({
+        const students =
+            await Student.find({
 
-        className,
+                className,
 
-        section,
+                section,
 
-        session,
+                session,
 
-        status: "Active",
+                status: "Active",
 
-      }).sort({
+            }).sort({
 
-        studentId: 1,
+                studentId: 1,
 
-      });
+            });
 
-    let roll = 1;
+        let roll = 1;
 
-    for (const student of students) {
+        for (const student of students) {
 
-      student.roll = roll++;
+            student.roll = roll++;
 
-      await student.save();
+            await student.save();
+
+        }
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "Roll numbers generated successfully.",
+
+            total: students.length,
+
+        });
 
     }
 
-    res.status(200).json({
+    catch (error) {
 
-      success: true,
+        res.status(500).json({
 
-      message: "Roll numbers generated successfully.",
+            success: false,
 
-      total: students.length,
+            message: error.message,
 
-    });
+        });
 
-  }
-
-  catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message,
-
-    });
-
-  }
+    }
 
 };
 
@@ -1311,20 +1316,20 @@ const generateRollNumbers = async (req, res) => {
 
 module.exports = {
 
-  importStudents,
+    importStudents,
 
-  createStudent,
+    createStudent,
 
-  getStudents,
+    getStudents,
 
-  getStudent,
+    getStudent,
 
-  updateStudent,
+    updateStudent,
 
-  deleteStudent,
+    deleteStudent,
 
-  resetPassword,
+    resetPassword,
 
-  generateRollNumbers,
+    generateRollNumbers,
 
 };

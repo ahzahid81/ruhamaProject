@@ -12,6 +12,7 @@ const {
   deleteStudent,
   resetPassword,
   importStudents,
+  generateRollNumbers,
 } = require("../controllers/studentController");
 
 // =====================================
@@ -33,14 +34,7 @@ router.get(
   getStudents
 );
 
-// =====================================
-// GET SINGLE STUDENT
-// =====================================
 
-router.get(
-  "/:id",
-  getStudent
-);
 
 // =====================================
 // CREATE STUDENT
@@ -77,5 +71,24 @@ router.put(
   "/reset-password/:id",
   resetPassword
 );
+
+// =====================================
+// GENERATE ROLL NUMBERS
+// =====================================
+
+router.post(
+  "/generate-roll",
+  generateRollNumbers
+);
+
+// =====================================
+// GET SINGLE STUDENT
+// =====================================
+
+router.get(
+  "/:id",
+  getStudent
+);
+
 
 module.exports = router;

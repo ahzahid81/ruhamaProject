@@ -23,6 +23,7 @@ import AuthRedirect from "./components/AuthRedirect";
 import Students from "./pages/admin/Students";
 import EditStudent from "./pages/admin/EditStudent";
 import StudentAdmission from "./pages/admin/StudentAdmission";
+import StudentDetails from "./pages/admin/StudentDetails";
 
 function App() {
 
@@ -81,7 +82,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route
+            path="/students/:id"
+            element={
+              <ProtectedRoute>
+                <StudentDetails />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/students/edit/:id"
             element={

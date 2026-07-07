@@ -1,524 +1,767 @@
 import {
-  useEffect,
-  useState,
+    useEffect,
+    useState,
 } from "react";
 
 import {
-  Link,
+    Link,
 } from "react-router-dom";
 
 import api from "../../services/api";
 
 
+
 const classes = [
-  "All Students",
-  "Play Group",
-  "Nursery",
-  "KG",
-  "STD-I",
-  "STD-II",
-  "STD-III",
-  "STD-IV",
-  "STD-V",
+
+    "All Students",
+
+    "Play Group",
+
+    "Nursery",
+
+    "KG",
+
+    "STD-I",
+
+    "STD-II",
+
+    "STD-III",
+
+    "STD-IV",
+
+    "STD-V",
+
 ];
+
+
+
 
 
 const Students = () => {
 
 
-  const [students, setStudents] = useState([]);
+    const [students, setStudents] =
+        useState([]);
 
-  const [loading, setLoading] =
-    useState(true);
 
 
-  const [activeClass, setActiveClass] =
-    useState("All Students");
+    const [activeClass, setActiveClass] =
+        useState("All Students");
 
 
-  const [search, setSearch] =
-    useState("");
 
+    const [loading, setLoading] =
+        useState(true);
 
 
-  const loadStudents = async () => {
 
-    try {
 
-      setLoading(true);
+    const loadStudents = async () => {
 
 
-      let url =
-        "/students";
+        try {
 
 
-      if (
-        activeClass !==
-        "All Students"
-      ) {
+            const res =
+                await api.get(
+                    "/students"
+                );
 
-        url +=
-          `?className=${activeClass}`;
 
-      }
+            setStudents(
+                res.data
+            );
 
 
-      const response =
-        await api.get(url);
+        }
 
+        catch (error) {
 
-      setStudents(
-        response.data
-      );
+            console.log(error);
 
+        }
 
-    }
+        finally {
 
-    catch(error){
-
-      console.log(
-        error
-      );
-
-    }
-
-    finally{
-
-      setLoading(false);
-
-    }
-
-  };
-
-
-
-  useEffect(()=>{
-
-    loadStudents();
-
-  },[activeClass]);
-
-
-
-
-  const filteredStudents =
-    students.filter(
-      (student)=>{
-
-        const text =
-          search.toLowerCase();
-
-
-        return (
-
-          student.name
-            ?.toLowerCase()
-            .includes(text)
-
-          ||
-
-          student.studentId
-            ?.toLowerCase()
-            .includes(text)
-
-          ||
-
-          student.fatherMobile
-            ?.includes(search)
-
-        );
-
-      }
-    );
-
-
-
-  return (
-
-    <div>
-
-
-      <div className="mb-6">
-
-
-        <h1 className="text-3xl font-bold">
-
-          Student Management
-
-        </h1>
-
-
-        <p className="text-gray-500 mt-2">
-
-          Manage all students
-
-        </p>
-
-
-      </div>
-
-
-
-
-
-      {/* Class Menu */}
-
-      <div className="bg-white rounded-2xl shadow p-4 mb-6">
-
-
-        <div className="flex flex-wrap gap-3">
-
-
-          {
-            classes.map(
-              (item)=>(
-
-
-                <button
-
-                  key={item}
-
-                  onClick={()=>
-                    setActiveClass(item)
-                  }
-
-                  className={`px-5 py-3 rounded-xl font-semibold transition
-
-                  ${
-                    activeClass === item
-
-                    ?
-
-                    "bg-emerald-600 text-white"
-
-                    :
-
-                    "bg-gray-100 hover:bg-gray-200"
-
-                  }
-
-                  `}
-
-                >
-
-                  {item}
-
-
-                </button>
-
-
-              )
-            )
-          }
-
-
-        </div>
-
-
-      </div>
-
-
-
-
-
-      {/* Search */}
-
-
-      <div className="bg-white rounded-2xl shadow p-4 mb-6">
-
-
-        <input
-
-          type="text"
-
-          placeholder="Search Student Name / ID / Mobile"
-
-          value={search}
-
-          onChange={
-            (e)=>
-            setSearch(e.target.value)
-          }
-
-
-          className="w-full border rounded-xl px-5 py-3 outline-none"
-
-        />
-
-
-      </div>
-
-
-
-
-
-
-      {/* Table */}
-
-
-      <div className="bg-white rounded-2xl shadow overflow-x-auto">
-
-
-        {
-
-          loading ?
-
-          (
-
-            <div className="p-10 text-center">
-
-              Loading Students...
-
-            </div>
-
-          )
-
-
-          :
-
-
-          (
-
-
-          <table className="w-full">
-
-
-            <thead className="bg-gray-100">
-
-
-              <tr>
-
-
-                <th className="p-4 text-left">
-
-                  Photo
-
-                </th>
-
-
-                <th className="p-4 text-left">
-
-                  Student ID
-
-                </th>
-
-
-                <th className="p-4 text-left">
-
-                  Name
-
-                </th>
-
-
-                <th className="p-4 text-left">
-
-                  Class
-
-                </th>
-
-
-                <th className="p-4 text-left">
-
-                  Father
-
-                </th>
-
-
-                <th className="p-4 text-left">
-
-                  Mobile
-
-                </th>
-
-
-                <th className="p-4">
-
-                  Action
-
-                </th>
-
-
-              </tr>
-
-
-            </thead>
-
-
-
-
-
-            <tbody>
-
-
-              {
-
-                filteredStudents.map(
-
-                  (student)=>(
-
-
-                    <tr
-
-                      key={
-                        student._id
-                      }
-
-                      className="border-t hover:bg-gray-50"
-
-
-                    >
-
-
-                      <td className="p-4">
-
-
-                        {
-
-                          student.photo ?
-
-                          (
-
-                            <img
-
-                              src={
-                                student.photo
-                              }
-
-                              alt={
-                                student.name
-                              }
-
-                              className="w-12 h-12 rounded-full object-cover"
-
-                            />
-
-                          )
-
-                          :
-
-                          (
-
-                            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-
-                              👤
-
-                            </div>
-
-                          )
-
-                        }
-
-
-                      </td>
-
-
-
-
-                      <td className="p-4 font-semibold">
-
-                        {
-                          student.studentId
-                        }
-
-                      </td>
-
-
-
-
-                      <td className="p-4">
-
-                        {
-                          student.name
-                        }
-
-                      </td>
-
-
-
-
-                      <td className="p-4">
-
-                        {
-                          student.className
-                        }
-
-                      </td>
-
-
-
-
-                      <td className="p-4">
-
-                        {
-                          student.fatherName
-                        }
-
-                      </td>
-
-
-
-
-                      <td className="p-4">
-
-                        {
-                          student.fatherMobile
-                        }
-
-                      </td>
-
-
-
-
-                      <td className="p-4">
-
-
-                        <Link
-
-                          to={`/students/edit/${student._id}`}
-
-                          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-
-                        >
-
-                          Edit
-
-                        </Link>
-
-
-                      </td>
-
-
-                    </tr>
-
-
-                  )
-
-                )
-
-              }
-
-
-
-            </tbody>
-
-
-
-          </table>
-
-
-          )
+            setLoading(false);
 
         }
 
 
-
-      </div>
-
+    };
 
 
-    </div>
 
-  );
+
+
+    useEffect(() => {
+
+        loadStudents();
+
+    }, []);
+
+
+
+
+
+
+
+    const filteredStudents =
+
+        activeClass === "All Students"
+
+            ?
+
+            students
+
+            :
+
+            students.filter(
+
+                student =>
+
+                    student.className === activeClass
+
+            );
+
+
+
+
+
+
+
+
+    const handleDelete = async (id) => {
+
+
+        const confirmDelete =
+            window.confirm(
+                "Delete this student?"
+            );
+
+
+
+        if (!confirmDelete)
+            return;
+
+
+
+
+        try {
+
+
+            await api.delete(
+                `/students/${id}`
+            );
+
+
+            setStudents(
+
+                students.filter(
+
+                    student =>
+                        student._id !== id
+
+                )
+
+            );
+
+
+
+        }
+
+        catch (error) {
+
+            console.log(error);
+
+        }
+
+
+    };
+
+
+
+
+
+
+
+
+    if (loading) {
+
+        return (
+
+            <div className="p-10">
+
+                Loading Students...
+
+            </div>
+
+        );
+
+    }
+
+
+
+
+
+
+
+
+    return (
+
+        <div className="
+space-y-6
+">
+
+
+
+
+
+
+            {/* HEADER */}
+
+            <div className="
+bg-white
+rounded-3xl
+shadow
+p-6
+flex
+justify-between
+items-center
+">
+
+
+                <div>
+
+                    <h1 className="
+text-3xl
+font-bold
+">
+
+                        👨‍🎓 Students
+
+                    </h1>
+
+
+                    <p className="
+text-gray-500
+mt-2
+">
+
+                        Manage student records
+
+                    </p>
+
+
+                </div>
+
+
+
+
+                <Link
+
+                    to="/student-admission"
+
+                    className="
+bg-emerald-600
+text-white
+px-6
+py-3
+rounded-xl
+font-semibold
+"
+
+                >
+
+                    + New Admission
+
+                </Link>
+
+
+
+            </div>
+
+
+
+
+
+
+
+
+            {/* CLASS MENU */}
+
+            <div className="
+bg-white
+rounded-3xl
+shadow
+p-4
+flex
+gap-3
+overflow-x-auto
+">
+
+
+                {
+
+                    classes.map(item => (
+
+
+                        <button
+
+                            key={item}
+
+                            onClick={() => setActiveClass(item)}
+
+                            className={`
+
+px-5
+py-3
+rounded-xl
+font-semibold
+whitespace-nowrap
+
+
+${activeClass === item
+
+                                    ?
+
+                                    "bg-emerald-600 text-white"
+
+                                    :
+
+                                    "bg-gray-100"
+
+                                }
+
+
+`}
+
+                        >
+
+
+                            {item}
+
+
+                        </button>
+
+
+                    ))
+
+                }
+
+
+            </div>
+
+
+
+
+
+
+
+            {/* COUNT */}
+
+            <div className="
+bg-emerald-50
+rounded-2xl
+p-5
+font-semibold
+">
+
+
+                Showing:
+
+                {" "}
+
+                {filteredStudents.length}
+
+                {" "}
+
+                Students
+
+
+            </div>
+
+
+
+
+
+
+
+            {/* STUDENT GRID */}
+
+            <div className="
+grid
+md:grid-cols-2
+xl:grid-cols-3
+gap-6
+">
+                {
+
+                    filteredStudents.map(student => (
+
+
+                        <div
+
+                            key={student._id}
+
+                            className="
+          bg-white
+          rounded-3xl
+          shadow
+          p-6
+          hover:shadow-xl
+          transition
+          "
+
+
+                        >
+
+
+
+
+
+                            {/* PHOTO + BASIC */}
+
+
+                            <div className="
+          flex
+          items-center
+          gap-4
+          ">
+
+
+                                {
+
+                                    student.photo
+
+                                        ?
+
+                                        <img
+
+                                            src={student.photo}
+
+                                            className="
+              w-20
+              h-20
+              rounded-full
+              object-cover
+              border
+              "
+
+                                        />
+
+
+                                        :
+
+                                        <div
+
+                                            className="
+              w-20
+              h-20
+              rounded-full
+              bg-gray-100
+              flex
+              items-center
+              justify-center
+              text-3xl
+              "
+
+                                        >
+
+                                            👤
+
+                                        </div>
+
+                                }
+
+
+
+                                <div>
+
+
+                                    <h2 className="
+              font-bold
+              text-lg
+              ">
+
+                                        {student.name}
+
+                                    </h2>
+
+
+
+                                    <p className="
+              text-sm
+              text-gray-500
+              ">
+
+                                        {student.studentId}
+
+                                    </p>
+
+
+
+                                </div>
+
+
+                            </div>
+
+
+
+
+
+
+
+
+                            {/* INFORMATION */}
+
+
+                            <div className="
+          mt-5
+          space-y-2
+          text-sm
+          ">
+
+
+                                <p>
+
+                                    🎓 Class:
+
+                                    <b>
+
+                                        {" "}
+
+                                        {student.className}
+
+                                    </b>
+
+                                </p>
+
+
+
+                                <p>
+
+                                    🔢 Roll:
+
+                                    <b>
+
+                                        {" "}
+
+                                        {student.roll || "-"}
+
+                                    </b>
+
+                                </p>
+
+
+
+                                <p>
+
+                                    👨 Father:
+
+                                    <b>
+
+                                        {" "}
+
+                                        {student.fatherName}
+
+                                    </b>
+
+                                </p>
+
+
+
+                                <p>
+
+                                    📞 Mobile:
+
+                                    <b>
+
+                                        {" "}
+
+                                        {student.fatherMobile}
+
+                                    </b>
+
+                                </p>
+
+
+
+                                <p>
+
+
+                                    Status:
+
+
+                                    <span className={`
+
+              ml-2
+              px-3
+              py-1
+              rounded-full
+              text-xs
+              font-semibold
+
+
+              ${student.status === "Active"
+
+                                            ?
+
+                                            "bg-green-100 text-green-700"
+
+                                            :
+
+                                            "bg-red-100 text-red-700"
+
+                                        }
+
+              `}>
+
+
+                                        {student.status}
+
+
+                                    </span>
+
+
+                                </p>
+
+
+
+                            </div>
+
+
+
+
+
+
+
+
+
+                            {/* ACTION BUTTONS */}
+
+
+                            <div className="
+          mt-6
+          flex
+          gap-3
+          ">
+
+
+
+                                <Link
+
+                                    to={`/students/${student._id}`}
+
+                                    className="
+            flex-1
+            text-center
+            bg-blue-600
+            text-white
+            py-3
+            rounded-xl
+            font-semibold
+            "
+
+                                >
+
+                                    View
+
+                                </Link>
+
+
+
+
+
+                                <Link
+
+                                    to={`/students/edit/${student._id}`}
+
+                                    className="
+            flex-1
+            text-center
+            bg-emerald-600
+            text-white
+            py-3
+            rounded-xl
+            font-semibold
+            "
+
+                                >
+
+                                    Edit
+
+                                </Link>
+
+
+
+
+
+                                <button
+
+                                    onClick={() => handleDelete(student._id)}
+
+                                    className="
+            bg-red-500
+            text-white
+            px-4
+            rounded-xl
+            "
+
+                                >
+
+                                    🗑
+
+                                </button>
+
+
+
+                            </div>
+
+
+
+
+                        </div>
+
+
+                    ))
+
+                }
+
+
+
+                {
+
+                    filteredStudents.length === 0
+
+                    &&
+
+                    <div className="
+        col-span-full
+        bg-white
+        rounded-3xl
+        shadow
+        p-10
+        text-center
+        text-gray-500
+        ">
+
+                        No Student Found
+
+                    </div>
+
+                }
+
+
+
+            </div>
+
+
+
+
+        </div>
+
+    );
 
 };
 

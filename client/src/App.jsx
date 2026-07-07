@@ -20,6 +20,7 @@ import MainLayout from "./layouts/MainLayout";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
+import Students from "./pages/admin/Students";
 
 function App() {
 
@@ -82,7 +83,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           {/* Teachers */}
           <Route
             path="/teachers"
@@ -98,6 +98,17 @@ function App() {
           />
 
         </Route>
+
+        <Route
+          path="/students"
+          element={
+            <ProtectedRoute
+              adminOnly={false}
+            >
+              <Students />
+            </ProtectedRoute>
+          }
+        />
 
       </Routes>
 

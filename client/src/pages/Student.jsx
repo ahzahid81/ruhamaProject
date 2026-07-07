@@ -5,7 +5,7 @@ import {
 
 import api from "../services/api";
 
-const Teachers = () => {
+const Student = () => {
 
   const [teachers,
     setTeachers] =
@@ -733,4 +733,4 @@ const Teachers = () => {
   );
 };
 
-export default Teachers;
+export default Student;

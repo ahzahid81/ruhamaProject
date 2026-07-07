@@ -46,6 +46,24 @@ const MainLayout = () => {
     },
   ];
 
+  // STUDENT MANAGEMENT
+  if (
+    teacher?.role === "admin" ||
+    teacher?.role === "account_manager"
+  ) {
+
+    navItems.push({
+
+      name: "Students",
+
+      path: "/students",
+
+      icon: "👨‍🎓",
+
+    });
+
+  }
+
 
   // ADMIN NAV
   if (
@@ -95,6 +113,7 @@ const MainLayout = () => {
         {/* Navigation */}
         <div className="flex-1 p-5 space-y-3 overflow-auto">
 
+
           {navItems.map(
             (item) => (
 
@@ -126,14 +145,6 @@ const MainLayout = () => {
 
             )
           )}
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-2xl font-semibold"
-          >
-
-            Logout
-
-          </button>
         </div>
 
         {/* User */}

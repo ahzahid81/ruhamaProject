@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 
 const uploadExcel = require("../middlewares/uploadExcel");
+const uploadImage =
+  require("../middlewares/uploadImage");
 
 const {
   createStudent,
@@ -51,6 +53,7 @@ router.post(
 
 router.put(
   "/:id",
+  uploadImage.single("photo"),
   updateStudent
 );
 

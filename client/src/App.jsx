@@ -21,6 +21,8 @@ import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import Students from "./pages/admin/Students";
+import EditStudent from "./pages/admin/EditStudent";
+import StudentAdmission from "./pages/admin/StudentAdmission";
 
 function App() {
 
@@ -69,6 +71,33 @@ function App() {
             path="/class-report"
             element={<ClassReport />}
           />
+          <Route
+            path="/students"
+            element={
+              <ProtectedRoute
+                adminOnly={false}
+              >
+                <Students />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/students/edit/:id"
+            element={
+              <ProtectedRoute>
+                <EditStudent />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student-admission"
+            element={
+              <ProtectedRoute>
+                <StudentAdmission />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin */}
           <Route
@@ -99,16 +128,6 @@ function App() {
 
         </Route>
 
-        <Route
-          path="/students"
-          element={
-            <ProtectedRoute
-              adminOnly={false}
-            >
-              <Students />
-            </ProtectedRoute>
-          }
-        />
 
       </Routes>
 

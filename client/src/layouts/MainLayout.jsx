@@ -52,15 +52,18 @@ const MainLayout = () => {
     teacher?.role === "account_manager"
   ) {
 
-    navItems.push({
-
-      name: "Students",
-
-      path: "/students",
-
-      icon: "👨‍🎓",
-
-    });
+    navItems.push(
+      {
+        name: "Students",
+        path: "/students",
+        icon: "👨‍🎓"
+      },
+      {
+        name: "Admission",
+        path: "/student-admission",
+        icon: "➕"
+      }
+    );
 
   }
 

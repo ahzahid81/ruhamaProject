@@ -638,209 +638,332 @@ const importStudents = async (req, res) => {
 // CREATE STUDENT
 // ======================================================
 
+// ======================================================
+// CREATE NEW STUDENT ADMISSION
+// ======================================================
+
 const createStudent = async (req, res) => {
-    try {
 
-        const {
-            name,
-            photo,
-            roll,
-            className,
-            section = "A",
-            session = "2026",
-            studentType = "Regular",
+  try {
 
-            gender,
-            religion = "Islam",
-            bloodGroup = "",
-            nationality = "Bangladeshi",
-            dateOfBirth,
 
-            fatherName,
-            fatherMobile,
+    const {
 
-            motherName = "",
-            motherMobile = "",
+      name,
 
-            guardianName = "",
-            guardianRelation = "",
-            guardianMobile = "",
+      roll,
 
-            emergencyContact = "",
+      className,
 
-            presentAddress = "",
-            permanentAddress = "",
+      section = "A",
 
-            admissionDate,
+      session = "2026",
 
-            remarks = "",
-        } = req.body;
+      studentType = "Regular",
 
-        // ==========================
-        // VALIDATION
-        // ==========================
 
-        if (
-            !name ||
-            !className ||
-            !gender ||
-            !fatherName ||
-            !fatherMobile
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Please fill all required fields.",
-            });
-        }
+      gender,
 
-        // ==========================
-        // DUPLICATE ROLL
-        // ==========================
+      religion = "Islam",
 
-        if (roll && Number(roll) > 0) {
+      bloodGroup = "",
 
-            const duplicateRoll =
-                await Student.findOne({
-                    className,
-                    section,
-                    session,
-                    roll,
-                });
+      nationality = "Bangladeshi",
 
-            if (duplicateRoll) {
+      dateOfBirth,
 
-                return res.status(400).json({
-                    success: false,
-                    message: "Roll already exists.",
-                });
 
-            }
+      fatherName,
 
-        }
+      fatherMobile,
 
-        // ==========================
-        // STUDENT ID
-        // ==========================
 
-        const studentId =
-            await generateStudentId(
-                className,
-                gender,
-                session
-            );
+      motherName = "",
 
-        // ==========================
-        // ADMISSION NO
-        // ==========================
+      motherMobile = "",
 
-        const admissionNo =
-            await generateAdmissionNo(
-                session
-            );
 
-        // ==========================
-        // PASSWORD
-        // ==========================
+      guardianName = "",
 
-        const hashedPassword =
-            await bcrypt.hash(
-                fatherMobile,
-                10
-            );
+      guardianRelation = "",
 
-        // ==========================
-        // SAVE
-        // ==========================
+      guardianMobile = "",
 
-        const student =
-            await Student.create({
 
-                studentId,
+      emergencyContact = "",
 
-                admissionNo,
 
-                password:
-                    hashedPassword,
+      presentAddress = "",
 
-                name,
+      permanentAddress = "",
 
-                photo,
 
-                roll:
-                    Number(roll) || 0,
+      admissionDate,
 
-                className,
 
-                section,
+      remarks = "",
 
-                session,
 
-                studentType,
+      password,
 
-                gender,
 
-                religion,
+    } = req.body;
 
-                bloodGroup,
 
-                nationality,
 
-                dateOfBirth,
+    // ==========================
+    // REQUIRED VALIDATION
+    // ==========================
 
-                fatherName,
 
-                fatherMobile,
+    if (
 
-                motherName,
+      !name ||
 
-                motherMobile,
+      !className ||
 
-                guardianName,
+      !gender ||
 
-                guardianRelation,
+      !fatherName ||
 
-                guardianMobile,
+      !fatherMobile
 
-                emergencyContact,
+    ) {
 
-                presentAddress,
+      return res.status(400).json({
 
-                permanentAddress,
+        success:false,
 
-                admissionDate,
+        message:
+        "Required information missing",
 
-                remarks,
-
-                status: "Active",
-
-            });
-
-        return res.status(201).json({
-
-            success: true,
-
-            message: "Student created successfully.",
-
-            student,
-
-        });
+      });
 
     }
 
-    catch (error) {
 
-        return res.status(500).json({
 
-            success: false,
+    // ==========================
+    // AUTO STUDENT ID
+    // ==========================
 
-            message: error.message,
 
-        });
+    const studentId =
+
+      await generateStudentId(
+
+        className,
+
+        gender,
+
+        session
+
+      );
+
+
+
+
+    // ==========================
+    // AUTO ADMISSION NO
+    // ==========================
+
+
+    const admissionNo =
+
+      await generateAdmissionNo(
+
+        session
+
+      );
+
+
+
+
+    // ==========================
+    // PASSWORD
+    // ==========================
+
+
+    const finalPassword =
+
+      password ||
+
+      fatherMobile;
+
+
+
+    const hashedPassword =
+
+      await bcrypt.hash(
+
+        finalPassword,
+
+        10
+
+      );
+
+
+
+
+    // ==========================
+    // PHOTO
+    // ==========================
+
+
+    let photo = "";
+
+
+    if(req.file){
+
+      photo =
+        req.file.path;
 
     }
+
+
+
+
+    // ==========================
+    // CREATE STUDENT
+    // ==========================
+
+
+    const student =
+
+      await Student.create({
+
+        studentId,
+
+        admissionNo,
+
+
+        password:
+        hashedPassword,
+
+
+        plainPassword:
+        finalPassword,
+
+
+        name,
+
+
+        photo,
+
+
+        roll:
+        roll || 0,
+
+
+        className,
+
+
+        section,
+
+
+        session,
+
+
+        studentType,
+
+
+
+        gender,
+
+
+        religion,
+
+
+        bloodGroup,
+
+
+        nationality,
+
+
+        dateOfBirth,
+
+
+
+        fatherName,
+
+
+        fatherMobile,
+
+
+        motherName,
+
+
+        motherMobile,
+
+
+
+        guardianName,
+
+
+        guardianRelation,
+
+
+        guardianMobile,
+
+
+        emergencyContact,
+
+
+
+        presentAddress,
+
+
+        permanentAddress,
+
+
+
+        admissionDate,
+
+
+        remarks,
+
+
+        status:"Active",
+
+
+      });
+
+
+
+
+    res.status(201).json({
+
+      success:true,
+
+      message:
+      "Student admitted successfully",
+
+
+      student,
+
+    });
+
+
+
+  }
+
+
+  catch(error){
+
+
+    res.status(500).json({
+
+      success:false,
+
+      message:error.message,
+
+    });
+
+
+  }
+
 
 };
-
 // ======================================================
 // GET ALL STUDENTS
 // ======================================================
@@ -972,162 +1095,254 @@ const getStudent = async (req, res) => {
 // UPDATE STUDENT
 // ======================================================
 
+// ======================================================
+// UPDATE STUDENT WITH PHOTO
+// ======================================================
+
 const updateStudent = async (req, res) => {
 
-    try {
+  try {
 
-        const student =
-            await Student.findById(req.params.id);
+    const student =
+      await Student.findById(
+        req.params.id
+      );
 
-        if (!student) {
 
-            return res.status(404).json({
+    if (!student) {
 
-                success: false,
+      return res.status(404).json({
 
-                message: "Student not found.",
+        success: false,
 
-            });
+        message: "Student not found",
 
-        }
-
-        const {
-
-            name,
-            photo,
-            roll,
-            className,
-            section,
-            session,
-            studentType,
-
-            gender,
-            religion,
-            bloodGroup,
-            nationality,
-            dateOfBirth,
-
-            fatherName,
-            fatherMobile,
-
-            motherName,
-            motherMobile,
-
-            guardianName,
-            guardianRelation,
-            guardianMobile,
-
-            emergencyContact,
-
-            presentAddress,
-            permanentAddress,
-
-            admissionDate,
-
-            remarks,
-
-            status,
-
-        } = req.body;
-
-        // Duplicate Roll Check
-
-        if (roll && Number(roll) > 0) {
-
-            const duplicate =
-                await Student.findOne({
-
-                    _id: {
-                        $ne: req.params.id,
-                    },
-
-                    className,
-
-                    section,
-
-                    session,
-
-                    roll,
-
-                });
-
-            if (duplicate) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message: "Roll already exists.",
-
-                });
-
-            }
-
-        }
-
-        student.name = name;
-        student.photo = photo;
-
-        student.roll = Number(roll);
-
-        student.className = className;
-        student.section = section;
-        student.session = session;
-
-        student.studentType = studentType;
-
-        student.gender = gender;
-        student.religion = religion;
-        student.bloodGroup = bloodGroup;
-        student.nationality = nationality;
-        student.dateOfBirth = dateOfBirth;
-
-        student.fatherName = fatherName;
-        student.fatherMobile = fatherMobile;
-
-        student.motherName = motherName;
-        student.motherMobile = motherMobile;
-
-        student.guardianName = guardianName;
-        student.guardianRelation = guardianRelation;
-        student.guardianMobile = guardianMobile;
-
-        student.emergencyContact = emergencyContact;
-
-        student.presentAddress = presentAddress;
-        student.permanentAddress = permanentAddress;
-
-        student.admissionDate = admissionDate;
-
-        student.remarks = remarks;
-
-        student.status = status;
-
-        await student.save();
-
-        res.status(200).json({
-
-            success: true,
-
-            message: "Student updated successfully.",
-
-            student,
-
-        });
+      });
 
     }
 
-    catch (error) {
 
-        res.status(500).json({
 
-            success: false,
+    const {
 
-            message: error.message,
+      name,
 
-        });
+      roll,
+
+      className,
+
+      section,
+
+      session,
+
+      studentType,
+
+      gender,
+
+      religion,
+
+      bloodGroup,
+
+      nationality,
+
+      dateOfBirth,
+
+      fatherName,
+
+      fatherMobile,
+
+      motherName,
+
+      motherMobile,
+
+      guardianName,
+
+      guardianRelation,
+
+      guardianMobile,
+
+      emergencyContact,
+
+      presentAddress,
+
+      permanentAddress,
+
+      admissionDate,
+
+      remarks,
+
+      status,
+
+
+    } = req.body;
+
+
+
+    // ==========================
+    // PHOTO UPDATE
+    // ==========================
+
+    if (req.file) {
+
+      student.photo =
+        req.file.path;
 
     }
+
+
+
+    // ==========================
+    // BASIC UPDATE
+    // ==========================
+
+
+    student.name =
+      name || student.name;
+
+
+    student.roll =
+      roll || student.roll;
+
+
+    student.className =
+      className || student.className;
+
+
+    student.section =
+      section || student.section;
+
+
+    student.session =
+      session || student.session;
+
+
+    student.studentType =
+      studentType || student.studentType;
+
+
+
+    student.gender =
+      gender || student.gender;
+
+
+    student.religion =
+      religion || student.religion;
+
+
+    student.bloodGroup =
+      bloodGroup || student.bloodGroup;
+
+
+    student.nationality =
+      nationality || student.nationality;
+
+
+    student.dateOfBirth =
+      dateOfBirth || student.dateOfBirth;
+
+
+
+    // ==========================
+    // PARENTS
+    // ==========================
+
+
+    student.fatherName =
+      fatherName || student.fatherName;
+
+
+    student.fatherMobile =
+      fatherMobile || student.fatherMobile;
+
+
+    student.motherName =
+      motherName || student.motherName;
+
+
+    student.motherMobile =
+      motherMobile || student.motherMobile;
+
+
+
+    student.guardianName =
+      guardianName || student.guardianName;
+
+
+    student.guardianRelation =
+      guardianRelation || student.guardianRelation;
+
+
+    student.guardianMobile =
+      guardianMobile || student.guardianMobile;
+
+
+    student.emergencyContact =
+      emergencyContact || student.emergencyContact;
+
+
+
+    // ==========================
+    // ADDRESS
+    // ==========================
+
+
+    student.presentAddress =
+      presentAddress || student.presentAddress;
+
+
+    student.permanentAddress =
+      permanentAddress || student.permanentAddress;
+
+
+
+    student.admissionDate =
+      admissionDate || student.admissionDate;
+
+
+
+    student.remarks =
+      remarks || student.remarks;
+
+
+
+    student.status =
+      status || student.status;
+
+
+
+    await student.save();
+
+
+
+    res.status(200).json({
+
+      success: true,
+
+      message:
+        "Student updated successfully",
+
+      student,
+
+    });
+
+
+  }
+
+
+  catch(error){
+
+
+    res.status(500).json({
+
+      success:false,
+
+      message:error.message,
+
+    });
+
+
+  }
+
 
 };
 

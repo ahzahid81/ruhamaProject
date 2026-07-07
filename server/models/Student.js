@@ -18,6 +18,11 @@ const studentSchema = new mongoose.Schema(
       required: true,
     },
 
+    plainPassword: {
+      type: String,
+      default: "",
+    },
+
     // ==========================
     // BASIC INFORMATION
     // ==========================

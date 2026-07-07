@@ -44,6 +44,7 @@ router.get(
 
 router.post(
   "/create",
+  uploadImage.single("photo"),
   createStudent
 );
 

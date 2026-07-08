@@ -47,6 +47,20 @@ const MainLayout = () => {
       icon: "📄",
     },
   ];
+  if (teacher?.role === "account_manager") {
+    navItems.push(
+      {
+        name: "Students",
+        path: "/students",
+        icon: "👨‍🎓"
+      },
+      {
+        name: "Admission",
+        path: "/student-admission",
+        icon: "➕"
+      }
+    );
+  }
 
   // STUDENT MANAGEMENT NAV ITEMS (Conditional)
   if (teacher?.role === "admin" || teacher?.role === "account_manager") {

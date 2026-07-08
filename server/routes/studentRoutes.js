@@ -15,6 +15,7 @@ const {
   resetPassword,
   importStudents,
   generateRollNumbers,
+  searchStudents,
 } = require("../controllers/studentController");
 
 // =====================================

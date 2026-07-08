@@ -8,6 +8,10 @@ const authRoutes = require("./routes/authRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
 const studentRoutes = require("./routes/studentRoutes");
+const paymentRoutes =
+  require("./routes/paymentRoutes");
+const examSettingRoutes =
+  require("./routes/examSettingRoutes");
 
 dotenv.config();
 
@@ -35,6 +39,16 @@ app.use(
 app.use(
   "/api/students",
   studentRoutes
+);
+
+app.use(
+  "/api/payments",
+  paymentRoutes
+);
+
+app.use(
+"/api/exams",
+examSettingRoutes
 );
 
 

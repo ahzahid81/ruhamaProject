@@ -78,10 +78,10 @@ const loginTeacher = async (req, res) => {
     const token = jwt.sign(
       {
         id: teacher._id,
+        role: teacher.role,
+        email: teacher.email,
       },
-
       process.env.JWT_SECRET,
-
       {
         expiresIn: "7d",
       }

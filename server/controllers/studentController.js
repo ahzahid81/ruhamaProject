@@ -644,323 +644,323 @@ const importStudents = async (req, res) => {
 
 const createStudent = async (req, res) => {
 
-  try {
+    try {
 
 
-    const {
+        const {
 
-      name,
+            name,
 
-      roll,
+            roll,
 
-      className,
+            className,
 
-      section = "A",
+            section = "A",
 
-      session = "2026",
+            session = "2026",
 
-      studentType = "Regular",
-
-
-      gender,
-
-      religion = "Islam",
-
-      bloodGroup = "",
-
-      nationality = "Bangladeshi",
-
-      dateOfBirth,
+            studentType = "Regular",
 
 
-      fatherName,
+            gender,
 
-      fatherMobile,
+            religion = "Islam",
 
+            bloodGroup = "",
 
-      motherName = "",
+            nationality = "Bangladeshi",
 
-      motherMobile = "",
-
-
-      guardianName = "",
-
-      guardianRelation = "",
-
-      guardianMobile = "",
+            dateOfBirth,
 
 
-      emergencyContact = "",
+            fatherName,
+
+            fatherMobile,
 
 
-      presentAddress = "",
+            motherName = "",
 
-      permanentAddress = "",
-
-
-      admissionDate,
+            motherMobile = "",
 
 
-      remarks = "",
+            guardianName = "",
+
+            guardianRelation = "",
+
+            guardianMobile = "",
 
 
-      password,
+            emergencyContact = "",
 
 
-    } = req.body;
+            presentAddress = "",
+
+            permanentAddress = "",
+
+
+            admissionDate,
+
+
+            remarks = "",
+
+
+            password,
+
+
+        } = req.body;
 
 
 
-    // ==========================
-    // REQUIRED VALIDATION
-    // ==========================
+        // ==========================
+        // REQUIRED VALIDATION
+        // ==========================
 
 
-    if (
+        if (
 
-      !name ||
+            !name ||
 
-      !className ||
+            !className ||
 
-      !gender ||
+            !gender ||
 
-      !fatherName ||
+            !fatherName ||
 
-      !fatherMobile
+            !fatherMobile
 
-    ) {
+        ) {
 
-      return res.status(400).json({
+            return res.status(400).json({
 
-        success:false,
+                success: false,
 
-        message:
-        "Required information missing",
+                message:
+                    "Required information missing",
 
-      });
+            });
+
+        }
+
+
+
+        // ==========================
+        // AUTO STUDENT ID
+        // ==========================
+
+
+        const studentId =
+
+            await generateStudentId(
+
+                className,
+
+                gender,
+
+                session
+
+            );
+
+
+
+
+        // ==========================
+        // AUTO ADMISSION NO
+        // ==========================
+
+
+        const admissionNo =
+
+            await generateAdmissionNo(
+
+                session
+
+            );
+
+
+
+
+        // ==========================
+        // PASSWORD
+        // ==========================
+
+
+        const finalPassword =
+
+            password ||
+
+            fatherMobile;
+
+
+
+        const hashedPassword =
+
+            await bcrypt.hash(
+
+                finalPassword,
+
+                10
+
+            );
+
+
+
+
+        // ==========================
+        // PHOTO
+        // ==========================
+
+
+        let photo = "";
+
+
+        if (req.file) {
+
+            photo =
+                req.file.path;
+
+        }
+
+
+
+
+        // ==========================
+        // CREATE STUDENT
+        // ==========================
+
+
+        const student =
+
+            await Student.create({
+
+                studentId,
+
+                admissionNo,
+
+
+                password:
+                    hashedPassword,
+
+
+                plainPassword:
+                    finalPassword,
+
+
+                name,
+
+
+                photo,
+
+
+                roll:
+                    roll || 0,
+
+
+                className,
+
+
+                section,
+
+
+                session,
+
+
+                studentType,
+
+
+
+                gender,
+
+
+                religion,
+
+
+                bloodGroup,
+
+
+                nationality,
+
+
+                dateOfBirth,
+
+
+
+                fatherName,
+
+
+                fatherMobile,
+
+
+                motherName,
+
+
+                motherMobile,
+
+
+
+                guardianName,
+
+
+                guardianRelation,
+
+
+                guardianMobile,
+
+
+                emergencyContact,
+
+
+
+                presentAddress,
+
+
+                permanentAddress,
+
+
+
+                admissionDate,
+
+
+                remarks,
+
+
+                status: "Active",
+
+
+            });
+
+
+
+
+        res.status(201).json({
+
+            success: true,
+
+            message:
+                "Student admitted successfully",
+
+
+            student,
+
+        });
+
+
 
     }
 
 
-
-    // ==========================
-    // AUTO STUDENT ID
-    // ==========================
+    catch (error) {
 
 
-    const studentId =
+        res.status(500).json({
 
-      await generateStudentId(
+            success: false,
 
-        className,
+            message: error.message,
 
-        gender,
+        });
 
-        session
-
-      );
-
-
-
-
-    // ==========================
-    // AUTO ADMISSION NO
-    // ==========================
-
-
-    const admissionNo =
-
-      await generateAdmissionNo(
-
-        session
-
-      );
-
-
-
-
-    // ==========================
-    // PASSWORD
-    // ==========================
-
-
-    const finalPassword =
-
-      password ||
-
-      fatherMobile;
-
-
-
-    const hashedPassword =
-
-      await bcrypt.hash(
-
-        finalPassword,
-
-        10
-
-      );
-
-
-
-
-    // ==========================
-    // PHOTO
-    // ==========================
-
-
-    let photo = "";
-
-
-    if(req.file){
-
-      photo =
-        req.file.path;
 
     }
-
-
-
-
-    // ==========================
-    // CREATE STUDENT
-    // ==========================
-
-
-    const student =
-
-      await Student.create({
-
-        studentId,
-
-        admissionNo,
-
-
-        password:
-        hashedPassword,
-
-
-        plainPassword:
-        finalPassword,
-
-
-        name,
-
-
-        photo,
-
-
-        roll:
-        roll || 0,
-
-
-        className,
-
-
-        section,
-
-
-        session,
-
-
-        studentType,
-
-
-
-        gender,
-
-
-        religion,
-
-
-        bloodGroup,
-
-
-        nationality,
-
-
-        dateOfBirth,
-
-
-
-        fatherName,
-
-
-        fatherMobile,
-
-
-        motherName,
-
-
-        motherMobile,
-
-
-
-        guardianName,
-
-
-        guardianRelation,
-
-
-        guardianMobile,
-
-
-        emergencyContact,
-
-
-
-        presentAddress,
-
-
-        permanentAddress,
-
-
-
-        admissionDate,
-
-
-        remarks,
-
-
-        status:"Active",
-
-
-      });
-
-
-
-
-    res.status(201).json({
-
-      success:true,
-
-      message:
-      "Student admitted successfully",
-
-
-      student,
-
-    });
-
-
-
-  }
-
-
-  catch(error){
-
-
-    res.status(500).json({
-
-      success:false,
-
-      message:error.message,
-
-    });
-
-
-  }
 
 
 };
@@ -1101,247 +1101,247 @@ const getStudent = async (req, res) => {
 
 const updateStudent = async (req, res) => {
 
-  try {
+    try {
 
-    const student =
-      await Student.findById(
-        req.params.id
-      );
+        const student =
+            await Student.findById(
+                req.params.id
+            );
 
 
-    if (!student) {
+        if (!student) {
 
-      return res.status(404).json({
+            return res.status(404).json({
 
-        success: false,
+                success: false,
 
-        message: "Student not found",
+                message: "Student not found",
 
-      });
+            });
+
+        }
+
+
+
+        const {
+
+            name,
+
+            roll,
+
+            className,
+
+            section,
+
+            session,
+
+            studentType,
+
+            gender,
+
+            religion,
+
+            bloodGroup,
+
+            nationality,
+
+            dateOfBirth,
+
+            fatherName,
+
+            fatherMobile,
+
+            motherName,
+
+            motherMobile,
+
+            guardianName,
+
+            guardianRelation,
+
+            guardianMobile,
+
+            emergencyContact,
+
+            presentAddress,
+
+            permanentAddress,
+
+            admissionDate,
+
+            remarks,
+
+            status,
+
+
+        } = req.body;
+
+
+
+        // ==========================
+        // PHOTO UPDATE
+        // ==========================
+
+        if (req.file) {
+
+            student.photo =
+                req.file.path;
+
+        }
+
+
+
+        // ==========================
+        // BASIC UPDATE
+        // ==========================
+
+
+        student.name =
+            name || student.name;
+
+
+        student.roll =
+            roll || student.roll;
+
+
+        student.className =
+            className || student.className;
+
+
+        student.section =
+            section || student.section;
+
+
+        student.session =
+            session || student.session;
+
+
+        student.studentType =
+            studentType || student.studentType;
+
+
+
+        student.gender =
+            gender || student.gender;
+
+
+        student.religion =
+            religion || student.religion;
+
+
+        student.bloodGroup =
+            bloodGroup || student.bloodGroup;
+
+
+        student.nationality =
+            nationality || student.nationality;
+
+
+        student.dateOfBirth =
+            dateOfBirth || student.dateOfBirth;
+
+
+
+        // ==========================
+        // PARENTS
+        // ==========================
+
+
+        student.fatherName =
+            fatherName || student.fatherName;
+
+
+        student.fatherMobile =
+            fatherMobile || student.fatherMobile;
+
+
+        student.motherName =
+            motherName || student.motherName;
+
+
+        student.motherMobile =
+            motherMobile || student.motherMobile;
+
+
+
+        student.guardianName =
+            guardianName || student.guardianName;
+
+
+        student.guardianRelation =
+            guardianRelation || student.guardianRelation;
+
+
+        student.guardianMobile =
+            guardianMobile || student.guardianMobile;
+
+
+        student.emergencyContact =
+            emergencyContact || student.emergencyContact;
+
+
+
+        // ==========================
+        // ADDRESS
+        // ==========================
+
+
+        student.presentAddress =
+            presentAddress || student.presentAddress;
+
+
+        student.permanentAddress =
+            permanentAddress || student.permanentAddress;
+
+
+
+        student.admissionDate =
+            admissionDate || student.admissionDate;
+
+
+
+        student.remarks =
+            remarks || student.remarks;
+
+
+
+        student.status =
+            status || student.status;
+
+
+
+        await student.save();
+
+
+
+        res.status(200).json({
+
+            success: true,
+
+            message:
+                "Student updated successfully",
+
+            student,
+
+        });
+
 
     }
 
 
-
-    const {
-
-      name,
-
-      roll,
-
-      className,
-
-      section,
-
-      session,
-
-      studentType,
-
-      gender,
-
-      religion,
-
-      bloodGroup,
-
-      nationality,
-
-      dateOfBirth,
-
-      fatherName,
-
-      fatherMobile,
-
-      motherName,
-
-      motherMobile,
-
-      guardianName,
-
-      guardianRelation,
-
-      guardianMobile,
-
-      emergencyContact,
-
-      presentAddress,
-
-      permanentAddress,
-
-      admissionDate,
-
-      remarks,
-
-      status,
+    catch (error) {
 
 
-    } = req.body;
+        res.status(500).json({
 
+            success: false,
 
+            message: error.message,
 
-    // ==========================
-    // PHOTO UPDATE
-    // ==========================
+        });
 
-    if (req.file) {
-
-      student.photo =
-        req.file.path;
 
     }
-
-
-
-    // ==========================
-    // BASIC UPDATE
-    // ==========================
-
-
-    student.name =
-      name || student.name;
-
-
-    student.roll =
-      roll || student.roll;
-
-
-    student.className =
-      className || student.className;
-
-
-    student.section =
-      section || student.section;
-
-
-    student.session =
-      session || student.session;
-
-
-    student.studentType =
-      studentType || student.studentType;
-
-
-
-    student.gender =
-      gender || student.gender;
-
-
-    student.religion =
-      religion || student.religion;
-
-
-    student.bloodGroup =
-      bloodGroup || student.bloodGroup;
-
-
-    student.nationality =
-      nationality || student.nationality;
-
-
-    student.dateOfBirth =
-      dateOfBirth || student.dateOfBirth;
-
-
-
-    // ==========================
-    // PARENTS
-    // ==========================
-
-
-    student.fatherName =
-      fatherName || student.fatherName;
-
-
-    student.fatherMobile =
-      fatherMobile || student.fatherMobile;
-
-
-    student.motherName =
-      motherName || student.motherName;
-
-
-    student.motherMobile =
-      motherMobile || student.motherMobile;
-
-
-
-    student.guardianName =
-      guardianName || student.guardianName;
-
-
-    student.guardianRelation =
-      guardianRelation || student.guardianRelation;
-
-
-    student.guardianMobile =
-      guardianMobile || student.guardianMobile;
-
-
-    student.emergencyContact =
-      emergencyContact || student.emergencyContact;
-
-
-
-    // ==========================
-    // ADDRESS
-    // ==========================
-
-
-    student.presentAddress =
-      presentAddress || student.presentAddress;
-
-
-    student.permanentAddress =
-      permanentAddress || student.permanentAddress;
-
-
-
-    student.admissionDate =
-      admissionDate || student.admissionDate;
-
-
-
-    student.remarks =
-      remarks || student.remarks;
-
-
-
-    student.status =
-      status || student.status;
-
-
-
-    await student.save();
-
-
-
-    res.status(200).json({
-
-      success: true,
-
-      message:
-        "Student updated successfully",
-
-      student,
-
-    });
-
-
-  }
-
-
-  catch(error){
-
-
-    res.status(500).json({
-
-      success:false,
-
-      message:error.message,
-
-    });
-
-
-  }
 
 
 };
@@ -1525,6 +1525,82 @@ const generateRollNumbers = async (req, res) => {
 
 };
 
+
+// ======================================
+// SEARCH STUDENTS
+// ======================================
+
+const searchStudents = async (req, res) => {
+
+    try {
+
+        const q = (req.query.q || "").trim();
+
+        if (!q) {
+
+            return res.json([]);
+
+        }
+
+        const students = await Student.find({
+
+            $or: [
+
+                {
+                    studentId: {
+                        $regex: q,
+                        $options: "i",
+                    },
+                },
+
+                {
+                    name: {
+                        $regex: q,
+                        $options: "i",
+                    },
+                },
+
+                {
+                    fatherMobile: {
+                        $regex: q,
+                        $options: "i",
+                    },
+                },
+
+            ],
+
+        })
+
+            .select(
+                "studentId name className section roll photo fatherMobile status"
+            )
+
+            .sort({
+                className: 1,
+                studentId: 1,
+                roll: 1,
+            })
+
+            .limit(20);
+
+        res.json(students);
+
+    }
+
+    catch (error) {
+
+        console.log(error);
+
+        res.status(500).json({
+
+            message: error.message,
+
+        });
+
+    }
+
+};
+
 // ======================================================
 // EXPORTS
 // ======================================================
@@ -1546,5 +1622,7 @@ module.exports = {
     resetPassword,
 
     generateRollNumbers,
+
+    searchStudents,
 
 };

@@ -85,6 +85,12 @@ router.post(
   generateRollNumbers
 );
 
+router.get(
+  "/search",
+  searchStudents
+);
+
+
 // =====================================
 // GET SINGLE STUDENT
 // =====================================

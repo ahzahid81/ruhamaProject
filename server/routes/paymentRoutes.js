@@ -2,13 +2,13 @@ const express = require("express");
 
 const router = express.Router();
 
-const {
+// const {
 
-    protect,
+//     protect,
 
-    authorizeRoles,
+//     authorizeRoles,
 
-} = require("../middleware/authMiddleware");
+// } = require("../middleware/authMiddleware");
 
 const {
     collectPayment,
@@ -24,15 +24,15 @@ router.post(
 
     "/collect",
 
-    protect,
+    // protect,
 
-    authorizeRoles(
+    // authorizeRoles(
 
-        "admin",
+    //     "admin",
 
-        "account-manager"
+    //     "account-manager"
 
-    ),
+    // ),
 
     collectPayment
 
@@ -43,15 +43,15 @@ router.get(
 
     "/history/:studentId",
 
-    protect,
+    // protect,
 
-    authorizeRoles(
+    // authorizeRoles(
 
-        "admin",
+    //     "admin",
 
-        "account-manager"
+    //     "account-manager"
 
-    ),
+    // ),
 
     getStudentPaymentHistory
 
@@ -62,15 +62,15 @@ router.get(
 
     "/receipt/:paymentId",
 
-    protect,
+    // protect,
 
-    authorizeRoles(
+    // authorizeRoles(
 
-        "admin",
+    //     "admin",
 
-        "account-manager"
+    //     "account-manager"
 
-    ),
+    // ),
 
     getPaymentReceipt
 
@@ -80,17 +80,17 @@ router.get(
 
     "/admit-card/:studentId",
 
-    protect,
+    // protect,
 
-    authorizeRoles(
+    // authorizeRoles(
 
-        "admin",
+    //     "admin",
 
-        "account-manager",
+    //     "account-manager",
 
-        "teacher"
+    //     "teacher"
 
-    ),
+    // ),
 
     checkAdmitCardEligibility
 
@@ -101,13 +101,13 @@ router.patch(
 
     "/cancel/:paymentId",
 
-    protect,
+    // protect,
 
-    authorizeRoles(
+    // authorizeRoles(
 
-        "admin"
+    //     "admin"
 
-    ),
+    // ),
 
     cancelPayment
 

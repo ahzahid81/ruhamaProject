@@ -8,7 +8,7 @@ protect,
 
 authorizeRoles,
 
-} = require("../middleware/authMiddleware");
+} = require("../middlewares/authMiddleware");
 
 const {
 

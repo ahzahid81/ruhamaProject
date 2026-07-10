@@ -262,24 +262,31 @@ const collectPayment = async (req, res) => {
             // VALIDATE CATEGORY
             // ---------------------------
 
-            const feeCategory =
-                await FeeCategory.findById(
-                    item.feeCategory
-                );
+            // const feeCategory =
+            //     await FeeCategory.findById(
+            //         item.feeCategory
+            //     );
 
-            if (!feeCategory) {
+            // if (!feeCategory) {
 
-                await session.abortTransaction();
+            //     await session.abortTransaction();
 
-                session.endSession();
+            //     session.endSession();
 
-                return res.status(404).json({
+            //     return res.status(404).json({
 
-                    success: false,
+            //         success: false,
 
-                    message: `Fee category not found.`,
+            //         message: `Fee category not found.`,
 
-                });
+            //     });
+
+            // }
+            let feeCategory = null;
+
+            if (item.feeCategory) {
+
+                feeCategory = await FeeCategory.findById(item.feeCategory);
 
             }
 
@@ -323,6 +330,8 @@ const collectPayment = async (req, res) => {
                 feeCategory: feeCategory._id,
 
                 feeName: item.feeName,
+                
+                feeCategory: feeCategory?._id || null,
 
                 applicableType:
                     item.applicableType,

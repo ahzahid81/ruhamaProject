@@ -641,83 +641,89 @@ gap-6
                             {/* ACTION BUTTONS */}
 
 
-                            <div className="
-          mt-6
-          flex
-          gap-3
-          ">
-
-
+                            <div className="mt-6 grid grid-cols-2 gap-3">
 
                                 <Link
-
                                     to={`/students/${student._id}`}
-
                                     className="
-            flex-1
-            text-center
-            bg-blue-600
-            text-white
-            py-3
-            rounded-xl
-            font-semibold
-            "
-
+        text-center
+        bg-blue-600
+        hover:bg-blue-700
+        text-white
+        py-3
+        rounded-xl
+        font-semibold
+        transition
+        "
                                 >
-
-                                    View
-
+                                    👁 View
                                 </Link>
-
-
-
-
 
                                 <Link
-
                                     to={`/students/edit/${student._id}`}
-
                                     className="
-            flex-1
-            text-center
-            bg-emerald-600
-            text-white
-            py-3
-            rounded-xl
-            font-semibold
-            "
-
+        text-center
+        bg-emerald-600
+        hover:bg-emerald-700
+        text-white
+        py-3
+        rounded-xl
+        font-semibold
+        transition
+        "
                                 >
-
-                                    Edit
-
+                                    ✏ Edit
                                 </Link>
 
+                                <Link
+                                    to={`/collect-payment?studentId=${student.studentId}`}
+                                    className="
+        text-center
+        bg-amber-500
+        hover:bg-amber-600
+        text-white
+        py-3
+        rounded-xl
+        font-semibold
+        transition
+        "
+                                >
+                                    💰 Collect Payment
+                                </Link>
 
-
-
+                                <Link
+                                    to={`/exam/admit-card?studentId=${student.studentId}`}
+                                    className="
+        text-center
+        bg-purple-600
+        hover:bg-purple-700
+        text-white
+        py-3
+        rounded-xl
+        font-semibold
+        transition
+        "
+                                >
+                                    🎫 Admit Card
+                                </Link>
 
                                 <button
-
                                     onClick={() => handleDelete(student._id)}
-
                                     className="
-            bg-red-500
-            text-white
-            px-4
-            rounded-xl
-            "
-
+        col-span-2
+        bg-red-500
+        hover:bg-red-600
+        text-white
+        py-3
+        rounded-xl
+        font-semibold
+        transition
+        "
                                 >
-
-                                    🗑
-
+                                    🗑 Delete Student
                                 </button>
 
-
-
                             </div>
-
 
 
 

@@ -4,7 +4,10 @@ import {
   useLocation,
 } from "react-router-dom";
 
+import { useState } from "react";
+
 const MainLayout = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
   const teacher = JSON.parse(localStorage.getItem("teacher"));
@@ -54,12 +57,22 @@ const MainLayout = () => {
       {
         name: "Students",
         path: "/students",
-        icon: "👨‍🎓"
+        icon: "👨‍🎓",
       },
       {
         name: "Admission",
         path: "/student-admission",
-        icon: "➕"
+        icon: "➕",
+      },
+      {
+        name: "Collect Payment",
+        path: "/collect-payment",
+        icon: "💰",
+      },
+      {
+        name: "Admit Card",
+        path: "/exam/admit-card",
+        icon: "🎫",
       }
     );
   }
@@ -152,18 +165,33 @@ const MainLayout = () => {
       {/* Main Content */}
       <div className="md:ml-72">
         {/* Topbar */}
-        <div className="bg-white shadow-lg sticky top-0 z-40 px-5 py-4 flex justify-between items-center border-b border-gray-100"> {/* শ্যাডো বৃদ্ধি করা হয়েছে, সূক্ষ্ম বর্ডার যোগ করা হয়েছে */}
-          <h1 className="text-2xl font-extrabold text-gray-800"> {/* শক্তিশালী ফন্ট এবং গাঢ় রঙ */}
-            Daily Class Report
-          </h1>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl font-bold shadow-md"> {/* রঙ পরিবর্তন করা হয়েছে, শ্যাডো যোগ করা হয়েছে */}
-              {
-                teacher?.name
-                  ?.charAt(0)
+        <div className="bg-white shadow-lg sticky top-0 z-40 px-5 py-4 flex justify-between items-center">
+
+          <div className="flex items-center gap-4">
+
+            <button
+              className="md:hidden text-3xl"
+              onClick={() =>
+                setSidebarOpen(true)
               }
-            </div>
+            >
+              ☰
+            </button>
+
+            <h1 className="text-2xl font-bold">
+
+              Daily Class Report
+
+            </h1>
+
           </div>
+
+          <div className="w-11 h-11 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
+
+            {teacher?.name?.charAt(0)}
+
+          </div>
+
         </div>
 
         {/* Pages */}
@@ -172,32 +200,119 @@ const MainLayout = () => {
         </div>
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 shadow-xl z-50 py-2"> {/* শ্যাডো বৃদ্ধি করা হয়েছে, সূক্ষ্ম প্যাডিং, বর্ডার-গ্রে-১০০ */}
-        <div
-          className={`grid ${getGridColsClass(navItems.length)}`}
-        >
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              // প্রিমিয়াম অনুভূতির জন্য মোবাইল লিঙ্কের স্টাইল পরিমার্জিত করা হয়েছে
-              className={`flex flex-col items-center justify-center py-3 px-1 transition-all duration-200 ease-in-out
-                ${location.pathname === item.path
-                  ? "text-emerald-600 font-semibold bg-emerald-50 rounded-xl mx-1" // সূক্ষ্ম ব্যাকগ্রাউন্ড এবং রাউন্ডিং সহ অ্যাক্টিভ অবস্থা
-                  : "text-gray-500 hover:text-emerald-700 hover:bg-gray-50 rounded-xl mx-1" // হোভার ইফেক্ট
-                }`}
+      {sidebarOpen && (
+
+        <div className="fixed inset-0 z-50 md:hidden">
+
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() =>
+              setSidebarOpen(false)
+            }
+          />
+
+          <div
+            className="
+        absolute
+        left-0
+        top-0
+        h-full
+        w-72
+        bg-white
+        shadow-xl
+        p-6
+        overflow-auto
+        "
+          >
+
+            <div className="flex justify-between items-center mb-8">
+
+              <h2 className="text-2xl font-bold">
+
+                RUHAMA
+
+              </h2>
+
+              <button
+                onClick={() =>
+                  setSidebarOpen(false)
+                }
+                className="text-3xl"
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="space-y-2">
+
+              {navItems.map(item => (
+
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() =>
+                    setSidebarOpen(false)
+                  }
+                  className={`
+                    flex
+                    items-center
+                    gap-4
+                    p-4
+                    rounded-xl
+
+                    ${location.pathname === item.path
+
+                      ?
+
+                      "bg-emerald-600 text-white"
+
+                      :
+
+                      "hover:bg-emerald-50"
+
+                    }
+                    `}
+                >
+
+                  <span>
+
+                    {item.icon}
+
+                  </span>
+
+                  {item.name}
+
+                </Link>
+
+              ))}
+
+            </div>
+
+            <button
+
+              onClick={handleLogout}
+
+              className="
+            mt-10
+            w-full
+            bg-red-600
+            text-white
+            py-3
+            rounded-xl
+            "
+
             >
-              <span className="text-2xl">
-                {item.icon}
-              </span>
-              <span className="text-xs mt-1 font-medium"> {/* সামঞ্জস্যপূর্ণ ফন্ট ওয়েট */}
-                {item.name}
-              </span>
-            </Link>
-          ))}
+
+              Logout
+
+            </button>
+
+          </div>
+
         </div>
-      </div>
+
+      )}
     </div>
   );
 };

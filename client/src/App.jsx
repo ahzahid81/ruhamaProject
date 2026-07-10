@@ -24,6 +24,8 @@ import Students from "./pages/admin/Students";
 import EditStudent from "./pages/admin/EditStudent";
 import StudentAdmission from "./pages/admin/StudentAdmission";
 import StudentDetails from "./pages/admin/StudentDetails";
+import AdmitCard from "./pages/exam/AdmitCard";
+import CollectPayment from "./pages/payment/CollectPayment";
 
 function App() {
 
@@ -106,7 +108,20 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
 
+            path="/exam/admit-card"
+
+            element={<AdmitCard />}
+
+          />
+          <Route
+
+            path="/collect-payment"
+
+            element={<CollectPayment></CollectPayment>}
+
+          />
           {/* Admin */}
           <Route
             path="/admin"

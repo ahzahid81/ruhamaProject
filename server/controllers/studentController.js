@@ -1572,7 +1572,7 @@ const searchStudents = async (req, res) => {
         })
 
             .select(
-                "studentId name className section roll photo fatherMobile status"
+                "studentId name className section roll photo fatherName fatherMobile status"
             )
 
             .sort({

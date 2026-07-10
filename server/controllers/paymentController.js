@@ -327,10 +327,8 @@ const collectPayment = async (req, res) => {
 
                 student: studentInfo._id,
 
-                feeCategory: feeCategory._id,
-
                 feeName: item.feeName,
-                
+
                 feeCategory: feeCategory?._id || null,
 
                 applicableType:

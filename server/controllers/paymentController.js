@@ -660,7 +660,7 @@ const checkAdmitCardEligibility = async (req, res) => {
 
         const {
 
-            month = 7,
+            month = 6,
 
             year = new Date().getFullYear(),
 

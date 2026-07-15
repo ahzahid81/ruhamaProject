@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 
@@ -237,7 +237,7 @@ const AdmitCard = () => {
                                                 font-medium
                                                 "
                                                 >
-                                                    ❌ {reason}
+                                                    ÔØî {reason}
                                                 </li>
                                             )
                                         )
@@ -278,8 +278,10 @@ const AdmitCard = () => {
 
                     #admit-card {
                         position: absolute;
-                        left: 0;
+                        left: 50%;
                         top: 0;
+                        transform: translateX(-50%) scale(0.5);
+                        transform-origin: top center;
                         width: 210mm;
                         height: 297mm;
                         overflow: hidden;
@@ -290,13 +292,6 @@ const AdmitCard = () => {
                         background: white;
                         box-shadow: none !important;
                         border: none !important;
-                    }
-
-                    /* Force single page */
-                    #admit-card .print\\:h-\\[297mm\\] {
-                        height: 297mm !important;
-                        max-height: 297mm !important;
-                        min-height: 297mm !important;
                     }
 
                     /* Prevent page breaks inside */

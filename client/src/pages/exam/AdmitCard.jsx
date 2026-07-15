@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 
@@ -237,7 +237,7 @@ const AdmitCard = () => {
                                                 font-medium
                                                 "
                                                 >
-                                                    ÔØî {reason}
+                                                    ❌ {reason}
                                                 </li>
                                             )
                                         )
@@ -276,23 +276,33 @@ const AdmitCard = () => {
                         visibility: visible;
                     }
 
-                    #admit-card {
-                        position: absolute;
-                        left: 50%;
-                        top: 0;
-                        transform: translateX(-50%) scale(0.5);
-                        transform-origin: top center;
-                        width: 210mm;
-                        height: 297mm;
-                        overflow: hidden;
-                        page-break-after: avoid;
-                        page-break-inside: avoid;
-                        margin: 0;
-                        padding: 0;
-                        background: white;
-                        box-shadow: none !important;
-                        border: none !important;
-                    }
+#admit-card {
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 210mm;
+    min-height: 149mm;
+    height: auto;
+
+    overflow: visible;
+
+    background: white;
+
+    box-shadow: none !important;
+    border: none !important;
+
+    page-break-after: avoid;
+    page-break-inside: avoid;
+}
+
+                    // /* Force single page */
+                    // #admit-card .print\\:h-\\[297mm\\] {
+                    //     height: 297mm !important;
+                    //     max-height: 297mm !important;
+                    //     min-height: 297mm !important;
+                    // }
 
                     /* Prevent page breaks inside */
                     #admit-card > * {

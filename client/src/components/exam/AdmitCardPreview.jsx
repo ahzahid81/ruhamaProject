@@ -13,14 +13,14 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                     onClick={onPrint}
                     className="bg-indigo-700 hover:bg-indigo-800 transition text-white font-bold px-8 py-3 rounded-2xl shadow-lg"
                 >
-                    ­ƒû¿ Print Admit Card
+                    🖨 Print Admit Card
                 </button>
             </div>
 
             {/* ADMIT CARD */}
             <div
                 id="admit-card"
-                className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] min-h-[297mm] print:w-[210mm] print:h-[297mm] print:shadow-none print:border-none print:overflow-hidden"
+                className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] min-h-[149mm] print:w-[210mm] print:h-[149mm] print:shadow-none print:border-none print:overflow-hidden"
             >
                 {/* HEADER */}
                 <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-6 py-4 flex justify-center items-center">
@@ -31,7 +31,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                         <div>
                             <h1 className="text-center text-2xl font-black uppercase tracking-wide">Ruhama United School</h1>
                             <p className="text-center text-sm text-yellow-300 font-medium">Change Yourself, Decorate The World</p>
-                            <p className="text-center text-xs text-white/70">English Version School with Tahfizul Quran</p>
+                            <p className="text-center text-xs text-white/70">An English Version School with Tahfizul Quran</p>
                         </div>
                     </div>
                 </div>
@@ -59,7 +59,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                                         />
                                     ) : (
                                         <div className="aspect-[3/4] rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center text-6xl bg-slate-50">
-                                            ­ƒæñ
+                                            👤
                                         </div>
                                     )}
                                     <div className="mt-3 bg-indigo-700 text-white rounded-lg py-2 text-center font-bold tracking-wider text-sm">
@@ -77,7 +77,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                                             <p className="text-sm text-slate-500">Student Profile</p>
                                         </div>
                                         <div className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full font-bold text-sm">
-                                            Ô£à Eligible
+                                            ✅ Eligible
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4 mt-5">
@@ -93,7 +93,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                         {/* EXAM DETAILS */}
                         <div className="mt-4 rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                             <div className="bg-gradient-to-r from-indigo-700 to-blue-700 text-white px-5 py-2.5">
-                                <h2 className="text-lg font-bold">­ƒôï Examination Information</h2>
+                                <h2 className="text-lg font-bold">📋 Examination Information</h2>
                             </div>
                             <div className="grid grid-cols-3 gap-4 p-4 bg-white">
                                 <InfoItem label="Examination" value={exam.examName} />
@@ -118,7 +118,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                                         includeMargin
                                     />
                                 </div>
-                                <p className="mt-2 text-xs text-slate-500 font-medium">­ƒöì Scan for Verification</p>
+                                <p className="mt-2 text-xs text-slate-500 font-medium">🔍 Scan for Verification</p>
                             </div>
 
                             {/* Student ID Barcode */}
@@ -149,7 +149,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                         {/* INSTRUCTIONS */}
                         <div className="mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
                             <h3 className="font-bold text-base text-[#07153B] mb-2 flex items-center gap-2">
-                                <span>­ƒôî</span> Instructions
+                                <span>📌</span> Instructions
                             </h3>
                             <ol className="list-decimal ml-5 space-y-1 text-gray-700 text-sm">
                                 <li>Bring this Admit Card on every exam day.</li>
@@ -200,10 +200,8 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
 
                     #admit-card {
                         position: fixed;
-                        left: 50%;
+                        left: 0;
                         top: 0;
-                        transform: translateX(-50%) scale(0.5);
-                        transform-origin: top center;
                         width: 210mm;
                         height: 297mm;
                         overflow: hidden;
@@ -296,7 +294,7 @@ const InfoItem = ({ label, value }) => {
     return (
         <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm">
             <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{label}</p>
-            <p className="mt-0.5 text-base font-bold text-[#07153B] break-words">{value || "ÔÇö"}</p>
+            <p className="mt-0.5 text-base font-bold text-[#07153B] break-words">{value || "—"}</p>
         </div>
     );
 };

@@ -3,40 +3,19 @@ const bcrypt = require("bcryptjs");
 
 const Student = require("../models/Student");
 const Counter = require("../models/Counter");
+const Settings = require("../models/Settings");
 
 // ======================================================
-// CLASS CODE
+// DYNAMIC CLASS CODE (from Settings)
 // ======================================================
 
-const getClassCode = (className = "") => {
-    switch (className.trim()) {
-        case "Play Group":
-            return "P";
-
-        case "Nursery":
-            return "N";
-
-        case "KG":
-            return "K";
-
-        case "STD-I":
-            return "I";
-
-        case "STD-II":
-            return "II";
-
-        case "STD-III":
-            return "III";
-
-        case "STD-IV":
-            return "IV";
-
-        case "STD-V":
-            return "V";
-
-        default:
-            return "";
-    }
+const getClassCode = async (className = "") => {
+  if (!className) return "";
+  const settings = await Settings.getSettings();
+  const found = settings.classes.find(
+    (c) => c.name.toLowerCase() === className.trim().toLowerCase()
+  );
+  return found ? found.code : "";
 };
 
 // ======================================================
@@ -48,43 +27,28 @@ const getGenderCode = (gender = "") => {
 };
 
 // ======================================================
-// EXCEL CLASS MAPPING
+// DYNAMIC EXCEL CLASS MAPPING (from Settings)
+// Supports legacy patterns like "Play(Boy's)", "Nursery(Girl's)"
 // ======================================================
 
-const getClassName = (value = "") => {
-    const cls = value.toString().trim();
+const getClassName = async (value = "") => {
+  const cls = value.toString().trim();
+  if (!cls) return "";
 
-    switch (cls) {
-        case "Play(Boy's)":
-        case "Play(Girl's)":
-            return "Play Group";
+  // Strip legacy "(Boy's)" / "(Girl's)" suffix
+  const clean = cls.replace(/\(.*?\)/g, "").trim();
 
-        case "Nursery(Boy's)":
-        case "Nursery(Girl's)":
-            return "Nursery";
+  const settings = await Settings.getSettings();
+  const found = settings.classes.find(
+    (c) => c.name.toLowerCase() === clean.toLowerCase()
+  );
+  if (found) return found.name;
 
-        case "KG(Boy's)":
-        case "KG(Girl's)":
-            return "KG";
-
-        case "STD-I":
-            return "STD-I";
-
-        case "STD-II":
-            return "STD-II";
-
-        case "STD-III":
-            return "STD-III";
-
-        case "STD-IV":
-            return "STD-IV";
-
-        case "STD-V":
-            return "STD-V";
-
-        default:
-            return cls;
-    }
+  // fallback: try exact match on full string
+  const exact = settings.classes.find(
+    (c) => c.name.toLowerCase() === cls.toLowerCase()
+  );
+  return exact ? exact.name : cls;
 };
 
 // ======================================================
@@ -191,14 +155,14 @@ const parseExcelDate = (value) => {
 // GIII-26
 // ======================================================
 
-const getCounterKey = (
+const getCounterKey = async (
     className,
     gender,
     session
 ) => {
 
     const classCode =
-        getClassCode(className);
+        await getClassCode(className);
 
     const genderCode =
         getGenderCode(gender);
@@ -226,7 +190,7 @@ const generateStudentId = async (
 ) => {
 
     const key =
-        getCounterKey(
+        await getCounterKey(
             className,
             gender,
             session
@@ -254,7 +218,7 @@ const generateStudentId = async (
         );
 
     const classCode =
-        getClassCode(className);
+        await getClassCode(className);
 
     const genderCode =
         getGenderCode(gender);
@@ -390,7 +354,7 @@ const importStudents = async (req, res) => {
                     ).trim();
 
                 const className =
-                    getClassName(
+                    await getClassName(
                         row["Class"]
                     );
 
@@ -463,7 +427,7 @@ const importStudents = async (req, res) => {
                 );
 
                 const classCode =
-                    getClassCode(className);
+                    await getClassCode(className);
 
                 const genderCode =
                     getGenderCode(

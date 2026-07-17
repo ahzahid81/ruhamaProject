@@ -12,6 +12,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const examSettingRoutes = require("./routes/examSettingRoutes");
 const feeSettingRoutes = require("./routes/feeSettingRoutes");
 const studentLedgerRoutes = require("./routes/studentLedgerRoutes");
+const settingsRoutes = require("./routes/settingsRoutes");
 
 dotenv.config();
 
@@ -38,6 +39,8 @@ app.use("/api/exams", examSettingRoutes);
 app.use("/api/fees", feeSettingRoutes);
 
 app.use("/api/ledger", studentLedgerRoutes);
+
+app.use("/api/settings", settingsRoutes);
 
 app.get("/", (req, res) => {
   res.send("API Running");

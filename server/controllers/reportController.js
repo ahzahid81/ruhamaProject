@@ -164,6 +164,8 @@ const getPendingSubjects = async (
 
         teachers.forEach((teacher) => {
 
+            if (!teacher.assignments) return;
+
             teacher.assignments.forEach(
                 (assignment) => {
 

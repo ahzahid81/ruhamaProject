@@ -16,6 +16,10 @@ const {
     getPaymentReceipt,
     checkAdmitCardEligibility,
     cancelPayment,
+    getFeeCategories,
+    createFeeCategory,
+    updateFeeCategory,
+    deleteFeeCategory,
 } = require("../controllers/paymentController");
 
 // Collect Payment
@@ -94,6 +98,27 @@ router.get(
 
     checkAdmitCardEligibility
 
+);
+
+// Fee Categories
+router.get(
+    "/fee-categories",
+    getFeeCategories
+);
+
+router.post(
+    "/fee-categories",
+    createFeeCategory
+);
+
+router.put(
+    "/fee-categories/:id",
+    updateFeeCategory
+);
+
+router.delete(
+    "/fee-categories/:id",
+    deleteFeeCategory
 );
 
 // Cancel Receipt

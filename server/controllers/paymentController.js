@@ -576,10 +576,76 @@ const checkAdmitCardEligibility = async (req, res) => {
   }
 };
 
+// ============================================
+// FEE CATEGORY CRUD
+// ============================================
+
+const getFeeCategories = async (req, res) => {
+  try {
+    const categories = await FeeCategory.find().sort({ sortOrder: 1, name: 1 });
+    return res.status(200).json(categories);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const createFeeCategory = async (req, res) => {
+  try {
+    const existing = await FeeCategory.findOne({
+      $or: [
+        { name: { $regex: `^${req.body.name}$`, $options: "i" } },
+        { code: req.body.code?.toUpperCase() },
+      ],
+    });
+    if (existing) {
+      return res.status(400).json({ message: "Fee category with this name or code already exists" });
+    }
+    const category = await FeeCategory.create(req.body);
+    return res.status(201).json(category);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const updateFeeCategory = async (req, res) => {
+  try {
+    const category = await FeeCategory.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!category) {
+      return res.status(404).json({ message: "Fee category not found" });
+    }
+    return res.status(200).json(category);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const deleteFeeCategory = async (req, res) => {
+  try {
+    const category = await FeeCategory.findByIdAndDelete(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: "Fee category not found" });
+    }
+    return res.status(200).json({ message: "Fee category deleted" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   collectPayment,
   getStudentPaymentHistory,
   getPaymentReceipt,
   cancelPayment,
   checkAdmitCardEligibility,
+  getFeeCategories,
+  createFeeCategory,
+  updateFeeCategory,
+  deleteFeeCategory,
 };

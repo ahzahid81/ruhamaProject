@@ -5,6 +5,9 @@ const PaymentItem = require("../models/PaymentItem");
 const Student = require("../models/Student");
 const FeeCategory = require("../models/FeeCategory");
 const StudentLedger = require("../models/StudentLedger");
+const ClassFeeSetting = require("../models/ClassFeeSetting");
+const StudentFeeOverride = require("../models/StudentFeeOverride");
+const Settings = require("../models/Settings");
 
 const { createLedgerEntry } = require("./studentLedgerController");
 
@@ -638,6 +641,157 @@ const deleteFeeCategory = async (req, res) => {
   }
 };
 
+// ============================================
+// GET STUDENT DUE ITEMS
+// Auto-calculates what a student owes based on
+// fee settings + existing paid items
+// ============================================
+
+const getStudentDueItems = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { academicSession } = req.query;
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found." });
+    }
+
+    const session = academicSession || student.session || "2026";
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    // Get all active fee categories
+    const categories = await FeeCategory.find({ isActive: true }).sort({ sortOrder: 1 });
+
+    // Get class fee settings (exact class + "All Classes")
+    const classSettings = await ClassFeeSetting.find({
+      $or: [{ className: student.className }, { className: "All Classes" }],
+      academicSession: session,
+      isActive: true,
+    });
+
+    // Get student-specific overrides
+    const overrides = await StudentFeeOverride.find({
+      student: student._id,
+      academicSession: session,
+      isActive: { $ne: false },
+    });
+
+    // Get already paid/partial items
+    const paidItems = await PaymentItem.find({
+      student: student._id,
+      paymentStatus: { $in: ["Paid", "Partial"] },
+    });
+
+    // Build a set of paid item keys for quick lookup
+    const paidSet = new Set();
+    paidItems.forEach((item) => {
+      if (item.feeCategory) {
+        const cid = item.feeCategory.toString();
+        if (item.applicableType === "Month") {
+          paidSet.add(`${cid}_Month_${item.month}_${item.year}`);
+        } else if (item.applicableType === "Exam") {
+          paidSet.add(`${cid}_Exam_${item.examName}_${item.year}`);
+        } else {
+          paidSet.add(`${cid}_${item.applicableType}_${item.year || ""}`);
+        }
+      }
+    });
+
+    const overrideMap = {};
+    overrides.forEach((o) => { overrideMap[o.feeCategory.toString()] = o; });
+
+    const classSettingMap = {};
+    classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
+
+    // Get exam names from Settings
+    const settingsDoc = await Settings.findOne();
+    const examNames = settingsDoc?.examNames?.filter(Boolean) || [];
+
+    const dueItems = [];
+
+    categories.forEach((cat) => {
+      const catId = cat._id.toString();
+      const override = overrideMap[catId];
+      const classSetting = classSettingMap[catId];
+
+      let effectiveAmount = cat.defaultAmount || 0;
+      let frequency = cat.frequency;
+
+      if (override) {
+        effectiveAmount = override.amount;
+        frequency = override.frequency || cat.frequency;
+      } else if (classSetting) {
+        effectiveAmount = classSetting.amount;
+        frequency = classSetting.frequency || cat.frequency;
+      }
+
+      if (effectiveAmount <= 0) return;
+
+      if (frequency === "Monthly") {
+        for (let m = 1; m <= currentMonth; m++) {
+          const key = `${catId}_Month_${m}_${currentYear}`;
+          if (!paidSet.has(key)) {
+            dueItems.push({
+              feeCategory: catId,
+              feeName: cat.name,
+              applicableType: "Month",
+              month: m,
+              year: currentYear,
+              amount: effectiveAmount,
+            });
+          }
+        }
+      } else if (frequency === "Per Exam") {
+        examNames.forEach((exam) => {
+          const key = `${catId}_Exam_${exam}_${currentYear}`;
+          if (!paidSet.has(key)) {
+            dueItems.push({
+              feeCategory: catId,
+              feeName: `${cat.name} (${exam})`,
+              applicableType: "Exam",
+              examName: exam,
+              year: currentYear,
+              amount: effectiveAmount,
+            });
+          }
+        });
+      } else {
+        const type = frequency === "Yearly" ? "Year" : (frequency === "One Time" ? "One Time" : "Custom");
+        const key = `${catId}_${type}_${currentYear}`;
+        if (!paidSet.has(key)) {
+          dueItems.push({
+            feeCategory: catId,
+            feeName: cat.name,
+            applicableType: type,
+            year: currentYear,
+            amount: effectiveAmount,
+          });
+        }
+      }
+    });
+
+    // Build fee structure array for display
+    const feeStructure = categories.map((cat) => {
+      const catId = cat._id.toString();
+      const override = overrideMap[catId];
+      const classSetting = classSettingMap[catId];
+      let effectiveAmount = cat.defaultAmount || 0;
+      let frequency = cat.frequency;
+      let source = "Default";
+      if (override) { effectiveAmount = override.amount; frequency = override.frequency || cat.frequency; source = "Override"; }
+      else if (classSetting) { effectiveAmount = classSetting.amount; frequency = classSetting.frequency || cat.frequency; source = "Class Setting"; }
+      return { feeCategory: cat, effectiveAmount, frequency, source };
+    }).filter((f) => f.effectiveAmount > 0);
+
+    return res.status(200).json({ success: true, dueItems, feeStructure });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   collectPayment,
   getStudentPaymentHistory,
@@ -648,4 +802,5 @@ module.exports = {
   createFeeCategory,
   updateFeeCategory,
   deleteFeeCategory,
+  getStudentDueItems,
 };

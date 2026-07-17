@@ -20,6 +20,7 @@ const {
     createFeeCategory,
     updateFeeCategory,
     deleteFeeCategory,
+    getStudentDueItems,
 } = require("../controllers/paymentController");
 
 // Collect Payment
@@ -79,6 +80,12 @@ router.get(
     getPaymentReceipt
 
 );
+// Student Due Items (auto-calculated)
+router.get(
+    "/due-items/:studentId",
+    getStudentDueItems
+);
+
 // Admit Card Eligibility
 router.get(
 

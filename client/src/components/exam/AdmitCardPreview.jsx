@@ -1,4 +1,4 @@
-﻿import logo from "../../assets/logo.png";
+import logo from "../../assets/logo.png";
 import { QRCodeSVG } from "qrcode.react";
 import Barcode from "react-barcode";
 

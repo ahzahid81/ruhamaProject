@@ -11,7 +11,7 @@ const {
   updateSettings,
 } = require("../controllers/settingsController");
 
-router.get("/", protect, getSettings);
+router.get("/", getSettings);
 
 router.put("/", protect, authorizeRoles("admin"), updateSettings);
 

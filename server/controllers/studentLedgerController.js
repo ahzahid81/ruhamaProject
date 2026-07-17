@@ -77,6 +77,7 @@ const getStudentDueSummary = async (req, res) => {
     const dueItems = await PaymentItem.find({
       student: studentId,
       paymentStatus: { $in: ["Unpaid", "Partial"] },
+      year: parseInt(session) || new Date().getFullYear(),
     })
       .populate("feeCategory", "name code category")
       .populate("payment", "receiptNo receiveDate")
@@ -88,12 +89,36 @@ const getStudentDueSummary = async (req, res) => {
     const recentPayments = await Payment.find({
       student: studentId,
       isVoided: false,
+      academicSession: session,
     })
       .sort({ receiveDate: -1 })
       .limit(5);
 
+    // Get total paid across all payments
+    const paymentAgg = await Payment.aggregate([
+      { $match: { student: student._id, isVoided: false, academicSession: session } },
+      { $group: { _id: null, totalPaid: { $sum: "$paidAmount" } } },
+    ]);
+    const totalPaid = paymentAgg.length > 0 ? paymentAgg[0].totalPaid : 0;
+
+    // Get opening balance (balance before first payment-related ledger entry in this session)
+    const firstLedger = await StudentLedger.findOne({
+      student: studentId,
+      academicSession: session,
+      transactionType: "Payment",
+    }).sort({ createdAt: 1 });
+
+    let openingBalance = 0;
+    if (firstLedger) {
+      const beforeFirstPayment = await StudentLedger.findOne({
+        student: studentId,
+        createdAt: { $lt: firstLedger.createdAt },
+      }).sort({ createdAt: -1 });
+      openingBalance = beforeFirstPayment ? beforeFirstPayment.balance : 0;
+    }
+
     // Get current ledger balance
-    const lastLedger = await StudentLedger.findOne({ student: studentId })
+    const lastLedger = await StudentLedger.findOne({ student: studentId, academicSession: session })
       .sort({ createdAt: -1 });
 
     const balance = lastLedger ? lastLedger.balance : 0;
@@ -103,6 +128,8 @@ const getStudentDueSummary = async (req, res) => {
       student: { _id: student._id, name: student.name, studentId: student.studentId, className: student.className },
       academicSession: session,
       summary: {
+        openingBalance,
+        totalPaid,
         totalDue,
         currentBalance: balance,
         dueItemsCount: dueItems.length,
@@ -120,13 +147,13 @@ const getStudentDueSummary = async (req, res) => {
 // CREATE LEDGER ENTRY (internal helper)
 // ============================================
 
-const createLedgerEntry = async ({ student, studentId, academicSession, payment, paymentItem, transactionType, description, debit, credit, createdBy, remarks }) => {
-  // Get last balance
-  const lastEntry = await StudentLedger.findOne({ student }).sort({ createdAt: -1 });
+const createLedgerEntry = async ({ student, studentId, academicSession, payment, paymentItem, transactionType, description, debit, credit, createdBy, remarks, session: mongoSession }) => {
+  const opts = mongoSession ? { session: mongoSession } : {};
+  const lastEntry = await StudentLedger.findOne({ student }).sort({ createdAt: -1 }).session(mongoSession || null);
   const previousBalance = lastEntry ? lastEntry.balance : 0;
   const balance = previousBalance + (debit || 0) - (credit || 0);
 
-  const entry = await StudentLedger.create({
+  const entry = await StudentLedger.create([{
     student,
     studentId,
     academicSession: academicSession || "2026",
@@ -139,9 +166,9 @@ const createLedgerEntry = async ({ student, studentId, academicSession, payment,
     balance,
     createdBy: createdBy || null,
     remarks: remarks || "",
-  });
+  }], opts);
 
-  return entry;
+  return entry[0];
 };
 
 module.exports = {

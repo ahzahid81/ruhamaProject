@@ -259,7 +259,7 @@ const collectPayment = async (req, res) => {
       });
     }
 
-    await PaymentItem.insertMany(paymentItems, { session });
+    const savedPaymentItems = await PaymentItem.insertMany(paymentItems, { session });
 
     // ===============================
     // CREATE LEDGER ENTRIES
@@ -280,11 +280,12 @@ const collectPayment = async (req, res) => {
         credit: paidAmount,
         createdBy,
         remarks: `Payment via ${paymentMethod}. Receipt: ${receiptNo}`,
+        session,
       });
     }
 
     // Charge entries for each fee item
-    for (const pi of paymentItems) {
+    for (const pi of savedPaymentItems) {
       if (pi.payableAmount > 0) {
         let desc = `${pi.feeName}`;
         if (pi.applicableType === "Month") {
@@ -307,6 +308,7 @@ const collectPayment = async (req, res) => {
           credit: 0,
           createdBy,
           remarks: `Receipt: ${receiptNo}`,
+          session,
         });
       }
     }
@@ -324,6 +326,7 @@ const collectPayment = async (req, res) => {
         credit: totalDiscount,
         createdBy,
         remarks: `Discount: ${totalDiscount}`,
+        session,
       });
     }
 
@@ -340,6 +343,7 @@ const collectPayment = async (req, res) => {
         credit: 0,
         createdBy,
         remarks: `Fine: ${totalFine}`,
+        session,
       });
     }
 
@@ -661,6 +665,9 @@ const getStudentDueItems = async (req, res) => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
 
+    // Derive the session year (e.g., "2025" -> 2025, "2025-2026" -> 2025)
+    const sessionYear = parseInt(session) || currentYear;
+
     // Get all active fee categories
     const categories = await FeeCategory.find({ isActive: true }).sort({ sortOrder: 1 });
 
@@ -684,17 +691,24 @@ const getStudentDueItems = async (req, res) => {
       paymentStatus: { $in: ["Paid", "Partial"] },
     });
 
-    // Build a set of paid item keys for quick lookup
-    const paidSet = new Set();
+    // Build sets for fully-paid and partial items
+    const fullyPaidSet = new Set();
+    const partialMap = {};
     paidItems.forEach((item) => {
       if (item.feeCategory) {
         const cid = item.feeCategory.toString();
+        let key;
         if (item.applicableType === "Month") {
-          paidSet.add(`${cid}_Month_${item.month}_${item.year}`);
+          key = `${cid}_Month_${item.month}_${item.year}`;
         } else if (item.applicableType === "Exam") {
-          paidSet.add(`${cid}_Exam_${item.examName}_${item.year}`);
+          key = `${cid}_Exam_${item.examName}_${item.year}`;
         } else {
-          paidSet.add(`${cid}_${item.applicableType}_${item.year || ""}`);
+          key = `${cid}_${item.applicableType}_${item.year || ""}`;
+        }
+        if (item.paymentStatus === "Paid") {
+          fullyPaidSet.add(key);
+        } else if (item.paymentStatus === "Partial" && item.dueAmount > 0) {
+          partialMap[key] = (partialMap[key] || 0) + item.dueAmount;
         }
       }
     });
@@ -730,42 +744,77 @@ const getStudentDueItems = async (req, res) => {
       if (effectiveAmount <= 0) return;
 
       if (frequency === "Monthly") {
-        for (let m = 1; m <= currentMonth; m++) {
-          const key = `${catId}_Month_${m}_${currentYear}`;
-          if (!paidSet.has(key)) {
+        let maxMonth;
+        if (sessionYear < currentYear) {
+          maxMonth = 12;
+        } else {
+          maxMonth = currentMonth;
+        }
+        for (let m = 1; m <= maxMonth; m++) {
+          const key = `${catId}_Month_${m}_${sessionYear}`;
+          if (fullyPaidSet.has(key)) continue;
+          if (partialMap[key]) {
             dueItems.push({
               feeCategory: catId,
               feeName: cat.name,
               applicableType: "Month",
               month: m,
-              year: currentYear,
+              year: sessionYear,
+              amount: partialMap[key],
+            });
+          } else {
+            dueItems.push({
+              feeCategory: catId,
+              feeName: cat.name,
+              applicableType: "Month",
+              month: m,
+              year: sessionYear,
               amount: effectiveAmount,
             });
           }
         }
       } else if (frequency === "Per Exam") {
         examNames.forEach((exam) => {
-          const key = `${catId}_Exam_${exam}_${currentYear}`;
-          if (!paidSet.has(key)) {
+          const key = `${catId}_Exam_${exam}_${sessionYear}`;
+          if (fullyPaidSet.has(key)) return;
+          if (partialMap[key]) {
             dueItems.push({
               feeCategory: catId,
               feeName: `${cat.name} (${exam})`,
               applicableType: "Exam",
               examName: exam,
-              year: currentYear,
+              year: sessionYear,
+              amount: partialMap[key],
+            });
+          } else {
+            dueItems.push({
+              feeCategory: catId,
+              feeName: `${cat.name} (${exam})`,
+              applicableType: "Exam",
+              examName: exam,
+              year: sessionYear,
               amount: effectiveAmount,
             });
           }
         });
       } else {
         const type = frequency === "Yearly" ? "Year" : (frequency === "One Time" ? "One Time" : "Custom");
-        const key = `${catId}_${type}_${currentYear}`;
-        if (!paidSet.has(key)) {
+        const key = `${catId}_${type}_${sessionYear}`;
+        if (fullyPaidSet.has(key)) return;
+        if (partialMap[key]) {
           dueItems.push({
             feeCategory: catId,
             feeName: cat.name,
             applicableType: type,
-            year: currentYear,
+            year: sessionYear,
+            amount: partialMap[key],
+          });
+        } else {
+          dueItems.push({
+            feeCategory: catId,
+            feeName: cat.name,
+            applicableType: type,
+            year: sessionYear,
             amount: effectiveAmount,
           });
         }

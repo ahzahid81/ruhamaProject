@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as htmlToImage from "html-to-image";
 
 import api from "../services/api";
 import logo from "../assets/logo.png";
+import Toast from "../components/Toast";
 
 const ClassReport = () => {
 
@@ -19,25 +20,31 @@ const ClassReport = () => {
     const [loading, setLoading] = useState(false);
 
     const [sharing, setSharing] = useState(false);
+    const [systemSettings, setSystemSettings] = useState(null);
+    const [toast, setToast] = useState(null);
 
-    // CLASSES
-    const classes = [
-        "Play Group",
-        "Nursery",
-        "KG",
-        "STD-I",
-        "STD-II",
-        "STD-III",
-        "STD-IV",
-        "STD-V",
-
-    ];
+    useEffect(() => {
+        api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+            setSystemSettings({
+              classes: [
+                { name: "Play Group", code: "P", order: 1 },
+                { name: "Nursery", code: "N", order: 2 },
+                { name: "KG", code: "K", order: 3 },
+                { name: "STD-I", code: "I", order: 4 },
+                { name: "STD-II", code: "J", order: 5 },
+                { name: "STD-III", code: "L", order: 6 },
+                { name: "STD-IV", code: "M", order: 7 },
+                { name: "STD-V", code: "V", order: 8 },
+              ],
+            });
+        });
+    }, []);
 
     // GET REPORT
     const getReport = async () => {
 
         if (!className) {
-            return alert("Select class");
+            return setToast({ message: "Select class", type: "error" });
         }
 
         setLoading(true);
@@ -52,9 +59,10 @@ const ClassReport = () => {
 
         } catch (error) {
 
-            alert(
-                error.response?.data?.message
-            );
+            setToast({
+                message: error.response?.data?.message || "Failed to load report",
+                type: "error"
+            });
 
         } finally {
 
@@ -296,7 +304,7 @@ const ClassReport = () => {
                             Select Class
                         </option>
 
-                        {classes.map(
+                        {["All Classes", ...(systemSettings?.classes || []).map(c => c.name)].map(
                             (
                                 item,
                                 index
@@ -689,6 +697,11 @@ const ClassReport = () => {
 
             )}
 
+            <Toast
+                message={toast?.message}
+                type={toast?.type}
+                onClose={() => setToast(null)}
+            />
         </div>
     );
 };

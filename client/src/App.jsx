@@ -26,6 +26,11 @@ import StudentAdmission from "./pages/admin/StudentAdmission";
 import StudentDetails from "./pages/admin/StudentDetails";
 import AdmitCard from "./pages/exam/AdmitCard";
 import CollectPayment from "./pages/payment/CollectPayment";
+import FeeSettings from "./pages/admin/FeeSettings";
+
+import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
+import StudentLedger from "./pages/admin/students/StudentLedger";
+import SystemSettings from "./pages/admin/SystemSettings";
 
 function App() {
 
@@ -144,6 +149,63 @@ function App() {
               >
 
                 <Teachers />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fee Settings */}
+          <Route
+            path="/fees/settings"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <FeeSettings />
+
+              </ProtectedRoute>
+            }
+          />
+
+
+          {/* System Settings */}
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <SystemSettings />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Student Fee Override */}
+          <Route
+            path="/students/:id/fee-override"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <StudentFeeOverride />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Student Ledger */}
+          <Route
+            path="/students/:id/ledger"
+            element={
+              <ProtectedRoute
+                adminOnly={false}
+              >
+
+                <StudentLedger />
 
               </ProtectedRoute>
             }

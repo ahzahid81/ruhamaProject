@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import api from "../services/api";
+import Toast from "../components/Toast";
 
 const CreateReport = () => {
 
@@ -47,6 +48,10 @@ const CreateReport = () => {
     setActiveTab] =
     useState("my");
 
+  const [toast,
+    setToast] =
+    useState(null);
+
 
   // LOAD ASSIGNMENTS
   useEffect(() => {
@@ -73,9 +78,10 @@ const CreateReport = () => {
         !selectedAssignment
       ) {
 
-        return alert(
-          "Select Subject & Class"
-        );
+        return setToast({
+          message: "Select Subject & Class",
+          type: "error"
+        });
       }
 
       setLoading(true);
@@ -102,19 +108,20 @@ const CreateReport = () => {
           }
         );
 
-        alert(
-          "Report Created Successfully"
-        );
+        setToast({
+          message: "Report Created Successfully",
+          type: "success"
+        });
 
         setClassWork("");
         setHomeWork("");
 
       } catch (error) {
 
-        alert(
-          error.response?.data
-            ?.message
-        );
+        setToast({
+          message: error.response?.data?.message || "Failed to create report",
+          type: "error"
+        });
 
       } finally {
 
@@ -558,6 +565,11 @@ const CreateReport = () => {
 
       )}
 
+      <Toast
+        message={toast?.message}
+        type={toast?.type}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 };

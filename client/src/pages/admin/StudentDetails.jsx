@@ -16,6 +16,8 @@ import {
   FileText,
   BookOpen,
   ArrowLeft,
+  Wallet,
+  DollarSign,
 } from "lucide-react";
 
 const HeaderInfo = ({ label, value }) => (
@@ -232,6 +234,39 @@ const StudentDetails = () => {
             ["Updated At", formatDate(student.updatedAt)],
           ]}
         />
+
+        {/* Financial Actions */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-50">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <Wallet className="w-4.5 h-4.5 text-gray-600" />
+            </div>
+            <h2 className="text-sm font-bold text-gray-900">Financial</h2>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to={`/collect-payment?studentId=${student._id}`}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-sm font-semibold transition-colors border border-emerald-200"
+            >
+              <DollarSign className="w-4 h-4" />
+              Collect Payment
+            </Link>
+            <Link
+              to={`/students/${student._id}/ledger`}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm font-semibold transition-colors border border-blue-200"
+            >
+              <Wallet className="w-4 h-4" />
+              View Ledger
+            </Link>
+            <Link
+              to={`/students/${student._id}/fee-override`}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-sm font-semibold transition-colors border border-amber-200"
+            >
+              <DollarSign className="w-4 h-4" />
+              Fee Override
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

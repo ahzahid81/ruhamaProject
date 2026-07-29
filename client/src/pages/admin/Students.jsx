@@ -14,18 +14,35 @@ import {
   User,
   Phone,
   Hash,
+  AlertTriangle,
 } from "lucide-react";
-
-const classes = [
-  "All Students", "Play Group", "Nursery", "KG",
-  "STD-I", "STD-II", "STD-III", "STD-IV", "STD-V",
-];
+import Toast from "../../components/Toast";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
   const [activeClass, setActiveClass] = useState("All Students");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [systemSettings, setSystemSettings] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+      setSystemSettings({
+        classes: [
+          { name: "Play Group", code: "P", order: 1 },
+          { name: "Nursery", code: "N", order: 2 },
+          { name: "KG", code: "K", order: 3 },
+          { name: "STD-I", code: "I", order: 4 },
+          { name: "STD-II", code: "J", order: 5 },
+          { name: "STD-III", code: "L", order: 6 },
+          { name: "STD-IV", code: "M", order: 7 },
+          { name: "STD-V", code: "V", order: 8 },
+        ],
+      });
+    });
+  }, []);
 
   const loadStudents = async () => {
     try {
@@ -52,14 +69,15 @@ const Students = () => {
     return classMatch && searchMatch;
   });
 
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Delete this student?");
-    if (!confirmDelete) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/students/${id}`);
-      setStudents(students.filter((student) => student._id !== id));
+      await api.delete(`/students/${deleteTarget}`);
+      setStudents(students.filter((student) => student._id !== deleteTarget));
+      setToast({ message: "Student Deleted", type: "success" });
+      setDeleteTarget(null);
     } catch (error) {
-      console.log(error);
+      setToast({ message: error.response?.data?.message || "Delete failed", type: "error" });
     }
   };
 
@@ -108,7 +126,7 @@ const Students = () => {
 
         {/* Class Filter */}
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {classes.map((item) => (
+          {["All Students", ...(systemSettings?.classes || []).map((c) => c.name)].map((item) => (
             <button
               key={item}
               onClick={() => setActiveClass(item)}
@@ -222,7 +240,7 @@ const Students = () => {
                 Admit
               </Link>
               <button
-                onClick={() => handleDelete(student._id)}
+                onClick={() => setDeleteTarget(student._id)}
                 className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors text-xs font-semibold"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -239,6 +257,28 @@ const Students = () => {
           </div>
         )}
       </div>
+      {/* Delete Confirm Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-7 h-7 text-red-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">Delete Student</h2>
+            <p className="text-sm text-gray-400 mt-1">Are you sure? This cannot be undone.</p>
+            <div className="flex gap-3 mt-6">
+              <button onClick={handleDeleteConfirm} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all">
+                Delete
+              </button>
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-semibold transition-all border border-gray-100">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 };

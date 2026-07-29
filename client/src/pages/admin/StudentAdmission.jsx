@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import {
@@ -6,14 +6,13 @@ import {
   Camera,
   User,
   Users,
-  Phone,
   Shield,
   MapPin,
   FileText,
   CheckCircle,
-  X,
   ArrowLeft,
 } from "lucide-react";
+import Toast from "../../components/Toast";
 
 const Input = ({ label, name, type = "text", value, onChange }) => {
   return (
@@ -36,6 +35,25 @@ const StudentAdmission = () => {
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState("");
   const [success, setSuccess] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [systemSettings, setSystemSettings] = useState(null);
+
+  useEffect(() => {
+    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+      setSystemSettings({
+        classes: [
+          { name: "Play Group", code: "P", order: 1 },
+          { name: "Nursery", code: "N", order: 2 },
+          { name: "KG", code: "K", order: 3 },
+          { name: "STD-I", code: "I", order: 4 },
+          { name: "STD-II", code: "J", order: 5 },
+          { name: "STD-III", code: "L", order: 6 },
+          { name: "STD-IV", code: "M", order: 7 },
+          { name: "STD-V", code: "V", order: 8 },
+        ],
+      });
+    });
+  }, []);
 
   const [form, setForm] = useState({
     name: "",
@@ -96,7 +114,7 @@ const StudentAdmission = () => {
       });
     } catch (error) {
       console.log(error);
-      alert(error.response?.data?.message || "Admission Failed");
+      setToast({ message: error.response?.data?.message || "Admission Failed", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -144,14 +162,9 @@ const StudentAdmission = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all bg-white"
               >
-                <option>Play Group</option>
-                <option>Nursery</option>
-                <option>KG</option>
-                <option>STD-I</option>
-                <option>STD-II</option>
-                <option>STD-III</option>
-                <option>STD-IV</option>
-                <option>STD-V</option>
+                {(systemSettings?.classes || []).map((c) => (
+                  <option key={c.code} value={c.name}>{c.name}</option>
+                ))}
               </select>
             </div>
             <Input label="Section" name="section" value={form.section} onChange={handleChange} />
@@ -380,6 +393,7 @@ const StudentAdmission = () => {
           </div>
         </div>
       )}
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 };

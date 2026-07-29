@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../services/api";
+import Toast from "../../components/Toast";
 
 import StudentSearch from "../../components/exam/StudentSearch";
 import EligibilityCard from "../../components/exam/EligibilityCard";
@@ -13,11 +14,24 @@ const AdmitCard = () => {
     const [eligibility, setEligibility] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
+    const [systemSettings, setSystemSettings] = useState(null);
+    const [toast, setToast] = useState(null);
     const printTimeoutRef = useRef(null);
 
+    useEffect(() => {
+        api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+            setSystemSettings({
+              examName: "Half Yearly Examination",
+              currentSession: "2026",
+              academicSessions: ["2025", "2026", "2027"],
+              examNames: ["Half Yearly", "Year Final", "Model Test", "Monthly Assessment", "Admission Test"],
+            });
+        });
+    }, []);
+
     const exam = {
-        examName: "Half Yearly Examination",
-        academicSession: "2026",
+        examName: systemSettings?.examName || "Half Yearly Examination",
+        academicSession: systemSettings?.currentSession || "2026",
     };
 
 
@@ -38,10 +52,10 @@ const AdmitCard = () => {
         }
         catch (error) {
             console.log(error);
-            alert(
-                error.response?.data?.message ||
-                "Failed to check eligibility."
-            );
+            setToast({
+                message: error.response?.data?.message || "Failed to check eligibility.",
+                type: "error"
+            });
         }
         finally {
             setLoading(false);
@@ -249,6 +263,7 @@ const AdmitCard = () => {
                 </div>
             </div>
 
+            <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
             {/* PRINT STYLE - FIXED */}
             <style>
                 {`

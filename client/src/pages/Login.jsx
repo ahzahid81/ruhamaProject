@@ -1,12 +1,13 @@
 import { useState } from "react";
 import api from "../services/api";
-import { School, Mail, Lock, LogIn, Eye, EyeOff } from "lucide-react";
+import { School, Mail, Lock, LogIn, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,7 +25,7 @@ const Login = () => {
         window.location.href = "/dashboard";
       }
     } catch (error) {
-      alert(error.response?.data?.message);
+      setError(error.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -63,7 +64,7 @@ const Login = () => {
                   placeholder="teacher@school.com"
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 text-white placeholder:text-indigo-300/30 rounded-xl text-sm outline-none focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-400/10 transition-all"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 />
               </div>
             </div>
@@ -80,7 +81,7 @@ const Login = () => {
                   placeholder="••••••••"
                   className="w-full pl-10 pr-11 py-3 bg-white/5 border border-white/10 text-white placeholder:text-indigo-300/30 rounded-xl text-sm outline-none focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-400/10 transition-all"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setError(""); }}
                 />
                 <button
                   type="button"
@@ -91,6 +92,14 @@ const Login = () => {
                 </button>
               </div>
             </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
             {/* Button */}
             <button

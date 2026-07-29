@@ -1,1508 +1,606 @@
-import { useMemo, useState } from "react";
-import { useRef } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useReactToPrint } from "react-to-print";
-import { useSearchParams } from "react-router-dom";
-import { useEffect } from "react";
-
+import { useSearchParams, Link } from "react-router-dom";
 import api from "../../services/api";
 
-import StudentSearch from "../../components/exam/StudentSearch";
-
-const examOptions = [
-
-    "Half Yearly",
-
-    "Year Final",
-
-    "Model Test",
-
-    "Monthly Assessment",
-
-    "Admission Test",
-
-];
-
-const feeOptions = [
-
-    "Monthly Tuition",
-
-    "Exam Fee",
-
-    "Admission Fee",
-
-    "Books",
-
-    "Hostel Fee",
-
-    "Day Care Fee",
-
-    "Quran Fee",
-
-    "Transport Fee",
-
-    "Uniform",
-
-    "Other",
-
-];
-
-const paymentMethods = [
-
-    "Cash",
-
-    "bKash",
-
-    "Bank",
-
-    "Nagad",
-
-    "Rocket",
-
-];
-
 const months = [
-
-    "January",
-
-    "February",
-
-    "March",
-
-    "April",
-
-    "May",
-
-    "June",
-
-    "July",
-
-    "August",
-
-    "September",
-
-    "October",
-
-    "November",
-
-    "December",
-
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
-const CollectPayment = () => {
-    const [searchParams] = useSearchParams();
-    const studentId = searchParams.get("studentId");
-    const [student, setStudent] = useState(null);
-    const [receipt, setReceipt] = useState(null);
-
-    const [showReceipt, setShowReceipt] = useState(false);
-
-    const [loading, setLoading] = useState(false);
-
-    const [paymentMethod, setPaymentMethod] =
-
-        useState("Cash");
-
-    const [transactionId, setTransactionId] =
-
-        useState("");
-
-    const [referenceNo, setReferenceNo] =
-
-        useState("");
-
-    const [remarks, setRemarks] =
-
-        useState("");
-
-    const [discount, setDiscount] =
-
-        useState(0);
-
-    const [fine, setFine] =
-
-        useState(0);
-
-    const [fees, setFees] = useState([
-
-        {
-
-            feeName: "Monthly Tuition",
-
-            applicableType: "Month",
-
-            month: 7,
-
-            year: 2026,
-
-            examName: "",
-
-            amount: "",
-
-        },
-
-    ]);
-
-    // ==============================
-    // TOTAL
-    // ==============================
-
-    const total = useMemo(() => {
-
-        const feeTotal = fees.reduce(
-
-            (sum, item) =>
-
-                sum +
-
-                Number(item.amount || 0),
-
-            0
-
-        );
-
-        return (
-
-            feeTotal +
-
-            Number(fine || 0) -
-
-            Number(discount || 0)
-
-        );
-
-    }, [
-
-        fees,
-
-        fine,
-
-        discount,
-
-    ]);
-
-    // ==============================
-    // ADD ROW
-    // ==============================
-
-    const addFeeRow = () => {
-
-        setFees([
-
-            ...fees,
-
-            {
-
-                feeName: "Monthly Tuition",
-
-                applicableType: "Month",
-
-                month: 7,
-
-                year: 2026,
-
-                examName: "",
-
-                amount: "",
-
-            },
-
-        ]);
-
-    };
-
-    // ==============================
-    // REMOVE ROW
-    // ==============================
-
-    const removeRow = (index) => {
-
-        setFees(
-
-            fees.filter(
-
-                (_, i) => i !== index
-
-            )
-
-        );
-
-    };
-
-    // ==============================
-    // UPDATE ROW
-    // ==============================
-
-    const updateRow = (index, field, value) => {
-
-        const temp = [...fees];
-
-        temp[index][field] = value;
-
-        if (field === "applicableType") {
-
-            if (value === "Month") {
-
-                temp[index].feeName = "Monthly Tuition";
-
-                temp[index].examName = "";
-
-            }
-
-            if (value === "Exam") {
-
-                temp[index].feeName = "Exam Fee";
-
-                temp[index].month = null;
-
-                temp[index].examName = "Half Yearly";
-
-            }
-
-        }
-
-        setFees(temp);
-
-    };
-
-    // ==============================
-    // SELECT STUDENT
-    // ==============================
-
-    const handleStudentSelect = (
-
-        studentData
-
-    ) => {
-
-        setStudent(studentData);
-
-    };
-
-    useEffect(() => {
-
-        if (!studentId) return;
-
-        const loadStudent = async () => {
-
-            try {
-
-                const res = await api.get(
-                    `/students/search?q=${studentId}`
-                );
-
-                if (res.data.length > 0) {
-                    setStudent(res.data[0]);
-                }
-
-            } catch (err) {
-
-                console.log(err);
-
-            }
-
-        };
-
-        loadStudent();
-
-    }, [studentId]);
-
-    // ==============================
-    // SUBMIT
-    // ==============================
-
-    const submitPayment = async () => {
-
-        if (!student) {
-
-            return alert("Select a student.");
-
-        }
-
-        if (fees.length === 0) {
-
-            return alert("Add at least one fee.");
-
-        }
-
-        try {
-
-            setLoading(true);
-
-            const items = fees.map((fee) => ({
-
-                feeCategory: null,
-
-                feeName: fee.feeName,
-
-                applicableType: fee.applicableType,
-
-                month:
-
-                    fee.applicableType === "Month"
-
-                        ? fee.month
-
-                        : null,
-
-                year: fee.year,
-
-                examName:
-
-                    fee.applicableType === "Exam"
-
-                        ? fee.examName
-
-                        : "",
-
-                payableAmount: Number(fee.amount),
-
-                paidAmount: Number(fee.amount),
-
-                dueAmount: 0,
-
-                discount: 0,
-
-                fine: 0,
-
-            }));
-
-            const payload = {
-
-                student: student._id,
-
-                receivedBy: JSON.parse(
-
-                    localStorage.getItem("teacher")
-
-                )?._id,
-
-                paymentMethod,
-
-                transactionId,
-
-                referenceNo,
-
-                remarks,
-
-                totalDiscount: Number(discount),
-
-                totalFine: Number(fine),
-
-                items,
-
-            };
-
-            const res = await api.post("/payments/collect", payload);
-
-            setReceipt({
-
-                ...res.data,
-
-                student,
-
-            });
-
-            setShowReceipt(true);
-
-
-            setFees([
-                {
-                    feeName: "Monthly Tuition",
-                    applicableType: "Month",
-                    month: 7,
-                    year: 2026,
-                    examName: "",
-                    amount: "",
-                },
-            ]);
-
-            setDiscount(0);
-
-            setFine(0);
-
-            setTransactionId("");
-
-            setReferenceNo("");
-
-            setRemarks("");
-
-        }
-
-        catch (error) {
-
-            console.log(error);
-
-            alert(
-
-                error.response?.data?.message ||
-
-                "Payment Failed"
-
-            );
-
-        }
-
-        finally {
-
-            setLoading(false);
-
-        }
-
-    };
-    const receiptRef = useRef();
-    const handlePrintReceipt = useReactToPrint({
-
-        contentRef: receiptRef,
-
-        documentTitle: receipt?.receiptNo || "Receipt",
-
+export default function CollectPayment() {
+  const [searchParams] = useSearchParams();
+  const studentIdParam = searchParams.get("studentId");
+
+  const [student, setStudent] = useState(null);
+  const [dueItems, setDueItems] = useState([]);
+  const [feeStructure, setFeeStructure] = useState([]);
+  const [dueSummary, setDueSummary] = useState(null);
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [receipt, setReceipt] = useState(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [paymentMethodsList, setPaymentMethodsList] = useState(["Cash", "bKash", "Nagad", "Rocket", "Bank", "Cheque", "Card", "Online", "Other"]);
+  const [transactionId, setTransactionId] = useState("");
+  const [referenceNo, setReferenceNo] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [fine, setFine] = useState(0);
+  const [payingAmount, setPayingAmount] = useState("");
+
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectAll, setSelectAll] = useState(true);
+
+  const receiptRef = useRef();
+
+  useEffect(() => {
+    loadPaymentMethods();
+  }, []);
+
+  useEffect(() => {
+    if (!student) return;
+    loadAllStudentData();
+  }, [student]);
+
+  useEffect(() => {
+    if (!studentIdParam) return;
+    api.get(`/students/search?q=${studentIdParam}`).then((res) => {
+      if (res.data.length > 0) setStudent(res.data[0]);
+    }).catch(() => {});
+  }, [studentIdParam]);
+
+  const loadAllStudentData = useCallback(async () => {
+    setLoadingData(true);
+    try {
+      const [dueRes, summaryRes, historyRes] = await Promise.all([
+        api.get(`/payments/due-items/${student._id}`),
+        api.get(`/ledger/due-summary/${student._id}`),
+        api.get(`/payments/history/${student._id}`),
+      ]);
+
+      if (dueRes.data.success) {
+        setDueItems(dueRes.data.dueItems || []);
+        setFeeStructure(dueRes.data.feeStructure || []);
+      }
+      const sd = summaryRes.data || {};
+      setDueSummary({
+        openingBalance: sd.summary?.openingBalance ?? 0,
+        totalPaid: sd.summary?.totalPaid ?? 0,
+        totalDue: sd.summary?.totalDue ?? 0,
+        balance: sd.summary?.currentBalance ?? 0,
+      });
+      setPaymentHistory(Array.isArray(historyRes.data) ? historyRes.data.slice(0, 10) : (historyRes.data.payments?.slice(0, 10) || []));
+    } catch {
+      // silent
+    } finally {
+      setLoadingData(false);
+    }
+  }, [student]);
+
+  const loadPaymentMethods = async () => {
+    try {
+      const res = await api.get("/settings");
+      if (res.data.paymentMethods?.length) setPaymentMethodsList(res.data.paymentMethods);
+    } catch {
+      // silent
+    }
+  };
+
+  // Toggle select all when dueItems change
+  useEffect(() => {
+    if (selectAll && dueItems.length > 0) {
+      setSelectedItems(dueItems.map((_, i) => i));
+    }
+  }, [dueItems]);
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(dueItems.map((_, i) => i));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const toggleItem = (index) => {
+    setSelectedItems((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  };
+
+  const selectedFees = useMemo(() => {
+    return dueItems.filter((_, i) => selectedItems.includes(i));
+  }, [dueItems, selectedItems]);
+
+  const subtotal = useMemo(() => {
+    return selectedFees.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, [selectedFees]);
+
+  const total = useMemo(() => {
+    return subtotal + Number(fine || 0) - Number(discount || 0);
+  }, [subtotal, fine, discount]);
+
+  const handleStudentSelect = (studentData) => {
+    setStudent(studentData);
+    setDueItems([]);
+    setDueSummary(null);
+    setPaymentHistory([]);
+    setSelectedItems([]);
+    setSelectAll(true);
+    setDiscount(0);
+    setFine(0);
+    setPayingAmount("");
+  };
+
+  const updateRow = (index, value) => {
+    setDueItems((prev) => {
+      const temp = [...prev];
+      temp[index] = { ...temp[index], amount: value };
+      return temp;
     });
-
-    return (
-
-        <div className="min-h-screen bg-slate-100">
-
-            {/* HEADER */}
-
-            <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white">
-
-                <div className="max-w-7xl mx-auto px-6 py-10">
-
-                    <h1 className="text-5xl font-black">
-
-                        Collect Payment
-
-                    </h1>
-
-                    <p className="mt-3 text-white/80">
-
-                        Student Fee Collection
-
-                    </p>
-
-                </div>
-
-            </div>
-
-            <div className="max-w-7xl mx-auto p-6">
-
-                {/* STUDENT SEARCH */}
-
-                <StudentSearch
-
-                    onSelect={
-
-                        handleStudentSelect
-
-                    }
-
-                />
-
-                {/* STUDENT CARD */}
-
-                {
-
-                    student && (
-
-                        <div className="bg-white rounded-3xl shadow-lg p-6 mt-6">
-
-                            <div className="flex items-center gap-5">
-
-                                {
-
-                                    student.photo ?
-
-                                        <img
-
-                                            src={
-
-                                                student.photo
-
-                                            }
-
-                                            alt={
-
-                                                student.name
-
-                                            }
-
-                                            className="w-24 h-24 rounded-full object-cover"
-
-                                        />
-
-                                        :
-
-                                        <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-4xl">
-
-                                            👤
-
-                                        </div>
-
-                                }
-
-                                <div>
-
-                                    <h2 className="text-3xl font-bold">
-
-                                        {student.name}
-
-                                    </h2>
-
-                                    <p>
-
-                                        {student.studentId}
-
-                                    </p>
-
-                                    <p>
-
-                                        {student.className}
-
-                                        {" • "}
-
-                                        Roll {student.roll}
-
-                                    </p>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    )
-
-                }
-                {/* ===========================
-            FEE COLLECTION
-        =========================== */}
-
-                <div className="bg-white rounded-3xl shadow-lg p-6 mt-6">
-
-                    <div className="flex justify-between items-center mb-6">
-
-                        <h2 className="text-2xl font-bold">
-
-                            Fee Collection
-
-                        </h2>
-
-                        <button
-                            type="button"
-                            onClick={addFeeRow}
-                            className="
-              bg-emerald-600
-              hover:bg-emerald-700
-              text-white
-              px-5
-              py-2
-              rounded-xl
-              font-semibold
-              "
-                        >
-
-                            + Add Fee
-
-                        </button>
-
-                    </div>
-
-                    {
-
-                        fees.map((fee, index) => (
-
-                            <div
-
-                                key={index}
-
-                                className="
-                border
-                rounded-2xl
-                p-5
-                mb-5
-                bg-slate-50
-                "
-
-                            >
-
-                                <div className="grid lg:grid-cols-5 gap-4">
-
-                                    {/* Fee Name */}
-
-                                    <div>
-
-                                        <label className="font-semibold">
-
-                                            Fee Name
-
-                                        </label>
-
-                                        <select
-
-                                            className="select select-bordered w-full mt-2"
-
-                                            value={fee.feeName}
-
-                                            onChange={(e) =>
-
-                                                updateRow(
-
-                                                    index,
-
-                                                    "feeName",
-
-                                                    e.target.value
-
-                                                )
-
-                                            }
-
-                                        >
-
-                                            {
-
-                                                feeOptions.map(item => (
-
-                                                    <option
-
-                                                        key={item}
-
-                                                    >
-
-                                                        {item}
-
-                                                    </option>
-
-                                                ))
-
-                                            }
-
-                                        </select>
-
-                                    </div>
-
-                                    {/* Type */}
-
-                                    <div>
-
-                                        <label className="font-semibold">
-
-                                            Type
-
-                                        </label>
-
-                                        <select
-
-                                            className="select select-bordered w-full mt-2"
-
-                                            value={fee.applicableType}
-
-                                            onChange={(e) =>
-
-                                                updateRow(
-
-                                                    index,
-
-                                                    "applicableType",
-
-                                                    e.target.value
-
-                                                )
-
-                                            }
-
-                                        >
-
-                                            <option>
-
-                                                Month
-
-                                            </option>
-
-                                            <option>
-
-                                                Exam
-
-                                            </option>
-
-                                            <option>
-
-                                                One Time
-
-                                            </option>
-
-                                        </select>
-
-                                    </div>
-
-                                    {/* Month */}
-
-                                    {
-
-                                        fee.applicableType === "Month" && (
-
-                                            <div>
-
-                                                <label className="font-semibold">
-
-                                                    Month
-
-                                                </label>
-
-                                                <select
-
-                                                    className="select select-bordered w-full mt-2"
-
-                                                    value={fee.month}
-
-                                                    onChange={(e) =>
-
-                                                        updateRow(
-
-                                                            index,
-
-                                                            "month",
-
-                                                            Number(e.target.value)
-
-                                                        )
-
-                                                    }
-
-                                                >
-
-                                                    {
-
-                                                        months.map(
-
-                                                            (m, i) => (
-
-                                                                <option
-
-                                                                    value={i + 1}
-
-                                                                    key={m}
-
-                                                                >
-
-                                                                    {m}
-
-                                                                </option>
-
-                                                            )
-
-                                                        )
-
-                                                    }
-
-                                                </select>
-
-                                            </div>
-
-                                        )
-
-                                    }
-
-                                    {/* Exam */}
-
-                                    {
-
-                                        fee.applicableType === "Exam" && (
-
-                                            <div>
-
-                                                <label className="font-semibold">
-
-                                                    Exam
-
-                                                </label>
-
-                                                <select
-                                                    className="select select-bordered w-full mt-2"
-                                                    value={fee.examName}
-                                                    onChange={(e) =>
-                                                        updateRow(
-                                                            index,
-                                                            "examName",
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                >
-
-                                                    <option value="">
-                                                        Select Exam
-                                                    </option>
-
-                                                    {
-
-                                                        examOptions.map(exam => (
-
-                                                            <option
-                                                                key={exam}
-                                                                value={exam}
-                                                            >
-                                                                {exam}
-                                                            </option>
-
-                                                        ))
-
-                                                    }
-
-                                                </select>
-                                            </div>
-
-                                        )
-
-                                    }
-
-                                    {/* Amount */}
-
-                                    <div>
-
-                                        <label className="font-semibold">
-
-                                            Amount
-
-                                        </label>
-
-                                        <input
-
-                                            type="number"
-
-                                            className="input input-bordered w-full mt-2"
-
-                                            value={fee.amount}
-
-                                            onChange={(e) =>
-
-                                                updateRow(
-
-                                                    index,
-
-                                                    "amount",
-
-                                                    e.target.value
-
-                                                )
-
-                                            }
-
-                                        />
-
-                                    </div>
-
-                                </div>
-
-                                <div className="mt-5 flex justify-end">
-
-                                    <button
-
-                                        type="button"
-
-                                        onClick={() => removeRow(index)}
-
-                                        className="
-                    btn
-                    btn-error
-                    btn-sm
-                    "
-
-                                    >
-
-                                        Remove
-
-                                    </button>
-
-                                </div>
-
-                            </div>
-
-                        ))
-
-                    }
-
-                </div>
-
-                {/* ===========================
-            PAYMENT SUMMARY
-        =========================== */}
-
-                <div className="bg-white rounded-3xl shadow-lg p-6 mt-6">
-
-                    <h2 className="text-2xl font-bold mb-6">
-
-                        Payment Summary
-
-                    </h2>
-
-                    <div className="grid lg:grid-cols-4 gap-5">
-
-                        <div>
-
-                            <label>
-
-                                Discount
-
-                            </label>
-
-                            <input
-
-                                type="number"
-
-                                className="input input-bordered w-full mt-2"
-
-                                value={discount}
-
-                                onChange={(e) =>
-
-                                    setDiscount(e.target.value)
-
-                                }
-
-                            />
-
-                        </div>
-
-                        <div>
-
-                            <label>
-
-                                Fine
-
-                            </label>
-
-                            <input
-
-                                type="number"
-
-                                className="input input-bordered w-full mt-2"
-
-                                value={fine}
-
-                                onChange={(e) =>
-
-                                    setFine(e.target.value)
-
-                                }
-
-                            />
-
-                        </div>
-
-                        <div>
-
-                            <label>
-
-                                Payment Method
-
-                            </label>
-
-                            <select
-
-                                className="select select-bordered w-full mt-2"
-
-                                value={paymentMethod}
-
-                                onChange={(e) =>
-
-                                    setPaymentMethod(e.target.value)
-
-                                }
-
-                            >
-
-                                {
-
-                                    paymentMethods.map(
-
-                                        method => (
-
-                                            <option
-
-                                                key={method}
-
-                                            >
-
-                                                {method}
-
-                                            </option>
-
-                                        )
-
-                                    )
-
-                                }
-
-                            </select>
-
-                        </div>
-
-                        <div>
-
-                            <label>
-
-                                Total
-
-                            </label>
-
-                            <div className="text-3xl font-black text-emerald-700 mt-3">
-
-                                ৳ {total}
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    {/* ===========================
-            TRANSACTION INFORMATION
-        =========================== */}
-
-                    <div className="bg-white rounded-3xl shadow-lg p-6 mt-6">
-
-                        <h2 className="text-2xl font-bold mb-6">
-
-                            Transaction Information
-
-                        </h2>
-
-                        <div className="grid lg:grid-cols-3 gap-5">
-
-                            <div>
-
-                                <label className="font-semibold">
-
-                                    Transaction ID
-
-                                </label>
-
-                                <input
-
-                                    type="text"
-
-                                    className="input input-bordered w-full mt-2"
-
-                                    value={transactionId}
-
-                                    onChange={(e) =>
-
-                                        setTransactionId(e.target.value)
-
-                                    }
-
-                                    placeholder="Optional"
-
-                                />
-
-                            </div>
-
-                            <div>
-
-                                <label className="font-semibold">
-
-                                    Reference No
-
-                                </label>
-
-                                <input
-
-                                    type="text"
-
-                                    className="input input-bordered w-full mt-2"
-
-                                    value={referenceNo}
-
-                                    onChange={(e) =>
-
-                                        setReferenceNo(e.target.value)
-
-                                    }
-
-                                    placeholder="Optional"
-
-                                />
-
-                            </div>
-
-                            <div>
-
-                                <label className="font-semibold">
-
-                                    Remarks
-
-                                </label>
-
-                                <input
-
-                                    type="text"
-
-                                    className="input input-bordered w-full mt-2"
-
-                                    value={remarks}
-
-                                    onChange={(e) =>
-
-                                        setRemarks(e.target.value)
-
-                                    }
-
-                                    placeholder="Optional"
-
-                                />
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-
-
-                    {/* ===========================
-            SUBMIT
-        =========================== */}
-
-                    <div className="bg-white rounded-3xl shadow-lg p-6 mt-6">
-
-                        <div className="flex flex-wrap gap-4 justify-between items-center">
-
-                            <div>
-
-                                <h2 className="text-3xl font-black text-emerald-700">
-
-                                    Total : ৳ {total}
-
-                                </h2>
-
-                            </div>
-
-                            <div className="flex gap-4">
-
-                                <button
-
-                                    type="button"
-
-                                    disabled={loading}
-
-                                    onClick={submitPayment}
-
-                                    className="btn btn-success btn-lg"
-
-                                >
-
-                                    {
-
-                                        loading ?
-
-                                            "Receiving..."
-
-                                            :
-
-                                            "Receive Payment"
-
-                                    }
-
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-            </div>
-            {/* ===============================
-    RECEIPT MODAL
-================================ */}
-
-            {
-                showReceipt &&
-                receipt && (
-
-                    <div
-                        className="
-fixed
-inset-0
-bg-black/40
-flex
-items-center
-justify-center
-z-50
-overflow-y-auto
-p-6
-"
-                    >
-
-                        <div
-                            className="
-bg-white
-rounded-3xl
-shadow-xl
-w-full
-max-w-lg
-max-h-[90vh]
-overflow-y-auto
-p-8
-"
-                        >
-
-                            <h2
-                                className="
-text-3xl
-font-black
-text-center
-text-emerald-700
-"
-                            >
-
-                                Payment Successful
-
-                            </h2>
-
-                            <div className="mt-8 space-y-3">
-
-                                <div className="flex justify-between">
-
-                                    <span>
-
-                                        Receipt No
-
-                                    </span>
-
-                                    <b>
-
-                                        {receipt.receiptNo}
-
-                                    </b>
-
-                                </div>
-
-                                <div className="flex justify-between">
-
-                                    <span>
-
-                                        Payment ID
-
-                                    </span>
-
-                                    <b>
-
-                                        {receipt.paymentId}
-
-                                    </b>
-
-                                </div>
-
-                                <div className="flex justify-between">
-
-                                    <span>
-
-                                        Total
-
-                                    </span>
-
-                                    <b>
-
-                                        ৳ {receipt.totalAmount}
-
-                                    </b>
-
-                                </div>
-
-                                <div className="flex justify-between">
-
-                                    <span>
-
-                                        Paid
-
-                                    </span>
-
-                                    <b>
-
-                                        ৳ {receipt.paidAmount}
-
-                                    </b>
-
-                                </div>
-
-                                <div className="flex justify-between">
-
-                                    <span>
-
-                                        Due
-
-                                    </span>
-
-                                    <b>
-
-                                        ৳ {receipt.dueAmount}
-
-                                    </b>
-
-                                </div>
-
-                            </div>
-                            <div
-                                ref={receiptRef}
-                                className="bg-white p-8 rounded-xl"
-                            >
-
-                                <h2 className="text-center text-3xl font-black">
-                                    RUHAMA UNITED SCHOOL
-                                </h2>
-
-                                <p className="text-center">
-                                    Money Receipt
-                                </p>
-
-                                <hr className="my-4" />
-
-                                <div className="space-y-2">
-
-                                    <div className="flex justify-between">
-                                        <span>Receipt</span>
-                                        <b>{receipt.receiptNo}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Date</span>
-                                        <b>{new Date().toLocaleDateString()}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Student</span>
-                                        <b>{receipt.student?.name}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Student ID</span>
-                                        <b>{receipt.student?.studentId}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Total</span>
-                                        <b>৳ {receipt.totalAmount}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Paid</span>
-                                        <b>৳ {receipt.paidAmount}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Due</span>
-                                        <b>৳ {receipt.dueAmount}</b>
-                                    </div>
-
-                                </div>
-
-                                <div className="mt-10 text-center">
-                                    Thank You
-                                </div>
-
-                            </div>
-
-                            <br />
-                            <br />
-                            <br />
-
-                            <div
-                                ref={receiptRef}
-                                className="bg-white p-8 rounded-xl"
-                            >
-
-                                <h2 className="text-center text-3xl font-black">
-                                    RUHAMA UNITED SCHOOL
-                                </h2>
-
-                                <p className="text-center">
-                                    Money Receipt
-                                </p>
-
-                                <hr className="my-4" />
-
-                                <div className="space-y-2">
-
-                                    <div className="flex justify-between">
-                                        <span>Receipt</span>
-                                        <b>{receipt.receiptNo}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Date</span>
-                                        <b>{new Date().toLocaleDateString()}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Student</span>
-                                        <b>{receipt.student?.name}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Student ID</span>
-                                        <b>{receipt.student?.studentId}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Total</span>
-                                        <b>৳ {receipt.totalAmount}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Paid</span>
-                                        <b>৳ {receipt.paidAmount}</b>
-                                    </div>
-
-                                    <div className="flex justify-between">
-                                        <span>Due</span>
-                                        <b>৳ {receipt.dueAmount}</b>
-                                    </div>
-
-                                </div>
-
-                                <div className="mt-10 text-center">
-                                    Thank You
-                                </div>
-
-                            </div>
-
-                            <div className="flex gap-4 mt-8">
-
-                                <button
-                                    className="btn btn-success flex-1"
-                                    onClick={handlePrintReceipt}
-                                >
-                                    Print Receipt
-                                </button>
-
-                                <button
-                                    className="btn btn-outline flex-1"
-                                    onClick={() => {
-                                        setShowReceipt(false);
-                                        setStudent(null);
-                                    }}
-                                >
-                                    Close
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                )
-            }
-
+  };
+
+  const removeRow = (index) => {
+    setDueItems((prev) => prev.filter((_, i) => i !== index));
+    setSelectedItems((prev) => prev.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i)));
+  };
+
+  const showToast = (text, type = "error") => {
+    setToast({ text, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const submitPayment = async () => {
+    if (!student) return showToast("Select a student first.");
+    if (selectedFees.length === 0) return showToast("Select at least one fee item.");
+    setLoading(true);
+    try {
+      const paidAmount = payingAmount ? Number(payingAmount) : total;
+      let remaining = paidAmount;
+      const items = selectedFees.map((fee) => {
+        const payable = Number(fee.amount);
+        const paid = Math.min(payable, remaining);
+        remaining = Math.max(0, remaining - paid);
+        return {
+          feeCategory: fee.feeCategory || null,
+          feeName: fee.feeName,
+          applicableType: fee.applicableType,
+          month: fee.applicableType === "Month" ? fee.month : null,
+          year: fee.year || new Date().getFullYear(),
+          examName: fee.applicableType === "Exam" ? fee.examName : "",
+          payableAmount: payable,
+          paidAmount: paid,
+          dueAmount: payable - paid,
+          discount: 0,
+          fine: 0,
+        };
+      });
+      const payload = {
+        student: student._id,
+        receivedBy: JSON.parse(localStorage.getItem("teacher"))?._id,
+        paymentMethod,
+        transactionId,
+        referenceNo,
+        remarks,
+        totalDiscount: Number(discount),
+        totalFine: Number(fine),
+        paidAmount,
+        items,
+      };
+      const res = await api.post("/payments/collect", payload);
+      setReceipt({ ...res.data, student, items, paidAmount });
+      setShowReceipt(true);
+      setDiscount(0); setFine(0); setTransactionId(""); setReferenceNo(""); setRemarks(""); setPayingAmount("");
+      loadAllStudentData();
+    } catch (error) {
+      showToast(error.response?.data?.message || "Payment failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrintReceipt = useReactToPrint({
+    contentRef: receiptRef,
+    documentTitle: receipt?.receiptNo || "Receipt",
+  });
+
+  const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
+
+  const inputClass = "w-full border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 transition bg-white";
+  const labelClass = "block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5";
+  const selectClass = inputClass;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg font-semibold text-sm ${
+          toast.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+        }`}>
+          {toast.text}
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Collect Payment</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Student fee collection & receipt management</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+
+        {/* Student Search */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <label className={labelClass}>Search Student</label>
+          <StudentSearchInner onSelect={handleStudentSelect} />
         </div>
 
-    );
+        {/* Loading State */}
+        {loadingData && (
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3" />
+            <p className="text-sm text-gray-400">Loading student data...</p>
+          </div>
+        )}
 
+        {/* Student Profile + Fee Structure */}
+        {student && !loadingData && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="p-5 flex items-start gap-5">
+              {student.photo ? (
+                <img src={student.photo} alt="" className="w-16 h-16 rounded-xl object-cover border border-gray-100" />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-2xl">👤</div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-xl font-bold text-slate-800">{student.name}</h2>
+                  <span className="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{student.studentId}</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${student.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>{student.status}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-gray-500">
+                  <span>{student.className}{student.section ? " • " + student.section : ""}</span>
+                  <span>Roll {student.roll}</span>
+                  {student.fatherMobile && <span>📞 {student.fatherMobile}</span>}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Link to={`/students/${student._id}`}
+                    className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition border border-indigo-100"
+                  >View Profile</Link>
+                  <Link to={`/students/${student._id}/ledger`}
+                    className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition border border-blue-100"
+                  >View Ledger</Link>
+                  <Link to={`/students/${student._id}/fee-override`}
+                    className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100 transition border border-amber-100"
+                  >Fee Override</Link>
+                </div>
+              </div>
+              <button onClick={() => { setStudent(null); setDueItems([]); setDueSummary(null); setPaymentHistory([]); }}
+                className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-gray-200 transition flex-shrink-0"
+              >Change</button>
+            </div>
+
+            {/* Fee Structure Tags */}
+            {feeStructure.length > 0 && (
+              <div className="px-5 pb-4 flex flex-wrap gap-1.5">
+                {feeStructure.map((fs, i) => (
+                  <span key={i} className="text-xs bg-gray-50 text-gray-600 px-2.5 py-1 rounded-lg border border-gray-100">
+                    {fs.feeCategory?.name || fs.feeName} — <b className="text-emerald-600">{fmt(fs.effectiveAmount || fs.amount)}</b>
+                    <span className="text-gray-400 ml-1">({fs.frequency})</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Due Summary */}
+        {dueSummary && !loadingData && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: "Opening Balance", value: dueSummary.openingBalance, bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-600", textBold: "text-blue-800" },
+              { label: "Total Paid", value: dueSummary.totalPaid, bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-600", textBold: "text-emerald-800" },
+              { label: "Total Due", value: dueSummary.totalDue, bg: "bg-red-50", border: "border-red-200", text: "text-red-600", textBold: "text-red-800" },
+              { label: "Balance", value: dueSummary.balance, bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-600", textBold: "text-purple-800" },
+            ].map(({ label, value, bg, border, text, textBold }) => (
+              <div key={label} className={`rounded-xl p-4 border ${border} ${bg}`}>
+                <p className={`text-xs font-semibold uppercase tracking-wider ${text}`}>{label}</p>
+                <p className={`text-xl font-bold mt-1 ${textBold}`}>{fmt(value)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Due Fees Table */}
+        {student && !loadingData && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">Due Fees</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{dueItems.length} item{dueItems.length !== 1 && "s"} due</p>
+              </div>
+              <button onClick={loadAllStudentData}
+                className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200 transition"
+              >↻ Refresh</button>
+            </div>
+
+            {dueItems.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-3xl mb-2">✅</p>
+                <p className="text-gray-400 text-sm font-medium">All fees cleared</p>
+                <p className="text-gray-300 text-xs mt-1">No pending dues for this student</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                        <th className="px-5 py-3 w-10">
+                          <input type="checkbox" checked={selectAll && selectedItems.length === dueItems.length} onChange={toggleSelectAll}
+                            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                        </th>
+                        <th className="px-5 py-3 font-semibold">Fee</th>
+                        <th className="px-5 py-3 font-semibold">Period</th>
+                        <th className="px-5 py-3 font-semibold text-right">Amount</th>
+                        <th className="px-5 py-3 font-semibold text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {dueItems.map((item, index) => (
+                        <tr key={index} className={`hover:bg-gray-50/50 transition ${selectedItems.includes(index) ? "bg-emerald-50/30" : ""}`}>
+                          <td className="px-5 py-3">
+                            <input type="checkbox" checked={selectedItems.includes(index)} onChange={() => toggleItem(index)}
+                              className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                          </td>
+                          <td className="px-5 py-3">
+                            <span className="font-medium text-slate-700">{item.feeName}</span>
+                            <span className="ml-2 text-xs text-gray-400">({item.applicableType})</span>
+                          </td>
+                          <td className="px-5 py-3 text-gray-500">
+                            {item.applicableType === "Month" ? months[item.month - 1] + " " + item.year : item.examName || item.applicableType}
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <input type="number" value={item.amount} onChange={(e) => updateRow(index, e.target.value)}
+                              min="0" step="0.01"
+                              className="w-28 text-right border border-gray-200 rounded-lg px-2 py-1 text-sm font-semibold text-emerald-700 outline-none focus:ring-2 focus:ring-emerald-500/40"
+                            />
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <button onClick={() => removeRow(index)}
+                              className="text-red-400 hover:text-red-600 transition text-xs font-semibold"
+                            >✕ Remove</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-sm">
+                  <span className="text-gray-500">
+                    {selectedItems.length} of {dueItems.length} selected
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    Subtotal: <span className="text-emerald-700">{fmt(subtotal)}</span>
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Payment Entry */}
+        {student && selectedFees.length > 0 && !loadingData && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="text-base font-bold text-slate-800 mb-5">Payment Entry</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-5">
+              <div>
+                <label className={labelClass}>Subtotal</label>
+                <p className="text-lg font-bold text-slate-700 mt-1">{fmt(subtotal)}</p>
+              </div>
+              <div>
+                <label className={labelClass}>Discount</label>
+                <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} min="0" step="0.01" placeholder="0" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Fine</label>
+                <input type="number" value={fine} onChange={(e) => setFine(e.target.value)} min="0" step="0.01" placeholder="0" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Paying Amount</label>
+                <input type="number" value={payingAmount} onChange={(e) => setPayingAmount(e.target.value)} min="0" step="0.01" placeholder={String(total)} className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Net Total</label>
+                <p className="text-xl font-black text-emerald-700 mt-1">{fmt(payingAmount || total)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-5">
+              <div>
+                <label className={labelClass}>Payment Method</label>
+                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={selectClass}>
+                  {paymentMethodsList.map((m) => (<option key={m}>{m}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Transaction ID</label>
+                <input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} placeholder="Optional" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Reference No</label>
+                <input type="text" value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="Optional" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Remarks</label>
+                <input type="text" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" className={inputClass} />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+              <div>
+                <p className="text-xs text-gray-400">Amount to collect</p>
+                <p className="text-2xl font-black text-emerald-700">{fmt(payingAmount || total)}</p>
+              </div>
+              <button onClick={submitPayment} disabled={loading}
+                className="px-8 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50 shadow-lg shadow-emerald-200 flex items-center gap-2"
+              >
+                {loading ? (
+                  <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> Processing...</>
+                ) : "Receive Payment"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Payment History */}
+        {student && paymentHistory.length > 0 && !loadingData && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800">Recent Payments</h2>
+              <Link to={`/students/${student._id}/ledger`} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
+                View Full Ledger →
+              </Link>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="px-5 py-3 font-semibold">Date</th>
+                    <th className="px-5 py-3 font-semibold">Receipt</th>
+                    <th className="px-5 py-3 font-semibold">Method</th>
+                    <th className="px-5 py-3 font-semibold text-right">Amount</th>
+                    <th className="px-5 py-3 font-semibold text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {paymentHistory.map((p) => (
+                    <tr key={p._id} className="hover:bg-gray-50/50 transition">
+                      <td className="px-5 py-3 text-gray-500 text-xs">{new Date(p.createdAt || p.date).toLocaleDateString("en-IN")}</td>
+                      <td className="px-5 py-3 font-mono text-xs font-semibold text-indigo-600">{p.receiptNo || "—"}</td>
+                      <td className="px-5 py-3 text-xs text-gray-500">{p.paymentMethod || "—"}</td>
+                      <td className="px-5 py-3 text-right font-semibold text-emerald-700">{fmt(p.totalAmount || p.paidAmount || p.amount)}</td>
+                      <td className="px-5 py-3 text-right">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${
+                          p.status === "Paid" || p.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-600" : "bg-gray-50 text-gray-500"
+                        }`}>{p.status || p.paymentStatus || "Paid"}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Receipt Modal */}
+      {showReceipt && receipt && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowReceipt(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div ref={receiptRef} className="p-8">
+              <h2 className="text-center text-xl font-black text-slate-800">RUHAMA UNITED SCHOOL</h2>
+              <p className="text-center text-xs text-gray-400 mt-0.5">Money Receipt</p>
+              <div className="flex justify-center my-4">
+                <div className="bg-emerald-50 text-emerald-700 px-4 py-1 rounded-full text-xs font-bold border border-emerald-200">Payment Successful</div>
+              </div>
+              <hr />
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-gray-400">Receipt No</span><b className="text-slate-800">{receipt.receiptNo}</b></div>
+                <div className="flex justify-between"><span className="text-gray-400">Date</span><b className="text-slate-800">{new Date().toLocaleDateString("en-IN")}</b></div>
+                <hr />
+                <div className="flex justify-between"><span className="text-gray-400">Student</span><b className="text-slate-800">{receipt.student?.name}</b></div>
+                <div className="flex justify-between"><span className="text-gray-400">Student ID</span><b className="text-slate-800">{receipt.student?.studentId}</b></div>
+                <div className="flex justify-between"><span className="text-gray-400">Class</span><b className="text-slate-800">{receipt.student?.className}</b></div>
+                <hr />
+                <div className="flex justify-between"><span className="text-gray-400">Total Amount</span><b className="text-slate-800">{fmt(receipt.totalAmount)}</b></div>
+                <div className="flex justify-between"><span className="text-gray-400">Discount</span><b className="text-slate-800">{fmt(receipt.totalDiscount || 0)}</b></div>
+                <div className="flex justify-between"><span className="text-gray-400">Fine</span><b className="text-slate-800">{fmt(receipt.totalFine || 0)}</b></div>
+                <div className="flex justify-between text-base"><span className="font-semibold">Paid</span><b className="text-emerald-700">{fmt(receipt.paidAmount)}</b></div>
+                <div className="flex justify-between"><span className="text-gray-400">Payment Method</span><b className="text-slate-800">{receipt.paymentMethod || paymentMethod}</b></div>
+                {receipt.transactionId && <div className="flex justify-between"><span className="text-gray-400">Transaction ID</span><b className="text-slate-800">{receipt.transactionId}</b></div>}
+              </div>
+              <div className="mt-6 pt-4 border-t text-center">
+                <p className="text-xs text-gray-400">Thank you</p>
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 pt-0">
+              <button onClick={handlePrintReceipt}
+                className="flex-1 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition"
+              >Print Receipt</button>
+              <button onClick={() => { setShowReceipt(false); setReceipt(null); }}
+                className="flex-1 px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition"
+              >Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =========================================
+// Student Search Sub-component
+// =========================================
+const StudentSearchInner = ({ onSelect }) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [show, setShow] = useState(false);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults([]); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await api.get(`/students/search?q=${encodeURIComponent(query)}`);
+        setResults(res.data);
+        setShow(true);
+      } catch { setResults([]); } finally { setSearching(false); }
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
+
+  return (
+    <div className="relative">
+      <div className="flex gap-2">
+        <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by Student ID, Name, or Father's Mobile..."
+          className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 transition"
+        />
+        {searching && <div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full self-center" />}
+      </div>
+      {show && !searching && results.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
+          {results.map((s) => (
+            <button key={s._id} type="button" onClick={() => { onSelect(s); setQuery(s.studentId); setShow(false); }}
+              className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition border-b last:border-none flex items-center gap-3"
+            >
+              {s.photo ? (
+                <img src={s.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg">👤</div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-slate-700">{s.name}</p>
+                <p className="text-xs text-gray-400">{s.studentId} — {s.className} • Roll {s.roll}</p>
+              </div>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>{s.status}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
-
-export default CollectPayment;

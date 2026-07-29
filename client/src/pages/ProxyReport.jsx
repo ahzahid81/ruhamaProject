@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 import { UserCheck, BookOpen, Calendar, FileText, Loader2 } from "lucide-react";
+import Toast from "../components/Toast";
 
 const ProxyReport = () => {
   const teacher = JSON.parse(localStorage.getItem("teacher"));
@@ -11,6 +12,7 @@ const ProxyReport = () => {
   const [homeWork, setHomeWork] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     loadTeachers();
@@ -28,7 +30,7 @@ const ProxyReport = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTeacher || !selectedAssignment) {
-      return alert("Select teacher and assignment");
+      return setToast({ message: "Select teacher and assignment", type: "error" });
     }
     try {
       setLoading(true);
@@ -41,12 +43,12 @@ const ProxyReport = () => {
         teacherId: selectedTeacher._id,
         takenBy: teacher._id,
       });
-      alert("Proxy Report Created Successfully");
+      setToast({ message: "Proxy Report Created Successfully", type: "success" });
       setClassWork("");
       setHomeWork("");
       setSelectedAssignment(null);
     } catch (error) {
-      alert(error.response?.data?.message);
+      setToast({ message: error.response?.data?.message || "Failed to create proxy report", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -168,6 +170,7 @@ const ProxyReport = () => {
           </button>
         </form>
       )}
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 };

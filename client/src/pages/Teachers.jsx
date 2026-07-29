@@ -9,8 +9,8 @@ import {
   BookOpen,
   Users,
   X,
-  Loader2,
 } from "lucide-react";
+import Toast from "../components/Toast";
 
 const Teachers = () => {
   const [teachers, setTeachers] = useState([]);
@@ -21,14 +21,31 @@ const Teachers = () => {
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [systemSettings, setSystemSettings] = useState(null);
+  const [editModal, setEditModal] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const subjects = [
     "Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies",
   ];
 
-  const classes = [
-    "Play Group", "Nursery", "KG", "STD-I", "STD-II", "STD-III", "STD-IV", "STD-V",
-  ];
+  useEffect(() => {
+    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+      setSystemSettings({
+        classes: [
+          { name: "Play Group", code: "P", order: 1 },
+          { name: "Nursery", code: "N", order: 2 },
+          { name: "KG", code: "K", order: 3 },
+          { name: "STD-I", code: "I", order: 4 },
+          { name: "STD-II", code: "J", order: 5 },
+          { name: "STD-III", code: "L", order: 6 },
+          { name: "STD-IV", code: "M", order: 7 },
+          { name: "STD-V", code: "V", order: 8 },
+        ],
+      });
+    });
+  }, []);
 
   const getTeachers = async () => {
     try {
@@ -81,7 +98,7 @@ const Teachers = () => {
   const createTeacher = async (e) => {
     e.preventDefault();
     if (role !== "account-manager" && assignments.length === 0) {
-      return alert("Generate assignments first");
+      return setToast({ message: "Generate assignments first", type: "error" });
     }
     try {
       await api.post("/teachers/create", {
@@ -91,7 +108,7 @@ const Teachers = () => {
         role,
         assignments: role === "account-manager" ? [] : assignments,
       });
-      alert("Teacher Created");
+      setToast({ message: "Teacher Created Successfully", type: "success" });
       setName("");
       setEmail("");
       setPassword("");
@@ -101,38 +118,36 @@ const Teachers = () => {
       setAssignments([]);
       getTeachers();
     } catch (error) {
-      alert(error.response?.data?.message);
+      setToast({ message: error.response?.data?.message || "Failed to create teacher", type: "error" });
     }
   };
 
-  const editTeacher = async (teacher) => {
-    const name = prompt("Edit Name", teacher.name);
-    const email = prompt("Edit Email", teacher.email);
-    const role = prompt("Edit Role (admin/teacher)", teacher.role);
-    if (!name || !email || !role) return;
+  const handleEditSubmit = async () => {
+    if (!editModal) return;
     try {
-      await api.put(`/teachers/${teacher._id}`, {
-        name,
-        email,
-        role,
-        assignments: teacher.assignments,
+      await api.put(`/teachers/${editModal._id}`, {
+        name: editModal.name,
+        email: editModal.email,
+        role: editModal.role,
+        assignments: editModal.assignments,
       });
-      alert("Teacher Updated");
+      setToast({ message: "Teacher Updated", type: "success" });
+      setEditModal(null);
       getTeachers();
     } catch (error) {
-      console.log(error);
+      setToast({ message: error.response?.data?.message || "Update failed", type: "error" });
     }
   };
 
-  const deleteTeacher = async (id) => {
-    const confirmDelete = window.confirm("Delete Teacher?");
-    if (!confirmDelete) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/teachers/${id}`);
-      alert("Teacher Deleted");
+      await api.delete(`/teachers/${deleteTarget}`);
+      setToast({ message: "Teacher Deleted", type: "success" });
+      setDeleteTarget(null);
       getTeachers();
     } catch (error) {
-      console.log(error);
+      setToast({ message: error.response?.data?.message || "Delete failed", type: "error" });
     }
   };
 
@@ -243,18 +258,18 @@ const Teachers = () => {
                   Classes
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {classes.map((className, index) => (
+                  {(systemSettings?.classes || []).map((c, index) => (
                     <button
                       type="button"
                       key={index}
-                      onClick={() => toggleClass(className)}
+                      onClick={() => toggleClass(c.name)}
                       className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        selectedClasses.includes(className)
+                        selectedClasses.includes(c.name)
                           ? "bg-blue-600 text-white shadow-sm"
                           : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-100"
                       }`}
                     >
-                      {className}
+                      {c.name}
                     </button>
                   ))}
                 </div>
@@ -335,14 +350,14 @@ const Teachers = () => {
                     {teacher.role}
                   </span>
                   <button
-                    onClick={() => editTeacher(teacher)}
+                    onClick={() => setEditModal({ ...teacher })}
                     className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                     title="Edit"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => deleteTeacher(teacher._id)}
+                    onClick={() => setDeleteTarget(teacher._id)}
                     className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
                     title="Delete"
                   >
@@ -367,6 +382,82 @@ const Teachers = () => {
           ))}
         </div>
       )}
+      {/* Edit Teacher Modal */}
+      {editModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-gray-900">Edit Teacher</h2>
+              <button onClick={() => setEditModal(null)} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Name</label>
+                <input
+                  type="text"
+                  value={editModal.name || ""}
+                  onChange={(e) => setEditModal({ ...editModal, name: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Email</label>
+                <input
+                  type="email"
+                  value={editModal.email || ""}
+                  onChange={(e) => setEditModal({ ...editModal, email: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Role</label>
+                <select
+                  value={editModal.role || "teacher"}
+                  onChange={(e) => setEditModal({ ...editModal, role: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all bg-white"
+                >
+                  <option value="teacher">Teacher</option>
+                  <option value="admin">Admin</option>
+                  <option value="account-manager">Account Manager</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={handleEditSubmit} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all">
+                Save Changes
+              </button>
+              <button onClick={() => setEditModal(null)} className="px-6 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-semibold transition-all border border-gray-100">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-7 h-7 text-red-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">Delete Teacher</h2>
+            <p className="text-sm text-gray-400 mt-1">Are you sure? This action cannot be undone.</p>
+            <div className="flex gap-3 mt-6">
+              <button onClick={handleDeleteConfirm} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all">
+                Delete
+              </button>
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-semibold transition-all border border-gray-100">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 };

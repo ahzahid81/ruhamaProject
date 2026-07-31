@@ -16,6 +16,7 @@ exports.updateSettings = async (req, res) => {
     const allowed = [
       "classes",
       "sections",
+      "subjects",
       "examNames",
       "paymentMethods",
       "academicSessions",

@@ -13,6 +13,7 @@ const settingsSchema = new mongoose.Schema(
   {
     classes: [classSchema],
     sections: [String],
+    subjects: [String],
     examNames: [String],
     paymentMethods: [String],
     academicSessions: [String],
@@ -36,6 +37,16 @@ settingsSchema.statics.getSettings = async function () {
         { name: "STD-V", code: "V", order: 8 },
       ],
       sections: ["A", "B", "C"],
+      subjects: [
+        "Arabic",
+        "Math",
+        "English",
+        "Bangla",
+        "BGS",
+        "Science",
+        "MDP",
+        "Islamic Studies",
+      ],
       examNames: [
         "Half Yearly",
         "Year Final",

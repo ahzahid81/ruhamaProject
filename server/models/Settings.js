@@ -74,7 +74,15 @@ settingsSchema.statics.getSettings = async function () {
 
   let changed = false;
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
-    if (settings[key] === undefined || settings[key] === null) {
+    const emptyList =
+      key === "subjects" &&
+      Array.isArray(settings[key]) &&
+      settings[key].length === 0;
+    if (
+      settings[key] === undefined ||
+      settings[key] === null ||
+      emptyList
+    ) {
       settings[key] = DEFAULT_SETTINGS[key];
       changed = true;
     }

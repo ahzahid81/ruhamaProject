@@ -25,6 +25,9 @@ import EditStudent from "./pages/admin/EditStudent";
 import StudentAdmission from "./pages/admin/StudentAdmission";
 import StudentDetails from "./pages/admin/StudentDetails";
 import AdmitCard from "./pages/exam/AdmitCard";
+import ExamManagement from "./pages/exam/ExamManagement";
+import MarksEntry from "./pages/exam/MarksEntry";
+import ExamResults from "./pages/exam/ExamResults";
 import CollectPayment from "./pages/payment/CollectPayment";
 import FeeSettings from "./pages/admin/FeeSettings";
 
@@ -118,6 +121,35 @@ function App() {
             path="/exam/admit-card"
 
             element={<AdmitCard />}
+
+          />
+          <Route
+
+            path="/exam/management"
+
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <ExamManagement />
+
+              </ProtectedRoute>
+            }
+
+          />
+          <Route
+
+            path="/exam/marks-entry"
+
+            element={<MarksEntry />}
+
+          />
+          <Route
+
+            path="/exam/results"
+
+            element={<ExamResults />}
 
           />
           <Route

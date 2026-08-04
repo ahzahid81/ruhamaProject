@@ -36,31 +36,40 @@ const Student = () => {
     setAssignments] =
     useState([]);
 
-
-  // SUBJECTS
-  const subjects = [
-    "Arabic",
-    "Math",
-    "English",
-    "Bangla",
-    "BGS",
-    "Science",
-    "MDP",
-    "Islamic Studies",
-  ];
+  const [systemSettings,
+    setSystemSettings] =
+    useState(null);
 
 
-  // CLASSES
-  const classes = [
-    "Play Group",
-    "Nursery",
-    "KG",
-    "STD-I",
-    "STD-II",
-    "STD-III",
-    "STD-IV",
-    "STD-V",
-  ];
+  // LOAD SETTINGS (subjects & classes from backend)
+  useEffect(() => {
+    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+      setSystemSettings({
+        subjects: ["Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies"],
+        classes: [
+          { name: "Play Group", code: "P", order: 1 },
+          { name: "Nursery", code: "N", order: 2 },
+          { name: "KG", code: "K", order: 3 },
+          { name: "STD-I", code: "I", order: 4 },
+          { name: "STD-II", code: "J", order: 5 },
+          { name: "STD-III", code: "L", order: 6 },
+          { name: "STD-IV", code: "M", order: 7 },
+          { name: "STD-V", code: "V", order: 8 },
+        ],
+      });
+    });
+  }, []);
+
+
+  // SUBJECTS (from backend settings)
+  const subjects =
+    systemSettings?.subjects?.length > 0
+      ? systemSettings.subjects
+      : ["Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies"];
+
+
+  // CLASSES (from backend settings)
+  const classes = (systemSettings?.classes || []).map((c) => c.name);
 
 
   // LOAD TEACHERS

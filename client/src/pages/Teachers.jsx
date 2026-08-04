@@ -26,9 +26,10 @@ const Teachers = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const subjects = [
-    "Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies",
-  ];
+  const subjects =
+    systemSettings?.subjects?.length > 0
+      ? systemSettings.subjects
+      : ["Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies"];
 
   useEffect(() => {
     api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {

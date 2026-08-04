@@ -50,6 +50,9 @@ const navGroups = [
     roles: ["admin", "account-manager"],
     items: [
       { name: "Admit Card", path: "/exam/admit-card", icon: IdCard, roles: ["admin", "account-manager"] },
+      { name: "Marks Entry", path: "/exam/marks-entry", icon: BookOpen, roles: ["admin", "account-manager"] },
+      { name: "Exam Results", path: "/exam/results", icon: BarChart3, roles: ["admin", "account-manager"] },
+      { name: "Exam Management", path: "/exam/management", icon: FileText, roles: ["admin"] },
     ],
   },
   {

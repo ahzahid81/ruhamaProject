@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
 
-const SECTIONS = ["classes", "sections", "examNames", "paymentMethods", "academicSessions"];
+const SECTIONS = ["classes", "sections", "subjects", "examNames", "paymentMethods", "academicSessions"];
 
 const LABELS = {
   classes: "Classes",
   sections: "Sections",
+  subjects: "Subjects",
   examNames: "Exam Names",
   paymentMethods: "Payment Methods",
   academicSessions: "Academic Sessions",
@@ -14,6 +15,7 @@ const LABELS = {
 const HELPERS = {
   classes: "Each class needs a name and a short code used in student ID generation (e.g. Nursery → N).",
   sections: "Section labels available for class division.",
+  subjects: "Subject names available for teacher assignments, marks entry, and exam subjects.",
   examNames: "Exam types shown in payment and admit card modules.",
   paymentMethods: "Payment options in collection form.",
   academicSessions: "Academic years shown in dropdowns.",
@@ -50,6 +52,7 @@ export default function SystemSettings() {
           { name: "STD-V", code: "V", order: 8 },
         ],
         sections: ["A", "B", "C"],
+        subjects: ["Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies"],
         examNames: ["Half Yearly", "Year Final", "Model Test", "Monthly Assessment", "Admission Test"],
         paymentMethods: ["Cash", "bKash", "Nagad", "Rocket", "Bank", "Cheque", "Card", "Online", "Other"],
         academicSessions: ["2025", "2026", "2027"],

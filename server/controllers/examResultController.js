@@ -23,7 +23,8 @@ const computeResult = (entries) => {
   });
 
   const count = entries.length || 1;
-  const gpa = Math.round((gradeSum / count) * 100) / 100;
+  let gpa = Math.round((gradeSum / count) * 100) / 100;
+  if (hasFail) gpa = 0;
   const division = getDivision(gpa);
 
   return {
@@ -147,10 +148,13 @@ const saveMarks = async (req, res) => {
         const sub = subjectMap[m.subjectId];
         if (!sub) continue;
 
-        const obtained = m.obtainedMarks === "" || m.obtainedMarks === null || m.obtainedMarks === undefined
-          ? 0
-          : Number(m.obtainedMarks);
+        const isEmpty =
+          m.obtainedMarks === "" ||
+          m.obtainedMarks === null ||
+          m.obtainedMarks === undefined;
+        if (isEmpty) continue;
 
+        const obtained = Math.max(0, Number(m.obtainedMarks));
         const capped = Math.min(obtained, sub.fullMarks);
         const grading = getGrade(capped, sub.passMarks, sub.fullMarks);
 
@@ -165,6 +169,8 @@ const saveMarks = async (req, res) => {
           status: grading.status,
         });
       }
+
+      if (entries.length === 0) continue;
 
       const summary = computeResult(entries);
 

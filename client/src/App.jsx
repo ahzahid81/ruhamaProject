@@ -31,8 +31,8 @@ import ExamResults from "./pages/exam/ExamResults";
 import CollectPayment from "./pages/payment/CollectPayment";
 import FeeSettings from "./pages/admin/FeeSettings";
 
-import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
-import StudentLedger from "./pages/admin/students/StudentLedger";
+// import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
+// import StudentLedger from "./pages/admin/students/StudentLedger";
 import SystemSettings from "./pages/admin/SystemSettings";
 
 function App() {

@@ -30,10 +30,9 @@ import MarksEntry from "./pages/exam/MarksEntry";
 import ExamResults from "./pages/exam/ExamResults";
 import CollectPayment from "./pages/payment/CollectPayment";
 import FeeSettings from "./pages/admin/FeeSettings";
-
-import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
-import StudentLedger from "./pages/admin/students/StudentLedger";
 import SystemSettings from "./pages/admin/SystemSettings";
+import StudentLedger from "./pages/admin/students/StudentLedger";
+import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
 
 function App() {
 
@@ -222,8 +221,7 @@ function App() {
               <ProtectedRoute
                 adminOnly={true}
               >
-
-                <StudentFeeOverride />
+                <StudentFeeOverride></StudentFeeOverride>
 
               </ProtectedRoute>
             }
@@ -236,9 +234,7 @@ function App() {
               <ProtectedRoute
                 adminOnly={false}
               >
-
-                <StudentLedger />
-
+                <StudentLedger></StudentLedger>
               </ProtectedRoute>
             }
           />

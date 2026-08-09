@@ -25,9 +25,9 @@ const navGroups = [
   {
     label: "Main",
     items: [
-      { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "account-manager"] },
-      { name: "Create Report", path: "/create-report", icon: FileText, roles: ["admin", "teacher", "account-manager"] },
-      { name: "Class Reports", path: "/class-report", icon: BookOpen, roles: ["admin", "teacher", "account-manager"] },
+      { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["admin", "account-manager"] },
+      { name: "Create Report", path: "/create-report", icon: FileText, roles: ["admin", "account-manager"] },
+      { name: "Class Reports", path: "/class-report", icon: BookOpen, roles: ["admin", "account-manager"] },
     ],
   },
   {
@@ -47,11 +47,11 @@ const navGroups = [
   },
   {
     label: "Examination",
-    roles: ["admin", "account-manager"],
+    roles: ["admin", "account-manager", "teacher"],
     items: [
-      { name: "Admit Card", path: "/exam/admit-card", icon: IdCard, roles: ["admin", "account-manager"] },
-      { name: "Marks Entry", path: "/exam/marks-entry", icon: BookOpen, roles: ["admin", "account-manager"] },
-      { name: "Exam Results", path: "/exam/results", icon: BarChart3, roles: ["admin", "account-manager"] },
+      { name: "Admit Card", path: "/exam/admit-card", icon: IdCard, roles: ["admin", "account-manager", "teacher"] },
+      { name: "Marks Entry", path: "/exam/marks-entry", icon: BookOpen, roles: ["admin", "account-manager", "teacher"] },
+      { name: "Exam Results", path: "/exam/results", icon: BarChart3, roles: ["admin", "account-manager", "teacher"] },
       { name: "Exam Management", path: "/exam/management", icon: FileText, roles: ["admin"] },
     ],
   },

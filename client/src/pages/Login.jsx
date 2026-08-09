@@ -21,6 +21,8 @@ const Login = () => {
       localStorage.setItem("teacher", JSON.stringify(res.data.teacher));
       if (res.data.teacher.role === "admin") {
         window.location.href = "/admin";
+      } else if (res.data.teacher.role === "teacher") {
+        window.location.href = "/exam/results";
       } else {
         window.location.href = "/dashboard";
       }

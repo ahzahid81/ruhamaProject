@@ -131,6 +131,11 @@ const examResultSchema = new mongoose.Schema(
       default: false,
     },
 
+    isHifz: {
+      type: Boolean,
+      default: false,
+    },
+
     enteredBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Teacher",

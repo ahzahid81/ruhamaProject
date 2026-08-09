@@ -3,6 +3,8 @@ const ExamSubject = require("../models/ExamSubject");
 const ExamSetting = require("../models/ExamSetting");
 const Student = require("../models/Student");
 
+const XLSX = require("xlsx");
+
 const { getGrade, getDivision } = require("../utils/grading");
 
 // ==========================================
@@ -91,6 +93,7 @@ const getStudentsForMarks = async (req, res) => {
         marks,
         saved: !!existing,
         resultId: existing ? existing._id : null,
+        isHifz: existing ? !!existing.isHifz : false,
       };
     });
 
@@ -142,19 +145,22 @@ const saveMarks = async (req, res) => {
       const student = await Student.findById(row.studentId);
       if (!student) continue;
 
+      const isHifz = !!row.isHifz;
       const entries = [];
 
       for (const m of row.marks || []) {
         const sub = subjectMap[m.subjectId];
         if (!sub) continue;
 
+        const raw = m.obtainedMarks;
         const isEmpty =
-          m.obtainedMarks === "" ||
-          m.obtainedMarks === null ||
-          m.obtainedMarks === undefined;
-        if (isEmpty) continue;
+          raw === "" ||
+          raw === null ||
+          raw === undefined;
 
-        const obtained = Math.max(0, Number(m.obtainedMarks));
+        if (isEmpty && isHifz) continue;
+
+        const obtained = isEmpty ? 0 : Math.max(0, Number(raw));
         const capped = Math.min(obtained, sub.fullMarks);
         const grading = getGrade(capped, sub.passMarks, sub.fullMarks);
 
@@ -184,6 +190,7 @@ const saveMarks = async (req, res) => {
             studentName: student.name,
             studentId: student.studentId,
             entries,
+            isHifz,
             ...summary,
             enteredBy: req.user?._id || null,
           },
@@ -199,6 +206,111 @@ const saveMarks = async (req, res) => {
       message: `Marks saved for ${savedCount} student(s).`,
       savedCount,
     });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// EXPORT CLASS RESULTS TO EXCEL (notice board)
+// ==========================================
+
+const exportResults = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const { className } = req.query;
+
+    const exam = await ExamSetting.findById(examId);
+    if (!exam) {
+      return res.status(404).json({ success: false, message: "Exam not found." });
+    }
+
+    const subjects = await ExamSubject.find({ exam: examId, className }).sort({ order: 1, subjectName: 1 });
+
+    const filter = { exam: examId };
+    if (className) filter.className = className;
+
+    const results = await ExamResult.find(filter).sort({ totalObtained: -1, gpa: -1 });
+
+    const header = [
+      "Position",
+      "Student ID",
+      "Name",
+      "Roll",
+      "Section",
+      "Hifz",
+      ...subjects.map((s) => `${s.subjectName} (${s.fullMarks})`),
+      "Total Obtained",
+      "Total Full",
+      "Percentage",
+      "GPA",
+      "Grade",
+      "Status",
+    ];
+
+    const rows = results.map((r, i) => {
+      const entryMap = {};
+      r.entries.forEach((e) => {
+        entryMap[e.subject.toString()] = e;
+      });
+      const subjectCells = subjects.map((s) => {
+        const e = entryMap[s._id.toString()];
+        return e ? e.obtainedMarks : "";
+      });
+      return [
+        i + 1,
+        r.studentId,
+        r.studentName,
+        r.roll,
+        r.className,
+        r.isHifz ? "Yes" : "",
+        ...subjectCells,
+        r.totalObtained,
+        r.totalFullMarks,
+        r.percentage ? `${r.percentage}%` : "0%",
+        r.gpa.toFixed(2),
+        r.grade || "",
+        r.status || "",
+      ];
+    });
+
+    const sheetName = (className || "All").slice(0, 31);
+
+    const title = `${exam.examName} — ${sheetName} Result`;
+    const ws = XLSX.utils.aoa_to_sheet([[title], [`Academic Session: ${exam.academicSession} | Total Students: ${results.length}`], [], header, ...rows]);
+
+    ws["!cols"] = [
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 28 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 6 },
+      ...subjects.map(() => ({ wch: 14 })),
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 10 },
+    ];
+
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: header.length - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: header.length - 1 } },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
+    const safeClass = (className || "All").replace(/[^a-zA-Z0-9\-_ ]/g, "");
+    const filename = `${exam.examName.replace(/[^a-zA-Z0-9\-_ ]/g, "")}_${safeClass}_Result.xlsx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+    return res.send(buffer);
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error.message });
@@ -335,4 +447,5 @@ module.exports = {
   getResults,
   getResult,
   publishResults,
+  exportResults,
 };

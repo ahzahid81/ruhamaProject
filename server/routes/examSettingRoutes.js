@@ -50,6 +50,8 @@ getResult,
 
 publishResults,
 
+exportResults,
+
 } = require("../controllers/examResultController");
 
 // =====================================
@@ -156,10 +158,16 @@ getResult
 );
 
 router.post(
-"/:examId/results/publish",
-protect,
-authorizeRoles("admin"),
-publishResults
+  "/:examId/results/publish",
+  protect,
+  authorizeRoles("admin"),
+  publishResults
+);
+
+router.get(
+  "/:examId/results/export",
+  protect,
+  exportResults
 );
 
 module.exports = router;

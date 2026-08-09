@@ -106,8 +106,19 @@ const ResultSheet = () => {
   }
 
   const { exam, subjects, rows } = data;
-  const totalCount = rows.length;
+
+  const GRADE_ORDER = ["A+", "A", "A-", "B", "C", "D", "F"];
+  const gradeCounts = {};
+  GRADE_ORDER.forEach((g) => {
+    gradeCounts[g] = 0;
+  });
+  rows.forEach((row) => {
+    const g = row.result?.grade;
+    if (g && g in gradeCounts) gradeCounts[g] += 1;
+  });
+  const gradedTotal = GRADE_ORDER.reduce((sum, g) => sum + gradeCounts[g], 0);
   const passCount = rows.filter((r) => r.result?.status === "Pass").length;
+  const failCount = rows.length - passCount;
 
   return (
     <div className="p-6 max-w-full mx-auto">
@@ -141,11 +152,19 @@ const ResultSheet = () => {
           <p className="text-sm text-slate-600 mt-1">Change Yourself, Decorate The World</p>
           <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
             <span className="px-5 py-1.5 bg-[#07153B] text-white rounded-full text-sm font-bold uppercase tracking-wide">{exam.examName} — Result</span>
+          </div>
+          <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
             <span className="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-bold">{className}</span>
             <span className="px-4 py-1.5 bg-gray-100 text-gray-600 rounded-full text-sm font-semibold">Session: {exam.academicSession}</span>
           </div>
-          <p className="text-sm text-slate-500 mt-3">
-            Total Students: {totalCount} • Passed: {passCount} • Failed: {totalCount - passCount}
+          <p className="mt-3 text-[13px] font-semibold text-slate-600">
+            Total: {rows.length} &nbsp;•&nbsp; Passed: {passCount} &nbsp;•&nbsp; Failed: {failCount} &nbsp;•&nbsp;{" "}
+            {GRADE_ORDER.map((g, i) => (
+              <span key={g}>
+                {i > 0 && <span className="text-slate-400"> &nbsp;|&nbsp; </span>}
+                {g}: {gradeCounts[g]}
+              </span>
+            ))}
           </p>
         </div>
 
@@ -178,7 +197,7 @@ const ResultSheet = () => {
                     <td className="px-3 py-2 border border-slate-300 text-center font-bold">{row.serial}</td>
                     <td className="px-3 py-2 border border-slate-300">{row.studentId}</td>
                     <td className="px-3 py-2 border border-slate-300 font-semibold">{row.name}</td>
-                    
+
                     {subjects.map((sub) => {
                       const m = row.markMap[String(sub._id)];
                       const val = m?.obtainedMarks;
@@ -223,6 +242,31 @@ const ResultSheet = () => {
             </tbody>
           </table>
         </div>
+        <div className="p-2"></div>
+
+        {/* Grade Summary */}
+        <div className="flex justify-center mt-6">
+          <table className="border-collapse border border-slate-400">
+            <thead>
+              <tr>
+                <th className="border border-slate-400 bg-slate-100 px-6 py-1.5 text-sm font-semibold text-slate-700">Grade</th>
+                <th className="border border-slate-400 bg-slate-100 px-6 py-1.5 text-sm font-semibold text-slate-700">No. of Students</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GRADE_ORDER.map((g) => (
+                <tr key={g}>
+                  <td className="border border-slate-400 px-6 py-1 text-center text-sm font-semibold text-slate-700">{g}</td>
+                  <td className="border border-slate-400 px-6 py-1 text-center text-sm text-slate-700">{gradeCounts[g]}</td>
+                </tr>
+              ))}
+              <tr>
+                <td className="border border-slate-400 px-6 py-1 text-center text-sm font-bold text-slate-800">Total</td>
+                <td className="border border-slate-400 px-6 py-1 text-center text-sm font-bold text-slate-800">{gradedTotal}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         {/* Signature */}
         <div className="flex justify-between mt-10 px-6">
@@ -232,6 +276,7 @@ const ResultSheet = () => {
           </div>
           <div className="text-center">
             <div className="w-44 border-b border-slate-700" />
+            <p className="mt-1.5 text-sm font-semibold text-slate-600">Exam Controller</p>
           </div>
           <div className="text-center">
             <div className="w-44 border-b border-slate-700" />

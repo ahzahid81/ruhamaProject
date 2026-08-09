@@ -22,19 +22,21 @@ const previewGrade = (obtained, passMarks) => {
   return { grade: rule.grade, point: rule.gradePoint, pass: true };
 };
 
-const previewSummary = (marks) => {
+const previewSummary = (marks, isHifz) => {
   let total = 0, full = 0, points = 0, entered = 0, hasFail = false;
   marks.forEach((m) => {
-    const g = previewGrade(m.obtainedMarks, m.passMarks);
-    if (!g) return;
-    entered += 1;
-    const value = Math.min(Number(m.obtainedMarks), m.fullMarks);
+    const raw = m.obtainedMarks;
+    const isEmpty = raw === "" || raw === null || raw === undefined;
+    if (isEmpty && isHifz) return;
+    const value = isEmpty ? 0 : Math.min(Number(raw), m.fullMarks);
+    const g = isEmpty ? { grade: "F", point: 0, pass: false } : previewGrade(raw, m.passMarks);
+    if (!isEmpty) entered += 1;
     total += value;
-    full += m.fullMarks;
+    full += Number(m.fullMarks) || 0;
     points += g.point;
     if (!g.pass) hasFail = true;
   });
-  const count = entered || 1;
+  const count = isHifz ? entered || 1 : marks.length;
   let gpa = Math.round((points / count) * 100) / 100;
   if (hasFail) gpa = 0;
   const pct = full ? Math.round((total / full) * 1000) / 10 : 0;
@@ -104,6 +106,7 @@ const MarksEntry = () => {
     try {
       const students = data.students.map((s) => ({
         studentId: s.studentId,
+        isHifz: !!s.isHifz,
         marks: s.marks.map((m) => ({
           subjectId: m.subjectId,
           obtainedMarks: m.obtainedMarks,
@@ -132,6 +135,12 @@ const MarksEntry = () => {
   const focusCell = (si, mi, select) => {
     inputRefs.current[`${si}-${mi}`]?.focus();
     if (select) inputRefs.current[`${si}-${mi}`]?.select?.();
+  };
+
+  const toggleHifz = (si) => {
+    const students = [...data.students];
+    students[si].isHifz = !students[si].isHifz;
+    setData({ ...data, students });
   };
 
   const handleCellKeyDown = (e, si, mi) => {
@@ -218,7 +227,7 @@ const MarksEntry = () => {
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">
                 {data.students.filter((s) => s.marks.some((m) => m.obtainedMarks !== "" && m.obtainedMarks !== null && m.obtainedMarks !== undefined)).length}/{data.students.length} students entered
               </span>
-              <span className="text-xs text-gray-400">Save anytime — empty subjects are skipped</span>
+              <span className="text-xs text-gray-400">Save anytime — tick Hifz to count only entered subjects; unticked students require all subjects</span>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -226,6 +235,7 @@ const MarksEntry = () => {
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
                   <th className="px-4 py-3 font-semibold sticky left-0 bg-gray-50 min-w-[200px]">Student</th>
+                  <th className="px-3 py-3 font-semibold text-center min-w-[80px]">Hifz</th>
                   {data.subjects.map((sub) => (
                     <th key={sub._id} className="px-3 py-3 font-semibold text-center min-w-[110px]">
                       <div>{sub.subjectName}</div>
@@ -238,7 +248,7 @@ const MarksEntry = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {data.students.map((student, si) => {
-                  const summary = previewSummary(student.marks);
+                  const summary = previewSummary(student.marks, student.isHifz);
                   return (
                     <tr key={student.studentId} className="hover:bg-gray-50/50 transition">
                       <td className="px-4 py-2.5 sticky left-0 bg-white">
@@ -250,6 +260,25 @@ const MarksEntry = () => {
                             <p className="font-semibold text-slate-800 truncate">{student.name}</p>
                             <p className="text-xs text-gray-400">Roll {student.roll} • {student.studentCode}</p>
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleHifz(si)}
+                          title="Hifz student — count only entered subjects"
+                          className={`w-6 h-6 rounded-md border-2 flex items-center justify-center mx-auto transition-all ${
+                            student.isHifz
+                              ? "bg-teal-500 border-teal-500 text-white"
+                              : "border-gray-300 text-transparent hover:border-teal-400"
+                          }`}
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        <div className="text-[10px] font-bold mt-0.5 text-teal-600">
+                          {student.isHifz ? "Hifz" : ""}
                         </div>
                       </td>
                       {student.marks.map((m, mi) => {

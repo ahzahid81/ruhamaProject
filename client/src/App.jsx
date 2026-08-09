@@ -28,6 +28,8 @@ import AdmitCard from "./pages/exam/AdmitCard";
 import ExamManagement from "./pages/exam/ExamManagement";
 import MarksEntry from "./pages/exam/MarksEntry";
 import ExamResults from "./pages/exam/ExamResults";
+import ReportCard from "./pages/exam/ReportCard";
+import ResultSheet from "./pages/exam/ResultSheet";
 import CollectPayment from "./pages/payment/CollectPayment";
 import FeeSettings from "./pages/admin/FeeSettings";
 import SystemSettings from "./pages/admin/SystemSettings";
@@ -149,6 +151,28 @@ function App() {
             path="/exam/results"
 
             element={<ExamResults />}
+
+          />
+          <Route
+
+            path="/exam/report-card"
+
+            element={
+              <ProtectedRoute>
+                <ReportCard />
+              </ProtectedRoute>
+            }
+
+          />
+          <Route
+
+            path="/exam/result-sheet"
+
+            element={
+              <ProtectedRoute>
+                <ResultSheet />
+              </ProtectedRoute>
+            }
 
           />
           <Route

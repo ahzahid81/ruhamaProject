@@ -7,6 +7,9 @@ const XLSX = require("xlsx");
 
 const { getGrade, getDivision } = require("../utils/grading");
 
+const calcPercentage = (totalObtained, totalFullMarks) =>
+  totalFullMarks ? Math.round((totalObtained / totalFullMarks) * 1000) / 10 : 0;
+
 // ==========================================
 // HELPER: compute result summary for entries
 // ==========================================
@@ -32,7 +35,7 @@ const computeResult = (entries) => {
   return {
     totalFullMarks,
     totalObtained,
-    percentage: totalFullMarks ? Math.round((totalObtained / totalFullMarks) * 100) / 100 : 0,
+    percentage: calcPercentage(totalObtained, totalFullMarks),
     gpa,
     grade: division.grade,
     division: division.division,
@@ -60,7 +63,7 @@ const getStudentsForMarks = async (req, res) => {
 
     const subjects = await ExamSubject.find({ exam: examId, className }).sort({ order: 1, subjectName: 1 });
 
-    const students = await Student.find({ className, status: { $ne: "Inactive" } }).sort({ roll: 1 });
+    const students = await Student.find({ className, status: { $ne: "Inactive" } }).sort({ studentId: 1, name: 1 });
 
     const results = await ExamResult.find({ exam: examId, className });
 
@@ -231,13 +234,17 @@ const exportResults = async (req, res) => {
     const filter = { exam: examId };
     if (className) filter.className = className;
 
-    const results = await ExamResult.find(filter).sort({ totalObtained: -1, gpa: -1 });
+    const results = await ExamResult.find(filter);
+
+    results.sort((a, b) => {
+      const c = String(a.studentId).localeCompare(String(b.studentId), undefined, { numeric: true, sensitivity: "base" });
+      return c !== 0 ? c : String(a.studentName).localeCompare(String(b.studentName), undefined, { sensitivity: "base" });
+    });
 
     const header = [
-      "Position",
-      "Student ID",
+      "Serial",
+      "ID",
       "Name",
-      "Roll",
       "Section",
       "Hifz",
       ...subjects.map((s) => `${s.subjectName} (${s.fullMarks})`),
@@ -262,13 +269,12 @@ const exportResults = async (req, res) => {
         i + 1,
         r.studentId,
         r.studentName,
-        r.roll,
         r.className,
         r.isHifz ? "Yes" : "",
         ...subjectCells,
         r.totalObtained,
         r.totalFullMarks,
-        r.percentage ? `${r.percentage}%` : "0%",
+        r.totalFullMarks ? `${calcPercentage(r.totalObtained, r.totalFullMarks)}%` : "0%",
         r.gpa.toFixed(2),
         r.grade || "",
         r.status || "",
@@ -340,7 +346,11 @@ const getResults = async (req, res) => {
       .populate("student", "photo studentId name roll className section")
       .sort({ totalObtained: -1, gpa: -1 });
 
-    results = results.map((r) => r.toObject());
+    results = results.map((r) => {
+      const obj = r.toObject();
+      obj.percentage = calcPercentage(obj.totalObtained, obj.totalFullMarks);
+      return obj;
+    });
 
     let lastRank = 0;
     results.forEach((r, i) => {
@@ -388,6 +398,7 @@ const getResult = async (req, res) => {
 
     if (result) {
       result = result.toObject();
+      result.percentage = calcPercentage(result.totalObtained, result.totalFullMarks);
     } else {
       result = { entries: [], totalObtained: 0, gpa: 0, status: "Not Submitted" };
     }

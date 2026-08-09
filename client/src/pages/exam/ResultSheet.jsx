@@ -127,10 +127,9 @@ const ResultSheet = () => {
     const g = row.result?.grade;
     if (g && g in gradeCounts) gradeCounts[g] += 1;
   });
-  const gradedTotal = GRADE_ORDER.reduce((sum, g) => sum + gradeCounts[g], 0);
 
   return (
-    <div className="p-6 max-w-full mx-auto">
+    <div className="result-sheet-page p-6 max-w-full mx-auto">
       {/* ACTION BUTTONS */}
       <div className="no-print flex items-center justify-between px-6 py-4 mb-4 bg-white rounded-2xl shadow-lg">
         <h2 className="text-lg font-bold text-slate-800">Result Sheet — {className}</h2>
@@ -265,12 +264,11 @@ const ResultSheet = () => {
             </tbody>
           </table>
         </div>
-        <div className="p-2"></div>
 
         {/* Grade Summary & Grading System */}
-        <div className="mt-6 flex flex-wrap items-start justify-between gap-10">
+        <div className="mt-6 flex items-start justify-between gap-6">
           {/* Grade Summary */}
-          <div className="w-96 overflow-hidden rounded-2xl border border-[#07153B]/20 shadow-lg">
+          <div className="flex-1 min-w-0 overflow-hidden rounded-2xl border border-[#07153B]/20 shadow-lg">
             <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] px-4 py-2.5 text-center">
               <p className="text-white text-sm font-bold tracking-wide uppercase">Grade Summary</p>
             </div>
@@ -300,12 +298,12 @@ const ResultSheet = () => {
             </table>
           </div>
 
-          <div className="border-2 border-dashed rounded-full w-28 h-28 mx-auto my-auto flex flex-col items-center justify-center text-center">
+          <div className="flex-shrink-0 border-2 border-dashed rounded-full w-28 h-28 mx-auto my-auto flex flex-col items-center justify-center text-center">
             <p className="text-xs font-bold text-slate-400">Official Seal</p>
           </div>
 
           {/* Grading System */}
-          <div className="w-[520px] overflow-hidden rounded-2xl border border-[#07153B]/20 shadow-lg">
+          <div className="flex-1 min-w-0 overflow-hidden rounded-2xl border border-[#07153B]/20 shadow-lg">
             <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] px-4 py-2.5 text-center">
               <p className="text-white text-sm font-bold tracking-wide uppercase">Grading System</p>
             </div>
@@ -341,16 +339,16 @@ const ResultSheet = () => {
         </div>
 
         {/* Signature */}
-        <div className="flex mt-10 px-6 pt-5">
+        <div className="flex justify-between mt-10 px-6 pt-5">
           <div className="text-center">
             <div className="w-44 border-b border-slate-700" />
             <p className="mt-1.5 text-sm font-semibold text-slate-600">Class Teacher</p>
           </div>
-          <div className="text-center px-49">
-            <div className="w-44 border-b px  border-slate-700" />
+          <div className="text-center">
+            <div className="w-44 border-b border-slate-700" />
             <p className="mt-1.5 text-sm font-semibold text-slate-600">Exam Controller</p>
           </div>
-          <div className="text-center px-20">
+          <div className="text-center">
             <div className="w-44 border-b border-slate-700" />
             <p className="mt-1.5 text-sm font-semibold text-slate-600">Principal</p>
           </div>
@@ -383,14 +381,20 @@ const ResultSheet = () => {
             }
 
             .result-sheet {
-              position: absolute;
-              left: 0;
-              top: 0;
+              position: static;
               width: 100%;
+              margin: 0;
+              padding: 0;
             }
 
             .no-print {
               display: none !important;
+            }
+
+            .result-sheet-page {
+              padding: 0 !important;
+              margin: 0 !important;
+              max-width: none !important;
             }
 
             * {

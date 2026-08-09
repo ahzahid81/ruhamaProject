@@ -2,6 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { Printer, ArrowLeft, Loader2 } from "lucide-react";
+import logo from "../../assets/logo.png";
+
+const GRADING_SYSTEM = [
+  { grade: "A+", range: "80 - 100", point: "5.00" },
+  { grade: "A", range: "70 - 79", point: "4.00" },
+  { grade: "A-", range: "60 - 69", point: "3.50" },
+  { grade: "B", range: "50 - 59", point: "3.00" },
+  { grade: "C", range: "40 - 49", point: "2.00" },
+  { grade: "D", range: "33 - 39", point: "1.00" },
+  { grade: "F", range: "00 - 32", point: "0.00" },
+];
 
 const ResultSheet = () => {
   const [searchParams] = useSearchParams();
@@ -117,8 +128,6 @@ const ResultSheet = () => {
     if (g && g in gradeCounts) gradeCounts[g] += 1;
   });
   const gradedTotal = GRADE_ORDER.reduce((sum, g) => sum + gradeCounts[g], 0);
-  const passCount = rows.filter((r) => r.result?.status === "Pass").length;
-  const failCount = rows.length - passCount;
 
   return (
     <div className="p-6 max-w-full mx-auto">
@@ -147,17 +156,31 @@ const ResultSheet = () => {
       {/* RESULT SHEET */}
       <div className="result-sheet bg-white rounded-2xl border border-gray-200 shadow-sm p-6 print:rounded-none print:border-0 print:shadow-none print:p-4">
         {/* Sheet Header */}
-        <div className="text-center border-b-2 border-[#07153B] pb-4 mb-5">
-          <h1 className="text-3xl font-black uppercase tracking-wide text-[#07153B]">Ruhama United School</h1>
-          <p className="text-sm text-slate-600 mt-1">Change Yourself, Decorate The World</p>
-          <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
-            <span className="px-5 py-1.5 bg-[#07153B] text-white rounded-full text-sm font-bold uppercase tracking-wide">{exam.examName} — Result</span>
+        <div className="bg-gradient-to-r from-[#07153B] via-[#12308F] to-[#07153B] rounded-2xl px-6 py-5 text-center relative overflow-hidden">
+          <div className="pointer-events-none select-none absolute -top-16 -left-16 w-56 h-56 bg-white/5 rounded-full" />
+          <div className="pointer-events-none select-none absolute -bottom-20 -right-16 w-64 h-64 bg-white/5 rounded-full" />
+          <div className="relative flex items-center justify-center gap-5">
+            <div className="w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center flex-shrink-0 ring-4 ring-yellow-400/40">
+              <img src={logo} alt="School Logo" className="w-16 h-16 object-contain" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-3xl font-black uppercase tracking-wide text-white drop-shadow">Ruhama United School</h1>
+              <p className="text-sm text-yellow-300 mt-1 font-medium">Change Yourself, Decorate The World</p>
+              <p className="text-sm text-white mt-1 font-medium">An English Version School With Tahfizul Quran</p>
+            </div>
           </div>
-          <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
-            <span className="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-bold">{className}</span>
-            <span className="px-4 py-1.5 bg-gray-100 text-gray-600 rounded-full text-sm font-semibold">Session: {exam.academicSession}</span>
+        </div>
+
+        {/* Exam / Class / Session */}
+        <div className="mt-5 text-center">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <span className="px-5 py-1.5 bg-yellow-400 text-[#07153B] rounded-full text-sm font-bold uppercase tracking-wide shadow-md">{exam.examName} — Result</span>
           </div>
-          <p className="mt-3 text-[13px] font-semibold text-slate-600">
+          <div className="flex items-center justify-center gap-4 mt-3 flex-wrap p-1">
+            <span className="px-4 py-1.5 bg-[#07153B]/5 text-[#07153B] ring-1 ring-[#07153B]/20 rounded-full text-sm font-bold">{className}</span>
+            <span className="px-4 py-1.5 bg-[#07153B]/5 text-[#07153B] ring-1 ring-[#07153B]/20 rounded-full text-sm font-semibold">Session: {exam.academicSession}</span>
+          </div>
+          {/* <p className="mt-3 text-[13px] font-semibold text-slate-600">
             Total: {rows.length} &nbsp;•&nbsp; Passed: {passCount} &nbsp;•&nbsp; Failed: {failCount} &nbsp;•&nbsp;{" "}
             {GRADE_ORDER.map((g, i) => (
               <span key={g}>
@@ -165,7 +188,7 @@ const ResultSheet = () => {
                 {g}: {gradeCounts[g]}
               </span>
             ))}
-          </p>
+          </p> */}
         </div>
 
         {/* Marks Table */}
@@ -244,41 +267,90 @@ const ResultSheet = () => {
         </div>
         <div className="p-2"></div>
 
-        {/* Grade Summary */}
-        <div className="flex justify-center mt-6">
-          <table className="border-collapse border border-slate-400">
-            <thead>
-              <tr>
-                <th className="border border-slate-400 bg-slate-100 px-6 py-1.5 text-sm font-semibold text-slate-700">Grade</th>
-                <th className="border border-slate-400 bg-slate-100 px-6 py-1.5 text-sm font-semibold text-slate-700">No. of Students</th>
-              </tr>
-            </thead>
-            <tbody>
-              {GRADE_ORDER.map((g) => (
-                <tr key={g}>
-                  <td className="border border-slate-400 px-6 py-1 text-center text-sm font-semibold text-slate-700">{g}</td>
-                  <td className="border border-slate-400 px-6 py-1 text-center text-sm text-slate-700">{gradeCounts[g]}</td>
+        {/* Grade Summary & Grading System */}
+        <div className="mt-6 flex flex-wrap items-start justify-between gap-10">
+          {/* Grade Summary */}
+          <div className="w-96 overflow-hidden rounded-2xl border border-[#07153B]/20 shadow-lg">
+            <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] px-4 py-2.5 text-center">
+              <p className="text-white text-sm font-bold tracking-wide uppercase">Grade Summary</p>
+            </div>
+            <table className="w-full border-collapse bg-white">
+              <thead>
+                <tr>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Grade</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Students</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Grade</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Students</th>
                 </tr>
-              ))}
-              <tr>
-                <td className="border border-slate-400 px-6 py-1 text-center text-sm font-bold text-slate-800">Total</td>
-                <td className="border border-slate-400 px-6 py-1 text-center text-sm font-bold text-slate-800">{gradedTotal}</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[0, 2, 4, 6].map((start) => {
+                  const g1 = GRADE_ORDER[start];
+                  const g2 = GRADE_ORDER[start + 1];
+                  return (
+                    <tr key={start} className="odd:bg-white even:bg-slate-50">
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm font-bold text-[#07153B]">{g1 || ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{g1 ? gradeCounts[g1] : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm font-bold text-[#07153B]">{g2 || ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{g2 ? gradeCounts[g2] : ""}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="border-2 border-dashed rounded-full w-28 h-28 mx-auto my-auto flex flex-col items-center justify-center text-center">
+            <p className="text-xs font-bold text-slate-400">Official Seal</p>
+          </div>
+
+          {/* Grading System */}
+          <div className="w-[520px] overflow-hidden rounded-2xl border border-[#07153B]/20 shadow-lg">
+            <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] px-4 py-2.5 text-center">
+              <p className="text-white text-sm font-bold tracking-wide uppercase">Grading System</p>
+            </div>
+            <table className="w-full border-collapse bg-white">
+              <thead>
+                <tr>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Grade</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Marks</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">GPA</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Grade</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Marks</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">GPA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[0, 2, 4, 6].map((start) => {
+                  const r1 = GRADING_SYSTEM[start];
+                  const r2 = GRADING_SYSTEM[start + 1];
+                  return (
+                    <tr key={start} className="odd:bg-white even:bg-slate-50">
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm font-bold text-[#07153B]">{r1 ? r1.grade : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r1 ? `${r1.range}%` : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r1 ? r1.point : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm font-bold text-[#07153B]">{r2 ? r2.grade : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r2 ? `${r2.range}%` : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r2 ? r2.point : ""}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Signature */}
-        <div className="flex justify-between mt-10 px-6">
+        <div className="flex mt-10 px-6 pt-5">
           <div className="text-center">
             <div className="w-44 border-b border-slate-700" />
             <p className="mt-1.5 text-sm font-semibold text-slate-600">Class Teacher</p>
           </div>
-          <div className="text-center">
-            <div className="w-44 border-b border-slate-700" />
+          <div className="text-center px-49">
+            <div className="w-44 border-b px  border-slate-700" />
             <p className="mt-1.5 text-sm font-semibold text-slate-600">Exam Controller</p>
           </div>
-          <div className="text-center">
+          <div className="text-center px-20">
             <div className="w-44 border-b border-slate-700" />
             <p className="mt-1.5 text-sm font-semibold text-slate-600">Principal</p>
           </div>

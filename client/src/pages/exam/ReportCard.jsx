@@ -138,7 +138,7 @@ const ReportCardPage = () => {
               left: 0;
               top: 0;
               width: 210mm;
-              min-height: 297mm;
+              height: 297mm;
               overflow: hidden;
               page-break-after: avoid;
               page-break-inside: avoid;

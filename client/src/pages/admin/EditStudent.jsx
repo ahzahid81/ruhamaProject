@@ -144,7 +144,6 @@ const EditStudent = () => {
         <div className="space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
             <Input label="Name" name="name" value={form.name} onChange={handleChange} />
-            <Input label="Roll" name="roll" value={form.roll} onChange={handleChange} />
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Class</label>
               <select

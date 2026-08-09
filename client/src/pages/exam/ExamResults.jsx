@@ -43,7 +43,10 @@ const ExamResults = () => {
     setLoading(true);
     try {
       const res = await api.get(`/exams/${eId}/results?className=${encodeURIComponent(cls)}`);
-      setResults(res.data);
+      const results = (res.data.results || []).slice().sort((a, b) =>
+        String(a.studentId).localeCompare(String(b.studentId), undefined, { numeric: true, sensitivity: "base" })
+      );
+      setResults({ ...res.data, results });
     } catch (err) {
       setToast({ message: err.response?.data?.message || "Failed to load results.", type: "error" });
     } finally {
@@ -201,7 +204,7 @@ const ExamResults = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="px-4 py-3 font-semibold">#</th>
+                    <th className="px-4 py-3 font-semibold">Serial</th>
                     <th className="px-4 py-3 font-semibold min-w-[200px]">Student</th>
                     <th className="px-3 py-3 font-semibold text-center">Obtained</th>
                     <th className="px-3 py-3 font-semibold text-center">%</th>
@@ -213,9 +216,9 @@ const ExamResults = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {results.results.map((r) => (
+                  {results.results.map((r, index) => (
                     <tr key={r._id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-4 py-2.5 font-bold text-slate-500">{r.position}</td>
+                      <td className="px-4 py-2.5 font-bold text-slate-500">{index + 1}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-3">
                           {r.student?.photo ? (
@@ -228,7 +231,7 @@ const ExamResults = () => {
                           <div className="min-w-0">
                             <p className="font-semibold text-slate-800 truncate">{r.studentName}</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs text-gray-400">Roll {r.roll} • {r.studentId}</p>
+                              <p className="text-xs text-gray-400">{r.studentId}</p>
                               {r.isHifz && (
                                 <span className="px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[10px] font-bold uppercase tracking-wide">Hifz</span>
                               )}

@@ -163,10 +163,6 @@ const StudentSearch = ({ onSelect }) => {
                     {student.className} •
                     {" "}
                     {student.section}
-                    {" "}
-                    • Roll
-                    {" "}
-                    {student.roll}
                   </p>
 
                   <p className="text-sm text-gray-500">

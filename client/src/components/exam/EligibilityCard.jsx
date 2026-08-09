@@ -79,10 +79,6 @@ const EligibilityCard = ({
 
               {student.section}
 
-              {" • Roll "}
-
-              {student.roll}
-
             </p>
 
           </div>

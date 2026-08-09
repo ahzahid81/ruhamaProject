@@ -267,7 +267,6 @@ export default function CollectPayment() {
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-gray-500">
                   <span>{student.className}{student.section ? " • " + student.section : ""}</span>
-                  <span>Roll {student.roll}</span>
                   {student.fatherMobile && <span>📞 {student.fatherMobile}</span>}
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -594,7 +593,7 @@ const StudentSearchInner = ({ onSelect }) => {
               )}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-slate-700">{s.name}</p>
-                <p className="text-xs text-gray-400">{s.studentId} — {s.className} • Roll {s.roll}</p>
+                <p className="text-xs text-gray-400">{s.studentId} — {s.className}</p>
               </div>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>{s.status}</span>
             </button>

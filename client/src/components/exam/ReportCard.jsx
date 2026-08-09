@@ -104,7 +104,6 @@ const ReportCard = ({ data, id }) => {
               <div className="grid grid-cols-2 gap-4 mt-5">
                 <InfoItem label="Student ID" value={student.studentId} />
                 <InfoItem label="Class" value={`${student.className} • Section ${student.section}`} />
-                <InfoItem label="Roll" value={student.roll} />
                 <InfoItem label="GPA" value={isFail ? "0.00" : result.gpa.toFixed(2)} />
               </div>
             </div>

@@ -18,11 +18,43 @@ const ResultSheet = () => {
   useEffect(() => {
     if (!examId || !className) return;
     let active = true;
-    api
-      .get(`/exams/${examId}/results?className=${encodeURIComponent(className)}`)
-      .then((res) => {
+    Promise.all([
+      api.get(`/exams/${examId}/students?className=${encodeURIComponent(className)}`),
+      api.get(`/exams/${examId}/results?className=${encodeURIComponent(className)}`),
+    ])
+      .then(([studentsRes, resultsRes]) => {
         if (!active) return;
-        setData(res.data);
+        const students = (studentsRes.data.students || [])
+          .slice()
+          .sort((a, b) =>
+            String(a.studentCode).localeCompare(String(b.studentCode), undefined, { numeric: true, sensitivity: "base" })
+          );
+        const results = resultsRes.data.results || [];
+        const exam = resultsRes.data.exam || studentsRes.data.exam;
+        const subjects = studentsRes.data.subjects || resultsRes.data.subjects || [];
+
+        const resultMap = {};
+        results.forEach((r) => {
+          if (r.student?._id) resultMap[r.student._id.toString()] = r;
+        });
+
+        const rows = students.map((s, idx) => {
+          const r = resultMap[String(s.studentId)] || null;
+          const markMap = {};
+          (s.marks || []).forEach((m) => {
+            markMap[String(m.subjectId)] = m;
+          });
+          return {
+            serial: idx + 1,
+            studentId: s.studentCode,
+            name: s.name,
+            isHifz: !!s.isHifz,
+            markMap,
+            result: r,
+          };
+        });
+
+        setData({ exam, subjects, rows });
         setLoading(false);
       })
       .catch((err) => {
@@ -73,9 +105,9 @@ const ResultSheet = () => {
     );
   }
 
-  const { exam, subjects, results } = data;
-  const totalCount = results.length;
-  const passCount = results.filter((r) => r.status === "Pass").length;
+  const { exam, subjects, rows } = data;
+  const totalCount = rows.length;
+  const passCount = rows.filter((r) => r.result?.status === "Pass").length;
 
   return (
     <div className="p-6 max-w-full mx-auto">
@@ -122,10 +154,9 @@ const ResultSheet = () => {
           <table className="w-full text-[13px] text-slate-800 border-collapse">
             <thead>
               <tr className="bg-[#07153B] text-white">
-                <th className="px-3 py-2.5 border border-slate-300 font-bold text-center">#</th>
-                <th className="px-3 py-2.5 border border-slate-300 font-bold text-left min-w-[100px]">Student ID</th>
+                <th className="px-3 py-2.5 border border-slate-300 font-bold text-center">Serial</th>
+                <th className="px-3 py-2.5 border border-slate-300 font-bold text-left min-w-[100px]">ID</th>
                 <th className="px-3 py-2.5 border border-slate-300 font-bold text-left min-w-[180px]">Name</th>
-                <th className="px-3 py-2.5 border border-slate-300 font-bold text-center">Roll</th>
                 <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Hifz</th>
                 {subjects.map((sub) => (
                   <th key={sub._id} className="px-2 py-2.5 border border-slate-300 font-bold text-center">
@@ -137,53 +168,61 @@ const ResultSheet = () => {
                 <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">%</th>
                 <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">GPA</th>
                 <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Grade</th>
-                <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Status</th>
+                <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Result</th>
               </tr>
             </thead>
             <tbody>
-              {results.map((r) => {
-                const entryMap = {};
-                (r.entries || []).forEach((e) => {
-                  entryMap[String(e.subject)] = e;
-                });
+              {rows.map((row) => {
+                const r = row.result;
                 return (
-                  <tr key={r._id} className="odd:bg-white even:bg-gray-50">
-                    <td className="px-3 py-2 border border-slate-300 text-center font-bold">{r.position}</td>
-                    <td className="px-3 py-2 border border-slate-300">{r.studentId}</td>
-                    <td className="px-3 py-2 border border-slate-300 font-semibold">{r.studentName}</td>
-                    <td className="px-3 py-2 border border-slate-300 text-center">{r.roll}</td>
+                  <tr key={row.serial} className="odd:bg-white even:bg-gray-50">
+                    <td className="px-3 py-2 border border-slate-300 text-center font-bold">{row.serial}</td>
+                    <td className="px-3 py-2 border border-slate-300">{row.studentId}</td>
+                    <td className="px-3 py-2 border border-slate-300 font-semibold">{row.name}</td>
                     <td className="px-2 py-2 border border-slate-300 text-center">
-                      {r.isHifz ? (
+                      {row.isHifz ? (
                         <span className="inline-block w-4 h-4 rounded-sm bg-teal-600 text-white text-[10px] leading-4 font-bold">✓</span>
                       ) : (
                         <span className="inline-block w-4 h-4 rounded-sm border border-slate-300" />
                       )}
                     </td>
                     {subjects.map((sub) => {
-                      const e = entryMap[String(sub._id)];
-                      const fail = e && e.status === "Fail";
+                      const m = row.markMap[String(sub._id)];
+                      const val = m?.obtainedMarks;
+                      const isEmpty = val === "" || val === null || val === undefined;
+                      const fail = m?.status === "Fail";
                       return (
                         <td key={sub._id} className="px-2 py-2 border border-slate-300 text-center">
-                          {e ? (
-                            <span className={fail ? "text-red-600 font-semibold" : ""}>{e.obtainedMarks}</span>
-                          ) : (
+                          {isEmpty ? (
                             <span className="text-slate-300">—</span>
+                          ) : (
+                            <span className={fail ? "text-red-600 font-semibold" : ""}>{val}</span>
                           )}
                         </td>
                       );
                     })}
-                    <td className="px-2 py-2 border border-slate-300 text-center font-bold">{r.totalObtained}/{r.totalFullMarks}</td>
-                    <td className="px-2 py-2 border border-slate-300 text-center">{r.percentage}%</td>
-                    <td className="px-2 py-2 border border-slate-300 text-center font-bold text-indigo-700">{r.gpa.toFixed(2)}</td>
+                    <td className="px-2 py-2 border border-slate-300 text-center font-bold">
+                      {r ? `${r.totalObtained}/${r.totalFullMarks}` : "—"}
+                    </td>
+                    <td className="px-2 py-2 border border-slate-300 text-center">{r ? `${r.percentage}%` : "—"}</td>
+                    <td className="px-2 py-2 border border-slate-300 text-center font-bold text-indigo-700">{r ? r.gpa.toFixed(2) : "—"}</td>
                     <td className="px-2 py-2 border border-slate-300 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                        {r.grade}
-                      </span>
+                      {r ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                          {r.grade}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
                     </td>
                     <td className="px-2 py-2 border border-slate-300 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                        {r.status}
-                      </span>
+                      {r ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                          {r.status}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">N/A</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -209,7 +248,7 @@ const ResultSheet = () => {
         </div>
 
         <p className="text-[11px] text-slate-400 mt-6 text-center">
-          Hifz students are assessed on their entered subjects only.
+          Hifz students are assessed on their entered subjects only. "—" = not entered. "N/A" = result not submitted.
         </p>
       </div>
 

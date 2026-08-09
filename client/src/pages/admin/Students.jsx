@@ -13,7 +13,6 @@ import {
   GraduationCap,
   User,
   Phone,
-  Hash,
   AlertTriangle,
 } from "lucide-react";
 import Toast from "../../components/Toast";
@@ -187,12 +186,6 @@ const Students = () => {
                 <GraduationCap className="w-3.5 h-3.5 text-gray-300" />
                 <span>
                   Class: <strong className="text-gray-700">{student.className}</strong>
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Hash className="w-3.5 h-3.5 text-gray-300" />
-                <span>
-                  Roll: <strong className="text-gray-700">{student.roll || "-"}</strong>
                 </span>
               </div>
               <div className="flex items-center gap-2">

@@ -71,7 +71,10 @@ const MarksEntry = () => {
     setLoading(true);
     try {
       const res = await api.get(`/exams/${eId}/students?className=${encodeURIComponent(cls)}`);
-      setData(res.data);
+      const students = (res.data.students || []).slice().sort((a, b) =>
+        String(a.studentCode).localeCompare(String(b.studentCode), undefined, { numeric: true, sensitivity: "base" })
+      );
+      setData({ ...res.data, students });
       setToast({ message: null });
     } catch (err) {
       setToast({ message: err.response?.data?.message || "Failed to load students.", type: "error" });
@@ -258,7 +261,7 @@ const MarksEntry = () => {
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-slate-800 truncate">{student.name}</p>
-                            <p className="text-xs text-gray-400">Roll {student.roll} • {student.studentCode}</p>
+                            <p className="text-xs text-gray-400">{student.studentCode}</p>
                           </div>
                         </div>
                       </td>

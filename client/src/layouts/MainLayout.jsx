@@ -25,9 +25,9 @@ const navGroups = [
   {
     label: "Main",
     items: [
-      { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["admin", "account-manager"] },
-      { name: "Create Report", path: "/create-report", icon: FileText, roles: ["admin", "account-manager"] },
-      { name: "Class Reports", path: "/class-report", icon: BookOpen, roles: ["admin", "account-manager"] },
+      { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "account-manager"] },
+      { name: "Create Report", path: "/create-report", icon: FileText, roles: ["admin", "teacher", "account-manager"] },
+      { name: "Class Reports", path: "/class-report", icon: BookOpen, roles: ["admin", "teacher", "account-manager"] },
     ],
   },
   {

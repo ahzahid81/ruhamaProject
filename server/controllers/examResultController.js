@@ -416,6 +416,7 @@ const getResult = async (req, res) => {
         photo: student.photo,
         fatherName: student.fatherName,
         motherName: student.motherName,
+        dateOfBirth: student.dateOfBirth,
       },
       result,
     });

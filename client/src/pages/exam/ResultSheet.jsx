@@ -157,7 +157,6 @@ const ResultSheet = () => {
                 <th className="px-3 py-2.5 border border-slate-300 font-bold text-center">Serial</th>
                 <th className="px-3 py-2.5 border border-slate-300 font-bold text-left min-w-[100px]">ID</th>
                 <th className="px-3 py-2.5 border border-slate-300 font-bold text-left min-w-[180px]">Name</th>
-                <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Hifz</th>
                 {subjects.map((sub) => (
                   <th key={sub._id} className="px-2 py-2.5 border border-slate-300 font-bold text-center">
                     {sub.subjectName}
@@ -179,13 +178,7 @@ const ResultSheet = () => {
                     <td className="px-3 py-2 border border-slate-300 text-center font-bold">{row.serial}</td>
                     <td className="px-3 py-2 border border-slate-300">{row.studentId}</td>
                     <td className="px-3 py-2 border border-slate-300 font-semibold">{row.name}</td>
-                    <td className="px-2 py-2 border border-slate-300 text-center">
-                      {row.isHifz ? (
-                        <span className="inline-block w-4 h-4 rounded-sm bg-teal-600 text-white text-[10px] leading-4 font-bold">✓</span>
-                      ) : (
-                        <span className="inline-block w-4 h-4 rounded-sm border border-slate-300" />
-                      )}
-                    </td>
+                    
                     {subjects.map((sub) => {
                       const m = row.markMap[String(sub._id)];
                       const val = m?.obtainedMarks;
@@ -239,7 +232,6 @@ const ResultSheet = () => {
           </div>
           <div className="text-center">
             <div className="w-44 border-b border-slate-700" />
-            <p className="mt-1.5 text-sm font-semibold text-slate-600">Guardian</p>
           </div>
           <div className="text-center">
             <div className="w-44 border-b border-slate-700" />
@@ -247,9 +239,6 @@ const ResultSheet = () => {
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 mt-6 text-center">
-          Hifz students are assessed on their entered subjects only. "—" = not entered. "N/A" = result not submitted.
-        </p>
       </div>
 
       {/* Print styles */}

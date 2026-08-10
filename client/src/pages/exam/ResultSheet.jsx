@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { Printer, ArrowLeft, Loader2 } from "lucide-react";
 import logo from "../../assets/logo.png";
+import { getRemark } from "../../lib/remarks";
 
 const GRADING_SYSTEM = [
   { grade: "A+", range: "80 - 100", point: "5.00" },
@@ -208,7 +209,7 @@ const ResultSheet = () => {
                 <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">%</th>
                 <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">GPA</th>
                 <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Grade</th>
-                <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Result</th>
+                <th className="px-2 py-2.5 border border-slate-300 font-bold text-center">Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -252,11 +253,11 @@ const ResultSheet = () => {
                     </td>
                     <td className="px-2 py-2 border border-slate-300 text-center">
                       {r ? (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : r.status === "Absent" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
-                          {r.status}
+                        <span className="text-xs font-semibold text-slate-700">
+                          {r.status === "Absent" ? "Absent" : getRemark(r.percentage)}
                         </span>
                       ) : (
-                        <span className="text-slate-400">N/A</span>
+                        <span className="text-slate-300">—</span>
                       )}
                     </td>
                   </tr>

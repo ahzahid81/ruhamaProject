@@ -11,6 +11,7 @@ import {
   FileText,
   CheckCircle,
   ArrowLeft,
+  Upload,
 } from "lucide-react";
 import Toast from "../../components/Toast";
 
@@ -135,11 +136,16 @@ const StudentAdmission = () => {
               <Camera className="w-8 h-8 text-gray-300" />
             </div>
           )}
-          <div>
+          <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-sm font-semibold cursor-pointer">
               <Camera className="w-4 h-4" />
-              Upload Photo
+              Take Photo
               <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" />
+            </label>
+            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-semibold cursor-pointer">
+              <Upload className="w-4 h-4" />
+              Upload Photo
+              <input type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
             </label>
           </div>
         </div>

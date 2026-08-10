@@ -364,50 +364,23 @@ const ResultSheet = () => {
           @media print {
             @page {
               size: A4 landscape;
-              margin: 10mm;
+              margin: 8mm;
             }
 
             html, body {
               margin: 0;
               padding: 0;
               width: 100%;
-              background: white;
+              background: white !important;
             }
-
-            body * {
-              visibility: hidden;
-            }
-
-            .result-sheet, .result-sheet * {
-              visibility: visible;
-            }
-
-            .result-sheet {
-              position: static;
-              width: 100%;
-              margin: 0;
-              padding: 0;
-            }
-
-            .no-print {
-              display: none !important;
-            }
-
-            .result-sheet-page {
-              padding: 0 !important;
-              margin: 0 !important;
-              max-width: none !important;
-            }
-
-            /*
-              Make the print start at the very top.
-              The app chrome (sidebar + topbar + wrappers)
-              still reserves layout space, so remove it.
-            */
 
             aside,
             header,
             nav {
+              display: none !important;
+            }
+
+            .no-print {
               display: none !important;
             }
 
@@ -420,22 +393,43 @@ const ResultSheet = () => {
               margin-left: 0 !important;
             }
 
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-              color-adjust: exact !important;
+            .result-sheet-page {
+              padding: 0 !important;
+              margin: 0 !important;
+              max-width: none !important;
+            }
+
+            .result-sheet {
+              border-radius: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              background: white !important;
+            }
+
+            .result-sheet .overflow-x-auto {
+              overflow: visible !important;
             }
 
             .result-sheet table {
               width: 100% !important;
             }
 
-            .result-sheet th, .result-sheet td {
+            .result-sheet th,
+            .result-sheet td {
               page-break-inside: avoid;
             }
 
             .result-sheet tbody tr {
               page-break-inside: avoid;
+            }
+
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
           }
         `}

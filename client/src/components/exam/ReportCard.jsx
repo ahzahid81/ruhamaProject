@@ -12,6 +12,21 @@ const GRADING_SYSTEM = [
   { grade: "F", range: "0-32", point: "0.00" },
 ];
 
+const SUBJECT_THEMES = [
+  { soft: "bg-indigo-50", text: "text-indigo-700", accent: "bg-indigo-500" },
+  { soft: "bg-rose-50", text: "text-rose-700", accent: "bg-rose-500" },
+  { soft: "bg-emerald-50", text: "text-emerald-700", accent: "bg-emerald-500" },
+  { soft: "bg-amber-50", text: "text-amber-700", accent: "bg-amber-500" },
+  { soft: "bg-sky-50", text: "text-sky-700", accent: "bg-sky-500" },
+  { soft: "bg-fuchsia-50", text: "text-fuchsia-700", accent: "bg-fuchsia-500" },
+  { soft: "bg-teal-50", text: "text-teal-700", accent: "bg-teal-500" },
+  { soft: "bg-orange-50", text: "text-orange-700", accent: "bg-orange-500" },
+  { soft: "bg-violet-50", text: "text-violet-700", accent: "bg-violet-500" },
+  { soft: "bg-lime-50", text: "text-lime-700", accent: "bg-lime-500" },
+  { soft: "bg-cyan-50", text: "text-cyan-700", accent: "bg-cyan-500" },
+  { soft: "bg-pink-50", text: "text-pink-700", accent: "bg-pink-500" },
+];
+
 const SignatureCard = ({ title }) => (
   <div className="text-center">
     <div className="h-8 border-b-2 border-dashed border-slate-300 mx-4" />
@@ -162,24 +177,32 @@ const ReportCard = ({ data, id }) => {
                 </tr>
               </thead>
               <tbody className="flex-1 flex flex-col divide-y divide-gray-100 overflow-hidden">
-                {entries.map((e, i) => (
-                  <tr key={i} className={`flex flex-1 items-center ${i % 2 ? "bg-slate-50/60" : "bg-white"}`}>
-                    <td className="px-3 font-medium text-[#07153B] flex-[2] truncate">{e.subjectName}</td>
-                    <td className="px-2 text-center text-slate-500 flex-1">{e.fullMarks}</td>
-                    <td className={`px-2 text-center font-semibold flex-1 ${e.status === "Fail" ? "text-red-600" : e.status === "Absent" ? "text-amber-600" : "text-[#07153B]"}`}>
-                      {e.status === "Absent" ? "—" : e.obtainedMarks}
-                    </td>
-                    <td className="px-2 text-center flex-1">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${e.status === "Fail" ? "bg-red-50 text-red-700" : e.status === "Absent" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
-                        {e.grade}
-                      </span>
-                    </td>
-                    <td className="px-2 text-center font-semibold flex-1">{e.status === "Absent" ? "—" : e.gradePoint.toFixed(1)}</td>
-                    <td className={`px-2 text-center font-bold flex-1 ${e.status === "Fail" ? "text-red-600" : e.status === "Absent" ? "text-amber-600" : "text-emerald-600"}`}>
-                      {e.status === "Absent" ? "Absent" : e.status}
-                    </td>
-                  </tr>
-                ))}
+                {entries.map((e, i) => {
+                  const theme = SUBJECT_THEMES[i % SUBJECT_THEMES.length];
+                  return (
+                    <tr key={i} className={`flex flex-1 items-center ${theme.soft}`}>
+                      <td className="px-3 py-1 flex items-center gap-2 flex-[2] min-w-0">
+                        <span className={`w-1.5 h-4 rounded-full flex-shrink-0 ${theme.accent}`} />
+                        <span className={`font-bold truncate ${theme.text}`}>{e.subjectName}</span>
+                      </td>
+                      <td className="px-2 text-center text-slate-500 flex-1">{e.fullMarks}</td>
+                      <td className={`px-2 text-center font-bold flex-1 ${e.status === "Fail" ? "text-red-600" : e.status === "Absent" ? "text-amber-600" : theme.text}`}>
+                        {e.status === "Absent" ? "—" : e.obtainedMarks}
+                      </td>
+                      <td className="px-2 text-center flex-1">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${e.status === "Fail" ? "bg-red-50 text-red-700" : e.status === "Absent" ? "bg-amber-50 text-amber-700" : `${theme.soft} ${theme.text}`}`}>
+                          {e.grade}
+                        </span>
+                      </td>
+                      <td className={`px-2 text-center font-bold flex-1 ${e.status === "Absent" ? "text-slate-400" : theme.text}`}>
+                        {e.status === "Absent" ? "—" : e.gradePoint.toFixed(1)}
+                      </td>
+                      <td className={`px-2 text-center font-bold flex-1 ${e.status === "Fail" ? "text-red-600" : e.status === "Absent" ? "text-amber-600" : theme.text}`}>
+                        {e.status === "Absent" ? "Absent" : e.status}
+                      </td>
+                    </tr>
+                  );
+                })}
                 <tr className="flex flex-shrink-0 bg-gradient-to-r from-[#07153B] to-[#12308F] font-bold text-white items-center">
                   <td className="px-3 py-1.5 flex-[2]">Total</td>
                   <td className="px-2 py-1.5 text-center flex-1">{result.totalFullMarks}</td>

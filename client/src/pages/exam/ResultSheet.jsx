@@ -225,10 +225,11 @@ const ResultSheet = () => {
                       const val = m?.obtainedMarks;
                       const isEmpty = val === "" || val === null || val === undefined;
                       const fail = m?.status === "Fail";
+                      const absent = m?.status === "Absent" || isEmpty;
                       return (
                         <td key={sub._id} className="px-2 py-2 border border-slate-300 text-center">
-                          {isEmpty ? (
-                            <span className="text-slate-300">—</span>
+                          {absent ? (
+                            <span className="text-amber-600 font-bold">A</span>
                           ) : (
                             <span className={fail ? "text-red-600 font-semibold" : ""}>{val}</span>
                           )}
@@ -239,10 +240,10 @@ const ResultSheet = () => {
                       {r ? `${r.totalObtained}/${r.totalFullMarks}` : "—"}
                     </td>
                     <td className="px-2 py-2 border border-slate-300 text-center">{r ? `${r.percentage}%` : "—"}</td>
-                    <td className="px-2 py-2 border border-slate-300 text-center font-bold text-indigo-700">{r ? r.gpa.toFixed(2) : "—"}</td>
+                    <td className="px-2 py-2 border border-slate-300 text-center font-bold text-indigo-700">{r ? (r.status === "Absent" ? "—" : r.gpa.toFixed(2)) : "—"}</td>
                     <td className="px-2 py-2 border border-slate-300 text-center">
                       {r ? (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : r.status === "Absent" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
                           {r.grade}
                         </span>
                       ) : (
@@ -251,7 +252,7 @@ const ResultSheet = () => {
                     </td>
                     <td className="px-2 py-2 border border-slate-300 text-center">
                       {r ? (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : r.status === "Absent" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
                           {r.status}
                         </span>
                       ) : (
@@ -325,10 +326,10 @@ const ResultSheet = () => {
                   return (
                     <tr key={start} className="odd:bg-white even:bg-slate-50">
                       <td className="border-b border-slate-100 px-3 py-1 text-center text-sm font-bold text-[#07153B]">{r1 ? r1.grade : ""}</td>
-                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r1 ? `${r1.range}%` : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r1 ? `${r1.range}` : ""}</td>
                       <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r1 ? r1.point : ""}</td>
                       <td className="border-b border-slate-100 px-3 py-1 text-center text-sm font-bold text-[#07153B]">{r2 ? r2.grade : ""}</td>
-                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r2 ? `${r2.range}%` : ""}</td>
+                      <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r2 ? `${r2.range}` : ""}</td>
                       <td className="border-b border-slate-100 px-3 py-1 text-center text-sm text-slate-700">{r2 ? r2.point : ""}</td>
                     </tr>
                   );
@@ -395,6 +396,27 @@ const ResultSheet = () => {
               padding: 0 !important;
               margin: 0 !important;
               max-width: none !important;
+            }
+
+            /*
+              Make the print start at the very top.
+              The app chrome (sidebar + topbar + wrappers)
+              still reserves layout space, so remove it.
+            */
+
+            aside,
+            header,
+            nav {
+              display: none !important;
+            }
+
+            main {
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+
+            [class~="md:ml-64"] {
+              margin-left: 0 !important;
             }
 
             * {

@@ -11,6 +11,33 @@ const calcPercentage = (totalObtained, totalFullMarks) =>
   totalFullMarks ? Math.round((totalObtained / totalFullMarks) * 1000) / 10 : 0;
 
 // ==========================================
+// HELPER: apply the Absent status on read so
+// already-saved results are corrected without
+// re-saving marks.
+// ==========================================
+
+const normalizeAbsent = (result) => {
+  const entries = result.entries || [];
+  const totalFullMarks = Number(result.totalFullMarks) || 0;
+  const totalObtained = Number(result.totalObtained) || 0;
+  if (totalFullMarks > 0 && totalObtained === 0 && entries.length > 0) {
+    result.status = "Absent";
+    result.grade = "Abs";
+    result.gpa = 0;
+    result.percentage = 0;
+    result.entries = entries.map((e) => {
+      if (Number(e.obtainedMarks) === 0) {
+        if (e.status === "Fail") e.status = "Absent";
+        if (e.grade === "F") e.grade = "Abs";
+        e.gradePoint = 0;
+      }
+      return e;
+    });
+  }
+  return result;
+};
+
+// ==========================================
 // HELPER: compute result summary for entries
 // ==========================================
 
@@ -31,6 +58,22 @@ const computeResult = (entries) => {
   let gpa = Math.round((gradeSum / count) * 100) / 100;
   if (hasFail) gpa = 0;
   const division = getDivision(gpa);
+
+  // A student with zero total marks is marked Absent,
+  // not Fail.
+  const isAbsent = totalFullMarks > 0 && totalObtained === 0;
+
+  if (isAbsent) {
+    return {
+      totalFullMarks,
+      totalObtained,
+      percentage: 0,
+      gpa: 0,
+      grade: "Abs",
+      division: division.division,
+      status: "Absent",
+    };
+  }
 
   return {
     totalFullMarks,
@@ -165,6 +208,23 @@ const saveMarks = async (req, res) => {
 
         const obtained = isEmpty ? 0 : Math.max(0, Number(raw));
         const capped = Math.min(obtained, sub.fullMarks);
+
+        // Blank marks mean the student was absent for
+        // that subject, not failed.
+        if (isEmpty) {
+          entries.push({
+            subject: sub._id,
+            subjectName: sub.subjectName,
+            fullMarks: sub.fullMarks,
+            passMarks: sub.passMarks,
+            obtainedMarks: 0,
+            grade: "Abs",
+            gradePoint: 0,
+            status: "Absent",
+          });
+          continue;
+        }
+
         const grading = getGrade(capped, sub.passMarks, sub.fullMarks);
 
         entries.push({
@@ -349,7 +409,7 @@ const getResults = async (req, res) => {
     results = results.map((r) => {
       const obj = r.toObject();
       obj.percentage = calcPercentage(obj.totalObtained, obj.totalFullMarks);
-      return obj;
+      return normalizeAbsent(obj);
     });
 
     let lastRank = 0;
@@ -399,6 +459,7 @@ const getResult = async (req, res) => {
     if (result) {
       result = result.toObject();
       result.percentage = calcPercentage(result.totalObtained, result.totalFullMarks);
+      result = normalizeAbsent(result);
     } else {
       result = { entries: [], totalObtained: 0, gpa: 0, status: "Not Submitted" };
     }

@@ -11,6 +11,22 @@ const GRADING_SYSTEM = [
   { grade: "F", range: "0-32", point: "0.00" },
 ];
 
+const getRemark = (percentage) => {
+  if (percentage >= 95) return "Outstanding";
+  if (percentage >= 90) return "Excellent";
+  if (percentage >= 85) return "Brilliant";
+  if (percentage >= 80) return "Superb";
+  if (percentage >= 75) return "Very Good";
+  if (percentage >= 70) return "Good";
+  if (percentage >= 65) return "Above Average";
+  if (percentage >= 60) return "Satisfactory";
+  if (percentage >= 55) return "Fair";
+  if (percentage >= 50) return "Below Average";
+  if (percentage >= 45) return "Needs More Focus";
+  if (percentage >= 40) return "Needs More Hard Work";
+  return "Fail";
+};
+
 const SignatureCard = ({ title }) => (
   <div className="text-center">
     <div className="h-8 border-b-2 border-dashed border-slate-300 mx-4" />
@@ -21,6 +37,7 @@ const SignatureCard = ({ title }) => (
 const ReportCard = ({ data, id }) => {
   const { exam, student, result } = data;
   const isFail = result.status === "Fail";
+  const isAbsent = result.status === "Absent";
   const entries = result.entries || [];
   const isHifz = !!result.isHifz;
 
@@ -164,17 +181,17 @@ const ReportCard = ({ data, id }) => {
                   <tr key={i} className={`flex flex-1 items-center ${i % 2 ? "bg-slate-50/60" : "bg-white"}`}>
                     <td className="px-3 font-medium text-[#07153B] flex-[2] truncate">{e.subjectName}</td>
                     <td className="px-2 text-center text-slate-500 flex-1">{e.fullMarks}</td>
-                    <td className={`px-2 text-center font-semibold flex-1 ${e.status === "Fail" ? "text-red-600" : "text-[#07153B]"}`}>
-                      {e.obtainedMarks}
+                    <td className={`px-2 text-center font-semibold flex-1 ${e.status === "Fail" ? "text-red-600" : e.status === "Absent" ? "text-amber-600" : "text-[#07153B]"}`}>
+                      {e.status === "Absent" ? "—" : e.obtainedMarks}
                     </td>
                     <td className="px-2 text-center flex-1">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${e.status === "Fail" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${e.status === "Fail" ? "bg-red-50 text-red-700" : e.status === "Absent" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
                         {e.grade}
                       </span>
                     </td>
-                    <td className="px-2 text-center font-semibold flex-1">{e.gradePoint.toFixed(1)}</td>
-                    <td className={`px-2 text-center font-bold flex-1 ${e.status === "Fail" ? "text-red-600" : "text-emerald-600"}`}>
-                      {e.status}
+                    <td className="px-2 text-center font-semibold flex-1">{e.status === "Absent" ? "—" : e.gradePoint.toFixed(1)}</td>
+                    <td className={`px-2 text-center font-bold flex-1 ${e.status === "Fail" ? "text-red-600" : e.status === "Absent" ? "text-amber-600" : "text-emerald-600"}`}>
+                      {e.status === "Absent" ? "Absent" : e.status}
                     </td>
                   </tr>
                 ))}
@@ -183,8 +200,8 @@ const ReportCard = ({ data, id }) => {
                   <td className="px-2 py-1.5 text-center flex-1">{result.totalFullMarks}</td>
                   <td className="px-2 py-1.5 text-center flex-1">{result.totalObtained}</td>
                   <td className="px-2 py-1.5 text-center flex-1">{result.grade || "—"}</td>
-                  <td className="px-2 py-1.5 text-center flex-1">{isFail ? "0.00" : result.gpa.toFixed(2)}</td>
-                  <td className={`px-2 py-1.5 text-center font-black flex-1 ${isFail ? "text-red-300" : "text-emerald-300"}`}>{result.status}</td>
+                  <td className="px-2 py-1.5 text-center flex-1">{isAbsent ? "—" : isFail ? "0.00" : result.gpa.toFixed(2)}</td>
+                  <td className={`px-2 py-1.5 text-center font-black flex-1 ${isFail ? "text-red-300" : isAbsent ? "text-amber-300" : "text-emerald-300"}`}>{result.status}</td>
                 </tr>
               </tbody>
             </table>
@@ -194,10 +211,10 @@ const ReportCard = ({ data, id }) => {
         {/* FINAL RESULT SUMMARY */}
         <div className="relative mt-2 flex-shrink-0 grid grid-cols-4 gap-2">
           {[
-            { label: "GPA", value: isFail ? "0.00" : result.gpa.toFixed(2), color: isFail ? "text-red-600" : "text-indigo-700" },
-            { label: "Grade", value: result.grade || "—", color: isFail ? "text-red-600" : "text-emerald-600" },
-            { label: "Division", value: result.division || "—", color: "text-indigo-700" },
-            { label: "Percentage", value: `${result.percentage}%`, color: "text-[#07153B]" },
+            { label: "GPA", value: isAbsent ? "—" : isFail ? "0.00" : result.gpa.toFixed(2), color: isFail ? "text-red-600" : isAbsent ? "text-amber-600" : "text-indigo-700" },
+            { label: "Grade", value: result.grade || "—", color: isFail ? "text-red-600" : isAbsent ? "text-amber-600" : "text-emerald-600" },
+            { label: "Remarks", value: isAbsent ? "Absent" : isFail ? "Fail" : getRemark(result.percentage), color: isAbsent ? "text-amber-600" : "text-indigo-700" },
+            { label: "Percentage", value: isAbsent ? "—" : `${result.percentage}%`, color: "text-[#07153B]" },
           ].map((item) => (
             <div key={item.label} className="bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-lg py-1.5 text-center shadow-sm">
               <p className="text-[9px] text-slate-400 uppercase font-medium tracking-wide">{item.label}</p>
@@ -216,7 +233,7 @@ const ReportCard = ({ data, id }) => {
                   name: student.name,
                   class: student.className,
                   session: exam.academicSession,
-                  gpa: isFail ? "0.00" : result.gpa.toFixed(2),
+                  gpa: isFail || isAbsent ? "0.00" : result.gpa.toFixed(2),
                 })}
                 size={100}
                 includeMargin
@@ -226,11 +243,11 @@ const ReportCard = ({ data, id }) => {
           </div>
 
           <div className="flex flex-col justify-center items-center text-center">
-            <p className={`text-4xl font-black ${isFail ? "text-red-500" : "text-emerald-500"}`}>
-              {isFail ? "❌" : "✅"}
+            <p className={`text-4xl font-black ${isFail ? "text-red-500" : isAbsent ? "text-amber-500" : "text-emerald-500"}`}>
+              {isFail ? "❌" : isAbsent ? "⛔" : "✅"}
             </p>
-            <p className={`text-lg font-black tracking-wide ${isFail ? "text-red-600" : "text-emerald-600"}`}>
-              {isFail ? "FAILED" : "PASSED"}
+            <p className={`text-lg font-black tracking-wide ${isFail ? "text-red-600" : isAbsent ? "text-amber-600" : "text-emerald-600"}`}>
+              {isFail ? "FAILED" : isAbsent ? "ABSENT" : "PASSED"}
             </p>
             <p className="text-[10px] text-slate-500">Final Result</p>
           </div>

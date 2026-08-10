@@ -246,7 +246,7 @@ const ExamResults = () => {
                         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">{r.grade}</span>
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${r.status === "Pass" ? "bg-emerald-50 text-emerald-700" : r.status === "Absent" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
                           {r.status}
                         </span>
                       </td>

@@ -23,14 +23,16 @@ const previewGrade = (obtained, passMarks) => {
 };
 
 const previewSummary = (marks, isHifz) => {
-  let total = 0, full = 0, points = 0, entered = 0, hasFail = false;
+  let total = 0, full = 0, points = 0, entered = 0, hasFail = false, allBlank = true;
   marks.forEach((m) => {
     const raw = m.obtainedMarks;
     const isEmpty = raw === "" || raw === null || raw === undefined;
     if (isEmpty && isHifz) return;
     const value = isEmpty ? 0 : Math.min(Number(raw), m.fullMarks);
     const g = isEmpty ? { grade: "F", point: 0, pass: false } : previewGrade(raw, m.passMarks);
-    if (!isEmpty) entered += 1;
+    if (isEmpty) return;
+    allBlank = false;
+    entered += 1;
     total += value;
     full += Number(m.fullMarks) || 0;
     points += g.point;
@@ -40,7 +42,8 @@ const previewSummary = (marks, isHifz) => {
   let gpa = Math.round((points / count) * 100) / 100;
   if (hasFail) gpa = 0;
   const pct = full ? Math.round((total / full) * 1000) / 10 : 0;
-  return { total, full, gpa, pct, hasFail, entered };
+  const isAbsent = allBlank && !isHifz && marks.length > 0;
+  return { total, full, gpa, pct, hasFail, entered, isAbsent };
 };
 
 const MarksEntry = () => {
@@ -315,8 +318,8 @@ const MarksEntry = () => {
                         {summary.gpa.toFixed(2)}
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${summary.hasFail ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
-                          {summary.hasFail ? "Fail" : "Pass"}
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${summary.isAbsent ? "bg-amber-50 text-amber-700" : summary.hasFail ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                          {summary.isAbsent ? "Absent" : summary.hasFail ? "Fail" : "Pass"}
                         </span>
                       </td>
                     </tr>

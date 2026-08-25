@@ -18,7 +18,7 @@ const ProtectedRoute = ({
   if (!teacher) {
 
     return (
-      <Navigate to="/" />
+      <Navigate to="/login" />
     );
   }
 

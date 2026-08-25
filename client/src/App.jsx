@@ -5,6 +5,9 @@ import {
 } from "react-router-dom";
 
 import Login from "./pages/Login";
+import LandingPage from "./pages/public/LandingPage";
+import StudentLogin from "./pages/student/StudentLogin";
+import StudentPortal from "./pages/student/StudentPortal";
 
 import Dashboard from "./pages/Dashboard";
 
@@ -35,6 +38,10 @@ import FeeSettings from "./pages/admin/FeeSettings";
 import SystemSettings from "./pages/admin/SystemSettings";
 import StudentLedger from "./pages/admin/students/StudentLedger";
 import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
+import DailyAttendance from "./pages/attendance/DailyAttendance";
+import AttendanceReport from "./pages/attendance/AttendanceReport";
+import PaymentHistory from "./pages/payment/PaymentHistory";
+import FeeCategories from "./pages/admin/FeeCategories";
 
 function App() {
 
@@ -43,17 +50,24 @@ function App() {
 
       <Routes>
 
-        {/* Login */}
+        {/* Public Website */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Staff Login */}
         <Route
-          path="/"
+          path="/login"
           element={
             <AuthRedirect>
-
               <Login />
-
             </AuthRedirect>
           }
         />
+
+        {/* Student Login */}
+        <Route path="/student-login" element={<StudentLogin />} />
+
+        {/* Student Portal */}
+        <Route path="/student-portal" element={<StudentPortal />} />
 
         {/* Protected Layout */}
         <Route
@@ -259,6 +273,40 @@ function App() {
                 adminOnly={false}
               >
                 <StudentLedger></StudentLedger>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Attendance */}
+          <Route
+            path="/attendance/daily"
+            element={<DailyAttendance />}
+          />
+          <Route
+            path="/attendance/report"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AttendanceReport />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Payment History */}
+          <Route
+            path="/payment-history"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <PaymentHistory />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fee Categories */}
+          <Route
+            path="/fees/categories"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <FeeCategories />
               </ProtectedRoute>
             }
           />

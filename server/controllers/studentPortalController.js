@@ -1,0 +1,223 @@
+const Attendance = require("../models/Attendance");
+const ExamResult = require("../models/ExamResult");
+const Payment = require("../models/Payment");
+const PaymentItem = require("../models/PaymentItem");
+const StudentLedger = require("../models/StudentLedger");
+const FeeCategory = require("../models/FeeCategory");
+const ClassFeeSetting = require("../models/ClassFeeSetting");
+const StudentFeeOverride = require("../models/StudentFeeOverride");
+const Report = require("../models/Report");
+
+// ============================================
+// STUDENT DASHBOARD
+// ============================================
+
+const getDashboard = async (req, res) => {
+  try {
+    const student = req.student;
+    const session = student.session || "2026";
+
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+
+    const [attendanceRes, resultsRes, paymentsRes, ledgerRes, feeCategories] = await Promise.all([
+      Attendance.find({ student: student._id, academicSession: session }),
+      ExamResult.find({ student: student._id, academicSession: session }).populate("exam", "examName"),
+      Payment.find({ student: student._id, isVoided: false }).sort({ createdAt: -1 }).limit(5),
+      StudentLedger.find({ student: student._id, academicSession: session }),
+      FeeCategory.find({ isActive: true }),
+    ]);
+
+    const totalDays = attendanceRes.length;
+    const presentDays = attendanceRes.filter((r) => r.status === "Present" || r.status === "Late").length;
+    const absentDays = attendanceRes.filter((r) => r.status === "Absent").length;
+
+    const totalDue = ledgerRes
+      .filter((e) => e.transactionType === "Charge")
+      .reduce((sum, e) => sum + (e.debit || 0), 0);
+    const totalPaid = ledgerRes
+      .filter((e) => e.transactionType === "Payment")
+      .reduce((sum, e) => sum + (e.credit || 0), 0);
+
+    return res.status(200).json({
+      success: true,
+      student: {
+        _id: student._id,
+        studentId: student.studentId,
+        name: student.name,
+        className: student.className,
+        section: student.section,
+        roll: student.roll,
+        photo: student.photo,
+      },
+      attendance: {
+        totalDays,
+        presentDays,
+        absentDays,
+        percentage: totalDays > 0 ? Number(((presentDays / totalDays) * 100).toFixed(1)) : 0,
+      },
+      results: resultsRes.map((r) => ({
+        examName: r.exam?.examName || "Exam",
+        percentage: r.percentage,
+        gpa: r.gpa,
+        grade: r.grade,
+        division: r.division,
+        status: r.status,
+      })),
+      recentPayments: paymentsRes,
+      feeSummary: {
+        totalPaid: totalPaid - totalDue > 0 ? totalPaid - totalDue : 0,
+        totalDue: totalDue - totalPaid > 0 ? totalDue - totalPaid : 0,
+        balance: totalPaid - totalDue,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ============================================
+// STUDENT ATTENDANCE
+// ============================================
+
+const getAttendance = async (req, res) => {
+  try {
+    const student = req.student;
+    const { month, year } = req.query;
+
+    const filter = { student: student._id };
+    if (month && year) {
+      const startDate = new Date(Number(year), Number(month) - 1, 1);
+      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+      filter.date = { $gte: startDate, $lte: endDate };
+    }
+
+    const records = await Attendance.find(filter).sort({ date: -1 });
+
+    const totalDays = records.length;
+    const presentDays = records.filter((r) => r.status === "Present").length;
+    const absentDays = records.filter((r) => r.status === "Absent").length;
+    const lateDays = records.filter((r) => r.status === "Late").length;
+    const leaveDays = records.filter((r) => r.status === "Leave").length;
+
+    return res.status(200).json({
+      success: true,
+      summary: {
+        totalDays,
+        presentDays,
+        absentDays,
+        lateDays,
+        leaveDays,
+        percentage: totalDays > 0 ? Number((((presentDays + lateDays) / totalDays) * 100).toFixed(1)) : 0,
+      },
+      records,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ============================================
+// STUDENT RESULTS
+// ============================================
+
+const getResults = async (req, res) => {
+  try {
+    const student = req.student;
+    const { examId } = req.query;
+
+    const filter = { student: student._id };
+    if (examId) filter.exam = examId;
+
+    const results = await ExamResult.find(filter)
+      .populate("exam", "examName examCode startDate endDate")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, results });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ============================================
+// STUDENT PAYMENT / FEE INFO
+// ============================================
+
+const getPaymentInfo = async (req, res) => {
+  try {
+    const student = req.student;
+    const session = student.session || "2026";
+
+    const [payments, ledger, categories, classSettings, overrides] = await Promise.all([
+      Payment.find({ student: student._id, isVoided: false }).sort({ createdAt: -1 }),
+      StudentLedger.find({ student: student._id, academicSession: session }),
+      FeeCategory.find({ isActive: true }),
+      ClassFeeSetting.find({ className: student.className, academicSession: session, isActive: true }),
+      StudentFeeOverride.find({ student: student._id, academicSession: session, isActive: { $ne: false } }),
+    ]);
+
+    const overrideMap = {};
+    overrides.forEach((o) => { overrideMap[o.feeCategory.toString()] = o; });
+    const classSettingMap = {};
+    classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
+
+    const feeBreakdown = categories
+      .map((cat) => {
+        const catId = cat._id.toString();
+        const override = overrideMap[catId];
+        const classSetting = classSettingMap[catId];
+        let effectiveAmount = cat.defaultAmount || 0;
+        let source = "System Default";
+        if (override) { effectiveAmount = override.amount; source = "Student Override"; }
+        else if (classSetting) { effectiveAmount = classSetting.amount; source = "Class Setting"; }
+        return { name: cat.name, code: cat.code, frequency: cat.frequency, amount: effectiveAmount, source };
+      })
+      .filter((f) => f.amount > 0);
+
+    const totalDue = ledger
+      .filter((e) => e.transactionType === "Charge")
+      .reduce((sum, e) => sum + (e.debit || 0), 0);
+    const totalPaid = ledger
+      .filter((e) => e.transactionType === "Payment")
+      .reduce((sum, e) => sum + (e.credit || 0), 0);
+
+    return res.status(200).json({
+      success: true,
+      summary: {
+        totalPaid,
+        totalDue: totalDue - totalPaid > 0 ? totalDue - totalPaid : 0,
+        balance: totalPaid - totalDue,
+      },
+      feeBreakdown,
+      recentPayments: payments.slice(0, 10),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// ============================================
+// STUDENT DAILY DIARY (Class Reports)
+// ============================================
+
+const getDailyDiary = async (req, res) => {
+  try {
+    const student = req.student;
+
+    const reports = await Report.find({ className: student.className })
+      .sort({ date: -1 })
+      .limit(30);
+
+    return res.status(200).json({ success: true, reports });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  getDashboard,
+  getAttendance,
+  getResults,
+  getPaymentInfo,
+  getDailyDiary,
+};

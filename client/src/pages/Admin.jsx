@@ -20,6 +20,7 @@ const Admin = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 
+
   const getPending = async (className, date) => {
     try {
       const res = await api.get(`/reports/pending?className=${className}&date=${date}`);

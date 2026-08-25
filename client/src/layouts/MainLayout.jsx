@@ -19,6 +19,10 @@ import {
   School,
   BookOpen,
   BarChart3,
+  CheckSquare,
+  ClipboardList,
+  Receipt,
+  Tag,
 } from "lucide-react";
 
 const navGroups = [
@@ -39,10 +43,21 @@ const navGroups = [
     ],
   },
   {
+    label: "Attendance",
+    roles: ["admin", "teacher", "account-manager"],
+    items: [
+      { name: "Daily Attendance", path: "/attendance/daily", icon: CheckSquare, roles: ["admin", "teacher", "account-manager"] },
+      { name: "Attendance Report", path: "/attendance/report", icon: ClipboardList, roles: ["admin", "account-manager"] },
+    ],
+  },
+  {
     label: "Finance",
     roles: ["admin", "account-manager"],
     items: [
       { name: "Collect Payment", path: "/collect-payment", icon: Wallet, roles: ["admin", "account-manager"] },
+      { name: "Payment History", path: "/payment-history", icon: Receipt, roles: ["admin", "account-manager"] },
+      { name: "Fee Categories", path: "/fees/categories", icon: Tag, roles: ["admin"] },
+      { name: "Fee Settings", path: "/fees/settings", icon: Settings, roles: ["admin"] },
     ],
   },
   {
@@ -61,7 +76,6 @@ const navGroups = [
     items: [
       { name: "Admin Panel", path: "/admin", icon: Shield, roles: ["admin"] },
       { name: "Teachers", path: "/teachers", icon: User, roles: ["admin"] },
-      { name: "Fee Settings", path: "/fees/settings", icon: Wallet, roles: ["admin"] },
       { name: "System Settings", path: "/admin/settings", icon: Settings, roles: ["admin"] },
     ],
   },

@@ -263,6 +263,13 @@ const StudentDetails = () => {
               <DollarSign className="w-4 h-4" />
               Fee Override
             </Link>
+            <Link
+              to={`/students/${student._id}/fees`}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-orange-50 text-orange-700 hover:bg-orange-100 text-sm font-semibold transition-colors border border-orange-200"
+            >
+              <BookOpen className="w-4 h-4" />
+              Optional Fees
+            </Link>
           </div>
         </div>
       </div>

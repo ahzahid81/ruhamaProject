@@ -38,6 +38,7 @@ import FeeSettings from "./pages/admin/FeeSettings";
 import SystemSettings from "./pages/admin/SystemSettings";
 import StudentLedger from "./pages/admin/students/StudentLedger";
 import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
+import StudentFeeAssignments from "./pages/admin/students/StudentFeeAssignments";
 import DailyAttendance from "./pages/attendance/DailyAttendance";
 import AttendanceReport from "./pages/attendance/AttendanceReport";
 import PaymentHistory from "./pages/payment/PaymentHistory";
@@ -260,6 +261,19 @@ function App() {
                 adminOnly={true}
               >
                 <StudentFeeOverride></StudentFeeOverride>
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Student Optional Fee Assignments */}
+          <Route
+            path="/students/:id/fees"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+                <StudentFeeAssignments></StudentFeeAssignments>
 
               </ProtectedRoute>
             }

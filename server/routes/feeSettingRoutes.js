@@ -18,6 +18,13 @@ const {
   deleteStudentFeeOverride,
 } = require("../controllers/feeSettingController");
 
+const {
+  getStudentFeeAssignments,
+  upsertStudentFeeAssignment,
+  updateStudentFeeAssignment,
+  deleteStudentFeeAssignment,
+} = require("../controllers/studentFeeAssignmentController");
+
 // ============================================
 // CLASS FEE SETTINGS
 // ============================================
@@ -87,6 +94,37 @@ router.delete(
   protect,
   authorizeRoles("admin"),
   deleteStudentFeeOverride
+);
+
+// ============================================
+// STUDENT FEE ASSIGNMENTS (optional fees)
+// ============================================
+
+router.get(
+  "/student-assignments",
+  protect,
+  getStudentFeeAssignments
+);
+
+router.post(
+  "/student-assignments",
+  protect,
+  authorizeRoles("admin"),
+  upsertStudentFeeAssignment
+);
+
+router.put(
+  "/student-assignments/:id",
+  protect,
+  authorizeRoles("admin"),
+  updateStudentFeeAssignment
+);
+
+router.delete(
+  "/student-assignments/:id",
+  protect,
+  authorizeRoles("admin"),
+  deleteStudentFeeAssignment
 );
 
 module.exports = router;

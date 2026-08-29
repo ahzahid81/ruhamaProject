@@ -136,14 +136,6 @@ export default function CollectPayment() {
     setPayingAmount("");
   };
 
-  const updateRow = (index, value) => {
-    setDueItems((prev) => {
-      const temp = [...prev];
-      temp[index] = { ...temp[index], amount: value };
-      return temp;
-    });
-  };
-
   const removeRow = (index) => {
     setDueItems((prev) => prev.filter((_, i) => i !== index));
     setSelectedItems((prev) => prev.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i)));
@@ -279,6 +271,9 @@ export default function CollectPayment() {
                   <Link to={`/students/${student._id}/fee-override`}
                     className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100 transition border border-amber-100"
                   >Fee Override</Link>
+                  <Link to={`/students/${student._id}/fees`}
+                    className="text-xs font-semibold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-lg hover:bg-orange-100 transition border border-orange-100"
+                  >Optional Fees</Link>
                 </div>
               </div>
               <button onClick={() => { setStudent(null); setDueItems([]); setDueSummary(null); setPaymentHistory([]); }}
@@ -369,10 +364,8 @@ export default function CollectPayment() {
                             {item.applicableType === "Month" ? months[item.month - 1] + " " + item.year : item.examName || item.applicableType}
                           </td>
                           <td className="px-5 py-3 text-right">
-                            <input type="number" value={item.amount} onChange={(e) => updateRow(index, e.target.value)}
-                              min="0" step="0.01"
-                              className="w-28 text-right border border-gray-200 rounded-lg px-2 py-1 text-sm font-semibold text-emerald-700 outline-none focus:ring-2 focus:ring-emerald-500/40"
-                            />
+                            <span className="text-sm font-bold text-emerald-700">{fmt(item.amount)}</span>
+                            <span className="ml-1 text-[10px] text-gray-300 font-medium uppercase tracking-wide">locked</span>
                           </td>
                           <td className="px-5 py-3 text-right">
                             <button onClick={() => removeRow(index)}

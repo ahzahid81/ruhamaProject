@@ -1,5 +1,6 @@
 const ClassFeeSetting = require("../models/ClassFeeSetting");
 const StudentFeeOverride = require("../models/StudentFeeOverride");
+const StudentFeeAssignment = require("../models/StudentFeeAssignment");
 const FeeCategory = require("../models/FeeCategory");
 const Student = require("../models/Student");
 
@@ -161,9 +162,21 @@ const getStudentFeeBreakdown = async (req, res) => {
       isActive: true,
     });
 
+    // Get student-specific optional-fee assignments
+    const assignments = await StudentFeeAssignment.find({
+      student: student._id,
+      academicSession: session,
+      isActive: true,
+    });
+
     const overrideMap = {};
     overrides.forEach((o) => {
       overrideMap[o.feeCategory.toString()] = o;
+    });
+
+    const assignmentMap = {};
+    assignments.forEach((a) => {
+      assignmentMap[a.feeCategory.toString()] = a;
     });
 
     const classSettingMap = {};
@@ -174,18 +187,29 @@ const getStudentFeeBreakdown = async (req, res) => {
     const breakdown = categories.map((cat) => {
       const catId = cat._id.toString();
       const override = overrideMap[catId];
+      const assignment = assignmentMap[catId];
       const classSetting = classSettingMap[catId];
+      const isRequired = cat.isRequired === true;
+
+      // Optional fees only appear when explicitly assigned or overridden
+      if (!isRequired && !assignment && !override) return null;
 
       let effectiveAmount = cat.defaultAmount || 0;
       let source = "System Default";
       let frequency = cat.frequency;
       let overrideId = null;
+      let assignmentId = null;
 
       if (override) {
         effectiveAmount = override.amount;
         frequency = override.frequency || cat.frequency;
         source = "Student Override";
         overrideId = override._id;
+      } else if (assignment && assignment.amount > 0) {
+        effectiveAmount = assignment.amount;
+        frequency = assignment.frequency || cat.frequency;
+        source = "Student Assignment";
+        assignmentId = assignment._id;
       } else if (classSetting) {
         effectiveAmount = classSetting.amount;
         frequency = classSetting.frequency || cat.frequency;
@@ -199,8 +223,9 @@ const getStudentFeeBreakdown = async (req, res) => {
         source,
         classSettingId: classSetting?._id || null,
         overrideId,
+        assignmentId,
       };
-    });
+    }).filter(Boolean);
 
     return res.status(200).json({
       success: true,

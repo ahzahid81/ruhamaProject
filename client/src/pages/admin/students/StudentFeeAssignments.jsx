@@ -3,10 +3,11 @@ import { useParams, Link } from "react-router-dom";
 import api from "../../../services/api";
 import { AlertTriangle } from "lucide-react";
 
-export default function StudentFeeOverride() {
+export default function StudentFeeAssignments() {
   const { id: studentId } = useParams();
 
-  const [overrides, setOverrides] = useState([]);
+  const [student, setStudent] = useState(null);
+  const [assignments, setAssignments] = useState([]);
   const [categories, setCategories] = useState([]);
   const [systemSettings, setSystemSettings] = useState(null);
   const [form, setForm] = useState({
@@ -21,10 +22,20 @@ export default function StudentFeeOverride() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
-    loadOverrides();
+    loadStudent();
+    loadAssignments();
     loadSystemSettings();
     loadCategories();
   }, []);
+
+  const loadStudent = useCallback(async () => {
+    try {
+      const res = await api.get(`/students/${studentId}`);
+      setStudent(res.data);
+    } catch {
+      // silent
+    }
+  }, [studentId]);
 
   const loadSystemSettings = useCallback(async () => {
     try {
@@ -34,7 +45,7 @@ export default function StudentFeeOverride() {
         ...prev,
         academicSession: res.data.currentSession || "",
       }));
-    } catch (err) {
+    } catch {
       setSystemSettings({
         academicSessions: ["2025", "2026", "2027"],
         currentSession: "2026",
@@ -46,18 +57,18 @@ export default function StudentFeeOverride() {
     }
   }, []);
 
-  const loadOverrides = useCallback(async () => {
+  const loadAssignments = useCallback(async () => {
     try {
       const res = await api.get(
-        `/fees/student-overrides?student=${studentId}`
+        `/fees/student-assignments?student=${studentId}`
       );
       const data = res.data;
       if (Array.isArray(data)) {
-        setOverrides(data);
-      } else if (data?.overrides) {
-        setOverrides(Array.isArray(data.overrides) ? data.overrides : []);
+        setAssignments(data);
+      } else if (data?.assignments) {
+        setAssignments(Array.isArray(data.assignments) ? data.assignments : []);
       } else {
-        setOverrides([]);
+        setAssignments([]);
       }
     } catch (err) {
       console.error(err);
@@ -70,14 +81,11 @@ export default function StudentFeeOverride() {
     try {
       const res = await api.get("/payments/fee-categories");
       const data = res.data;
-      if (Array.isArray(data)) {
-        setCategories(data);
-      } else if (data?.categories) {
-        setCategories(Array.isArray(data.categories) ? data.categories : []);
-      } else {
-        setCategories([]);
-      }
-    } catch (err) {
+      let list = Array.isArray(data) ? data : Array.isArray(data?.categories) ? data.categories : [];
+      // Only optional (non-required) active categories can be assigned per-student
+      list = list.filter((c) => !c.isRequired && c.isActive);
+      setCategories(list);
+    } catch {
       // silent
     }
   }, []);
@@ -95,16 +103,16 @@ export default function StudentFeeOverride() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/fees/student-overrides", {
+      await api.post("/fees/student-assignments", {
         student: studentId,
         ...form,
       });
-      showMessage("Fee override created successfully");
-      setForm({ academicSession: systemSettings?.currentSession || "", feeCategory: "", amount: "", reason: "" });
-      loadOverrides();
+      showMessage("Optional fee assigned successfully");
+      setForm((prev) => ({ ...prev, feeCategory: "", amount: "", reason: "" }));
+      loadAssignments();
     } catch (err) {
       showMessage(
-        err.response?.data?.message || "Failed to create override",
+        err.response?.data?.message || "Failed to assign fee",
         "error"
       );
     } finally {
@@ -112,15 +120,27 @@ export default function StudentFeeOverride() {
     }
   };
 
+  const handleToggleActive = async (assignment) => {
+    try {
+      await api.put(`/fees/student-assignments/${assignment._id}`, {
+        isActive: !assignment.isActive,
+      });
+      showMessage(assignment.isActive ? "Fee removed from student" : "Fee assigned to student");
+      loadAssignments();
+    } catch {
+      showMessage("Failed to update fee assignment", "error");
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     try {
-      await api.delete(`/fees/student-overrides/${deleteTarget}`);
-      showMessage("Override deleted");
+      await api.delete(`/fees/student-assignments/${deleteTarget}`);
+      showMessage("Fee assignment deleted");
       setDeleteTarget(null);
-      loadOverrides();
-    } catch (err) {
-      showMessage("Failed to delete override", "error");
+      loadAssignments();
+    } catch {
+      showMessage("Failed to delete fee assignment", "error");
     }
   };
 
@@ -128,6 +148,8 @@ export default function StudentFeeOverride() {
     const cat = categories.find((c) => c._id === id);
     return cat ? cat.name : id;
   };
+
+  const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
 
   if (initialLoading) {
     return (
@@ -141,15 +163,15 @@ export default function StudentFeeOverride() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-800">
-          Student Fee Override
+          Optional Fee Assignment
         </h1>
         <div className="flex gap-2">
           <Link to={`/students/${studentId}`}
             className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition"
           >← Profile</Link>
-          <Link to={`/students/${studentId}/fees`}
-            className="px-4 py-2 bg-orange-50 text-orange-700 rounded-xl text-sm font-semibold hover:bg-orange-100 transition border border-orange-200"
-          >Optional Fees</Link>
+          <Link to={`/students/${studentId}/fee-override`}
+            className="px-4 py-2 bg-amber-50 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-100 transition border border-amber-200"
+          >Fee Override</Link>
           <Link to={`/collect-payment?studentId=${studentId}`}
             className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition"
           >Collect Payment</Link>
@@ -157,6 +179,19 @@ export default function StudentFeeOverride() {
             className="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-100 transition border border-blue-200"
           >View Ledger</Link>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4 mb-6 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-lg">🧾</div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-slate-800 truncate">{student?.name || "Student"}</p>
+          <p className="text-xs text-gray-400">
+            {student?.studentId || ""} • {student?.className || ""}
+          </p>
+        </div>
+        <p className="text-xs text-gray-400 hidden sm:block">
+          Apply optional fees (Transport, Hostel, Meal, etc.) to this student only
+        </p>
       </div>
 
       {message && (
@@ -171,10 +206,10 @@ export default function StudentFeeOverride() {
         </div>
       )}
 
-      {/* Add Override Form */}
+      {/* Add Assignment Form */}
       <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
         <h2 className="text-lg font-bold text-slate-700 mb-4">
-          Add Override
+          Assign Optional Fee
         </h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -196,7 +231,7 @@ export default function StudentFeeOverride() {
 
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1">
-              Fee Category *
+              Optional Fee Category *
             </label>
             <select
               name="feeCategory"
@@ -212,21 +247,25 @@ export default function StudentFeeOverride() {
                 </option>
               ))}
             </select>
+            {categories.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                No optional fee categories yet. Add one in Fee Settings (uncheck "Required").
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1">
-              Override Amount (BDT ) *
+              Amount (BDT) — optional
             </label>
             <input
               type="number"
               name="amount"
               value={form.amount}
               onChange={handleChange}
-              required
               min="0"
               step="0.01"
-              placeholder="0.00"
+              placeholder="Leave 0 to use class rate / default"
               className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -240,7 +279,7 @@ export default function StudentFeeOverride() {
               name="reason"
               value={form.reason}
               onChange={handleChange}
-              placeholder="e.g., Scholarship 50%"
+              placeholder="e.g., Hostel boarding student"
               className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -251,20 +290,20 @@ export default function StudentFeeOverride() {
               disabled={loading}
               className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition disabled:opacity-50"
             >
-              {loading ? "Saving..." : "Add Override"}
+              {loading ? "Saving..." : "Assign Optional Fee"}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Existing Overrides */}
+      {/* Existing Assignments */}
       <div className="bg-white rounded-3xl shadow-lg p-6 overflow-x-auto">
         <h2 className="text-lg font-bold text-slate-700 mb-4">
-          Existing Overrides
+          Assigned Optional Fees
         </h2>
-        {overrides.length === 0 ? (
+        {assignments.length === 0 ? (
           <p className="text-gray-500 text-center py-8">
-            No overrides for this student.
+            No optional fees assigned to this student.
           </p>
         ) : (
           <table className="w-full text-left">
@@ -274,25 +313,45 @@ export default function StudentFeeOverride() {
                 <th className="pb-3 font-semibold">Category</th>
                 <th className="pb-3 font-semibold">Amount</th>
                 <th className="pb-3 font-semibold">Reason</th>
+                <th className="pb-3 font-semibold">Status</th>
                 <th className="pb-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {overrides.map((o) => (
-                <tr key={o._id} className="border-b last:border-none hover:bg-gray-50">
-                  <td className="py-3">{o.academicSession}</td>
-                  <td className="py-3">{o.feeCategory?.name || getCategoryName(o.feeCategory)}</td>
+              {assignments.map((a) => (
+                <tr key={a._id} className="border-b last:border-none hover:bg-gray-50">
+                  <td className="py-3">{a.academicSession}</td>
+                  <td className="py-3">{a.feeCategory?.name || getCategoryName(a.feeCategory)}</td>
                   <td className="py-3 font-bold text-emerald-700">
-                    BDT {Number(o.amount).toLocaleString("en-BD")}
+                    {a.amount > 0 ? fmt(a.amount) : "—"}
                   </td>
-                  <td className="py-3 text-gray-500">{o.reason || "—"}</td>
+                  <td className="py-3 text-gray-500">{a.reason || "—"}</td>
                   <td className="py-3">
-                    <button
-                      onClick={() => setDeleteTarget(o._id)}
-                      className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition"
-                    >
-                      Delete
-                    </button>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${
+                      a.isActive ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"
+                    }`}>
+                      {a.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td className="py-3">
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => handleToggleActive(a)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
+                          a.isActive
+                            ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        }`}
+                      >
+                        {a.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(a._id)}
+                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -300,6 +359,7 @@ export default function StudentFeeOverride() {
           </table>
         )}
       </div>
+
       {/* Delete Confirm Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
@@ -307,8 +367,8 @@ export default function StudentFeeOverride() {
             <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-7 h-7 text-red-500" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900">Delete Override</h2>
-            <p className="text-sm text-gray-400 mt-1">Are you sure? This cannot be undone.</p>
+            <h2 className="text-lg font-bold text-gray-900">Delete Fee Assignment</h2>
+            <p className="text-sm text-gray-400 mt-1">This student will no longer be charged this optional fee. Are you sure?</p>
             <div className="flex gap-3 mt-6">
               <button onClick={handleDeleteConfirm} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all">
                 Delete

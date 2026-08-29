@@ -7,6 +7,7 @@ const FeeCategory = require("../models/FeeCategory");
 const StudentLedger = require("../models/StudentLedger");
 const ClassFeeSetting = require("../models/ClassFeeSetting");
 const StudentFeeOverride = require("../models/StudentFeeOverride");
+const StudentFeeAssignment = require("../models/StudentFeeAssignment");
 const Settings = require("../models/Settings");
 
 const { createLedgerEntry } = require("./studentLedgerController");
@@ -685,6 +686,13 @@ const getStudentDueItems = async (req, res) => {
       isActive: { $ne: false },
     });
 
+    // Get student-specific optional-fee assignments
+    const assignments = await StudentFeeAssignment.find({
+      student: student._id,
+      academicSession: session,
+      isActive: { $ne: false },
+    });
+
     // Get already paid/partial items
     const paidItems = await PaymentItem.find({
       student: student._id,
@@ -716,6 +724,9 @@ const getStudentDueItems = async (req, res) => {
     const overrideMap = {};
     overrides.forEach((o) => { overrideMap[o.feeCategory.toString()] = o; });
 
+    const assignmentMap = {};
+    assignments.forEach((a) => { assignmentMap[a.feeCategory.toString()] = a; });
+
     const classSettingMap = {};
     classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
 
@@ -728,7 +739,15 @@ const getStudentDueItems = async (req, res) => {
     categories.forEach((cat) => {
       const catId = cat._id.toString();
       const override = overrideMap[catId];
+      const assignment = assignmentMap[catId];
       const classSetting = classSettingMap[catId];
+      const isRequired = cat.isRequired === true;
+
+      // Applicability:
+      // - Required fees charge every student (unchanged behavior).
+      // - Optional fees apply only when the student is explicitly
+      //   assigned that fee, or has an active per-student override.
+      if (!isRequired && !assignment && !override) return;
 
       let effectiveAmount = cat.defaultAmount || 0;
       let frequency = cat.frequency;
@@ -736,6 +755,9 @@ const getStudentDueItems = async (req, res) => {
       if (override) {
         effectiveAmount = override.amount;
         frequency = override.frequency || cat.frequency;
+      } else if (assignment && assignment.amount > 0) {
+        effectiveAmount = assignment.amount;
+        frequency = assignment.frequency || cat.frequency;
       } else if (classSetting) {
         effectiveAmount = classSetting.amount;
         frequency = classSetting.frequency || cat.frequency;
@@ -825,14 +847,20 @@ const getStudentDueItems = async (req, res) => {
     const feeStructure = categories.map((cat) => {
       const catId = cat._id.toString();
       const override = overrideMap[catId];
+      const assignment = assignmentMap[catId];
       const classSetting = classSettingMap[catId];
+      const isRequired = cat.isRequired === true;
+
+      if (!isRequired && !assignment && !override) return null;
+
       let effectiveAmount = cat.defaultAmount || 0;
       let frequency = cat.frequency;
       let source = "Default";
       if (override) { effectiveAmount = override.amount; frequency = override.frequency || cat.frequency; source = "Override"; }
+      else if (assignment && assignment.amount > 0) { effectiveAmount = assignment.amount; frequency = assignment.frequency || cat.frequency; source = "Assignment"; }
       else if (classSetting) { effectiveAmount = classSetting.amount; frequency = classSetting.frequency || cat.frequency; source = "Class Setting"; }
       return { feeCategory: cat, effectiveAmount, frequency, source };
-    }).filter((f) => f.effectiveAmount > 0);
+    }).filter(Boolean).filter((f) => f.effectiveAmount > 0);
 
     return res.status(200).json({ success: true, dueItems, feeStructure });
   } catch (error) {

@@ -669,55 +669,75 @@ const getStudentDueItems = async (req, res) => {
     // Derive the session year (e.g., "2025" -> 2025, "2025-2026" -> 2025)
     const sessionYear = parseInt(session) || currentYear;
 
-    // Get all active fee categories
-    const categories = await FeeCategory.find({ isActive: true }).sort({ sortOrder: 1 });
+    // Load all independent data in parallel
+    const [
+      categories,
+      classSettings,
+      overrides,
+      assignments,
+      paidItems,
+      settingsDoc,
+    ] = await Promise.all([
+      FeeCategory.find({ isActive: true }).sort({ sortOrder: 1 }),
+      ClassFeeSetting.find({
+        $or: [{ className: student.className }, { className: "All Classes" }],
+        academicSession: session,
+        isActive: true,
+      }),
+      StudentFeeOverride.find({
+        student: student._id,
+        academicSession: session,
+        isActive: { $ne: false },
+      }),
+      StudentFeeAssignment.find({
+        student: student._id,
+        academicSession: session,
+        isActive: { $ne: false },
+      }),
+      PaymentItem.find({
+        student: student._id,
+        paymentStatus: { $in: ["Paid", "Partial"] },
+      }),
+      Settings.findOne(),
+    ]);
 
-    // Get class fee settings (exact class + "All Classes")
-    const classSettings = await ClassFeeSetting.find({
-      $or: [{ className: student.className }, { className: "All Classes" }],
-      academicSession: session,
-      isActive: true,
-    });
+    // Build sets for fully-paid and partial items.
+    // Keyed both by feeCategory id AND by fee name so legacy payment
+    // items (created before feeCategory existed) still count as paid.
+    const monthKey = (cid, m, y) => `${cid}_Month_${m}_${y}`;
+    const monthNameKey = (name, m, y) => `N_${String(name).trim().toLowerCase()}_Month_${m}_${y}`;
+    const examKey = (cid, exam, y) => `${cid}_Exam_${exam}_${y}`;
+    const examNameKey = (name, exam, y) => `N_${String(name).trim().toLowerCase()}_Exam_${exam}_${y}`;
+    const otherKey = (cid, type, y) => `${cid}_${type}_${y || ""}`;
+    const otherNameKey = (name, type, y) => `N_${String(name).trim().toLowerCase()}_${type}_${y || ""}`;
 
-    // Get student-specific overrides
-    const overrides = await StudentFeeOverride.find({
-      student: student._id,
-      academicSession: session,
-      isActive: { $ne: false },
-    });
-
-    // Get student-specific optional-fee assignments
-    const assignments = await StudentFeeAssignment.find({
-      student: student._id,
-      academicSession: session,
-      isActive: { $ne: false },
-    });
-
-    // Get already paid/partial items
-    const paidItems = await PaymentItem.find({
-      student: student._id,
-      paymentStatus: { $in: ["Paid", "Partial"] },
-    });
-
-    // Build sets for fully-paid and partial items
     const fullyPaidSet = new Set();
+    const fullyPaidByName = new Set();
     const partialMap = {};
+    const partialByName = {};
+
     paidItems.forEach((item) => {
-      if (item.feeCategory) {
-        const cid = item.feeCategory.toString();
-        let key;
-        if (item.applicableType === "Month") {
-          key = `${cid}_Month_${item.month}_${item.year}`;
-        } else if (item.applicableType === "Exam") {
-          key = `${cid}_Exam_${item.examName}_${item.year}`;
-        } else {
-          key = `${cid}_${item.applicableType}_${item.year || ""}`;
-        }
-        if (item.paymentStatus === "Paid") {
-          fullyPaidSet.add(key);
-        } else if (item.paymentStatus === "Partial" && item.dueAmount > 0) {
-          partialMap[key] = (partialMap[key] || 0) + item.dueAmount;
-        }
+      const type = item.applicableType || "One Time";
+      const cid = item.feeCategory ? item.feeCategory.toString() : "";
+      const name = item.feeName;
+      let key = null;
+      let nameKey = null;
+      if (type === "Month") {
+        key = monthKey(cid, item.month, item.year);
+        nameKey = monthNameKey(name, item.month, item.year);
+      } else if (type === "Exam") {
+        key = examKey(cid, item.examName || "", item.year);
+        nameKey = examNameKey(name, item.examName || "", item.year);
+      } else {
+        key = otherKey(cid, type, item.year);
+        nameKey = otherNameKey(name, type, item.year);
+      }
+      if (item.paymentStatus === "Paid") {
+        if (key) fullyPaidSet.add(key);
+        if (nameKey) fullyPaidByName.add(nameKey);
+      } else if (item.paymentStatus === "Partial" && item.dueAmount > 0) {
+        if (key) partialMap[key] = (partialMap[key] || 0) + item.dueAmount;
+        if (nameKey) partialByName[nameKey] = (partialByName[nameKey] || 0) + item.dueAmount;
       }
     });
 
@@ -731,12 +751,12 @@ const getStudentDueItems = async (req, res) => {
     classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
 
     // Get exam names from Settings
-    const settingsDoc = await Settings.findOne();
     const examNames = settingsDoc?.examNames?.filter(Boolean) || [];
 
     const dueItems = [];
+    const feeLedger = [];
 
-    categories.forEach((cat) => {
+    for (const cat of categories) {
       const catId = cat._id.toString();
       const override = overrideMap[catId];
       const assignment = assignmentMap[catId];
@@ -747,101 +767,127 @@ const getStudentDueItems = async (req, res) => {
       // - Required fees charge every student (unchanged behavior).
       // - Optional fees apply only when the student is explicitly
       //   assigned that fee, or has an active per-student override.
-      if (!isRequired && !assignment && !override) return;
+      if (!isRequired && !assignment && !override) continue;
 
       let effectiveAmount = cat.defaultAmount || 0;
       let frequency = cat.frequency;
 
-      if (override) {
-        effectiveAmount = override.amount;
-        frequency = override.frequency || cat.frequency;
-      } else if (assignment && assignment.amount > 0) {
-        effectiveAmount = assignment.amount;
-        frequency = assignment.frequency || cat.frequency;
-      } else if (classSetting) {
-        effectiveAmount = classSetting.amount;
-        frequency = classSetting.frequency || cat.frequency;
-      }
+      if (override) { effectiveAmount = override.amount; frequency = override.frequency || cat.frequency; }
+      else if (assignment && assignment.amount > 0) { effectiveAmount = assignment.amount; frequency = assignment.frequency || cat.frequency; }
+      else if (classSetting) { effectiveAmount = classSetting.amount; frequency = classSetting.frequency || cat.frequency; }
 
-      if (effectiveAmount <= 0) return;
+      if (effectiveAmount <= 0) continue;
 
       if (frequency === "Monthly") {
-        let maxMonth;
-        if (sessionYear < currentYear) {
-          maxMonth = 12;
-        } else {
-          maxMonth = currentMonth;
-        }
+        const maxMonth = sessionYear < currentYear ? 12 : currentMonth;
+        const months = [];
+        const dueMonths = [];
+
         for (let m = 1; m <= maxMonth; m++) {
-          const key = `${catId}_Month_${m}_${sessionYear}`;
-          if (fullyPaidSet.has(key)) continue;
-          if (partialMap[key]) {
+          const isPaid = fullyPaidSet.has(monthKey(catId, m, sessionYear)) || fullyPaidByName.has(monthNameKey(cat.name, m, sessionYear));
+          const partial = partialMap[monthKey(catId, m, sessionYear)] ?? partialByName[monthNameKey(cat.name, m, sessionYear)] ?? 0;
+          const due = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+
+          months.push({
+            month: m,
+            year: sessionYear,
+            status: isPaid ? "Paid" : partial > 0 ? "Partial" : "Due",
+            amount: effectiveAmount,
+            dueAmount: due,
+          });
+
+          if (!isPaid) {
             dueItems.push({
               feeCategory: catId,
               feeName: cat.name,
               applicableType: "Month",
               month: m,
               year: sessionYear,
-              amount: partialMap[key],
+              amount: due,
+              dueIndex: dueItems.length,
             });
-          } else {
-            dueItems.push({
-              feeCategory: catId,
-              feeName: cat.name,
-              applicableType: "Month",
-              month: m,
-              year: sessionYear,
-              amount: effectiveAmount,
-            });
+            dueMonths.push(m);
           }
         }
+
+        feeLedger.push({
+          feeCategory: catId,
+          feeName: cat.name,
+          applicableType: "Month",
+          frequency: "Monthly",
+          amount: effectiveAmount,
+          months: months.map((mm) => ({
+            ...mm,
+            dueIndex: mm.status === "Paid" ? -1 : dueItems.length - dueMonths.length + dueMonths.indexOf(mm.month),
+          })),
+        });
       } else if (frequency === "Per Exam") {
+        const exams = [];
         examNames.forEach((exam) => {
-          const key = `${catId}_Exam_${exam}_${sessionYear}`;
-          if (fullyPaidSet.has(key)) return;
-          if (partialMap[key]) {
+          const fedCatKey = examKey(catId, exam, sessionYear);
+          const fNameKey = examNameKey(cat.name, exam, sessionYear);
+          const isPaid = fullyPaidSet.has(fedCatKey) || fullyPaidByName.has(fNameKey);
+          const partial = partialMap[fedCatKey] ?? partialByName[fNameKey] ?? 0;
+          const due = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+          exams.push({
+            examName: exam,
+            year: sessionYear,
+            status: isPaid ? "Paid" : partial > 0 ? "Partial" : "Due",
+            amount: effectiveAmount,
+            dueAmount: due,
+            dueIndex: isPaid ? -1 : dueItems.length,
+          });
+          if (!isPaid) {
             dueItems.push({
               feeCategory: catId,
               feeName: `${cat.name} (${exam})`,
               applicableType: "Exam",
               examName: exam,
               year: sessionYear,
-              amount: partialMap[key],
-            });
-          } else {
-            dueItems.push({
-              feeCategory: catId,
-              feeName: `${cat.name} (${exam})`,
-              applicableType: "Exam",
-              examName: exam,
-              year: sessionYear,
-              amount: effectiveAmount,
+              amount: due,
+              dueIndex: dueItems.length,
             });
           }
         });
+        feeLedger.push({
+          feeCategory: catId,
+          feeName: cat.name,
+          applicableType: "Exam",
+          frequency: "Per Exam",
+          amount: effectiveAmount,
+          exams,
+        });
       } else {
         const type = frequency === "Yearly" ? "Year" : (frequency === "One Time" ? "One Time" : "Custom");
-        const key = `${catId}_${type}_${sessionYear}`;
-        if (fullyPaidSet.has(key)) return;
-        if (partialMap[key]) {
+        const isPaid = fullyPaidSet.has(otherKey(catId, type, sessionYear)) || fullyPaidByName.has(otherNameKey(cat.name, type, sessionYear));
+        const partial = partialMap[otherKey(catId, type, sessionYear)] ?? partialByName[otherNameKey(cat.name, type, sessionYear)] ?? 0;
+        const due = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+        const status = isPaid ? "Paid" : partial > 0 ? "Partial" : "Due";
+
+        if (!isPaid) {
           dueItems.push({
             feeCategory: catId,
             feeName: cat.name,
             applicableType: type,
             year: sessionYear,
-            amount: partialMap[key],
-          });
-        } else {
-          dueItems.push({
-            feeCategory: catId,
-            feeName: cat.name,
-            applicableType: type,
-            year: sessionYear,
-            amount: effectiveAmount,
+            amount: due,
+            dueIndex: dueItems.length,
           });
         }
+
+        feeLedger.push({
+          feeCategory: catId,
+          feeName: cat.name,
+          applicableType: type,
+          frequency,
+          amount: effectiveAmount,
+          period: type === "One Time" ? "One Time" : String(sessionYear),
+          status,
+          dueAmount: due,
+          dueIndex: isPaid ? -1 : dueItems.length - 1,
+        });
       }
-    });
+    }
 
     // Build fee structure array for display
     const feeStructure = categories.map((cat) => {
@@ -862,7 +908,7 @@ const getStudentDueItems = async (req, res) => {
       return { feeCategory: cat, effectiveAmount, frequency, source };
     }).filter(Boolean).filter((f) => f.effectiveAmount > 0);
 
-    return res.status(200).json({ success: true, dueItems, feeStructure });
+    return res.status(200).json({ success: true, dueItems, feeStructure, feeLedger });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error.message });

@@ -6,6 +6,7 @@ const StudentLedger = require("../models/StudentLedger");
 const FeeCategory = require("../models/FeeCategory");
 const ClassFeeSetting = require("../models/ClassFeeSetting");
 const StudentFeeOverride = require("../models/StudentFeeOverride");
+const StudentFeeAssignment = require("../models/StudentFeeAssignment");
 const Report = require("../models/Report");
 
 // ============================================
@@ -148,16 +149,19 @@ const getPaymentInfo = async (req, res) => {
     const student = req.student;
     const session = student.session || "2026";
 
-    const [payments, ledger, categories, classSettings, overrides] = await Promise.all([
+    const [payments, ledger, categories, classSettings, overrides, assignments] = await Promise.all([
       Payment.find({ student: student._id, isVoided: false }).sort({ createdAt: -1 }),
       StudentLedger.find({ student: student._id, academicSession: session }),
       FeeCategory.find({ isActive: true }),
       ClassFeeSetting.find({ className: student.className, academicSession: session, isActive: true }),
       StudentFeeOverride.find({ student: student._id, academicSession: session, isActive: { $ne: false } }),
+      StudentFeeAssignment.find({ student: student._id, academicSession: session, isActive: { $ne: false } }),
     ]);
 
     const overrideMap = {};
     overrides.forEach((o) => { overrideMap[o.feeCategory.toString()] = o; });
+    const assignmentMap = {};
+    assignments.forEach((a) => { assignmentMap[a.feeCategory.toString()] = a; });
     const classSettingMap = {};
     classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
 
@@ -165,13 +169,21 @@ const getPaymentInfo = async (req, res) => {
       .map((cat) => {
         const catId = cat._id.toString();
         const override = overrideMap[catId];
+        const assignment = assignmentMap[catId];
         const classSetting = classSettingMap[catId];
+        const isRequired = cat.isRequired === true;
+
+        // Optional fees only appear when explicitly assigned or overridden
+        if (!isRequired && !assignment && !override) return null;
+
         let effectiveAmount = cat.defaultAmount || 0;
         let source = "System Default";
         if (override) { effectiveAmount = override.amount; source = "Student Override"; }
+        else if (assignment && assignment.amount > 0) { effectiveAmount = assignment.amount; source = "Student Assignment"; }
         else if (classSetting) { effectiveAmount = classSetting.amount; source = "Class Setting"; }
         return { name: cat.name, code: cat.code, frequency: cat.frequency, amount: effectiveAmount, source };
       })
+      .filter(Boolean)
       .filter((f) => f.amount > 0);
 
     const totalDue = ledger

@@ -664,7 +664,6 @@ const getStudentDueItems = async (req, res) => {
 
     const session = academicSession || student.session || "2026";
     const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
 
     // Derive the session year (e.g., "2025" -> 2025, "2025-2026" -> 2025)
     const sessionYear = parseInt(session) || currentYear;
@@ -779,7 +778,8 @@ const getStudentDueItems = async (req, res) => {
       if (effectiveAmount <= 0) continue;
 
       if (frequency === "Monthly") {
-        const maxMonth = sessionYear < currentYear ? 12 : currentMonth;
+        // Show the full January–December year (advance payment supported)
+        const maxMonth = 12;
         const months = [];
         const dueMonths = [];
 

@@ -34,7 +34,9 @@ export default function CollectPayment() {
   const [payingAmount, setPayingAmount] = useState("");
 
   const [selectedItems, setSelectedItems] = useState([]);
-  const [selectAll, setSelectAll] = useState(true);
+
+  // All unpaid items currently selected? (manual selection only)
+  const allUnpaidSelected = dueItems.length > 0 && selectedItems.length === dueItems.length;
 
   const receiptRef = useRef();
 
@@ -97,20 +99,12 @@ export default function CollectPayment() {
     }
   };
 
-  // Toggle select all when dueItems change
-  useEffect(() => {
-    if (selectAll && dueItems.length > 0) {
-      setSelectedItems(dueItems.map((_, i) => i));
-    }
-  }, [dueItems]);
-
   const toggleSelectAll = () => {
-    if (selectAll) {
+    if (allUnpaidSelected) {
       setSelectedItems([]);
     } else {
       setSelectedItems(dueItems.map((_, i) => i));
     }
-    setSelectAll(!selectAll);
   };
 
   const toggleItem = (index) => {
@@ -195,7 +189,6 @@ export default function CollectPayment() {
     setDueSummary(null);
     setPaymentHistory([]);
     setSelectedItems([]);
-    setSelectAll(true);
     setDiscount(0);
     setFine(0);
     setPayingAmount("");
@@ -336,7 +329,7 @@ export default function CollectPayment() {
                   >Optional Fees</Link>
                 </div>
               </div>
-              <button onClick={() => { setStudent(null); setDueItems([]); setFeeLedger([]); setSelectedItems([]); setSelectAll(true); setDueSummary(null); setPaymentHistory([]); }}
+              <button onClick={() => { setStudent(null); setDueItems([]); setFeeLedger([]); setSelectedItems([]); setDueSummary(null); setPaymentHistory([]); }}
                 className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-gray-200 transition flex-shrink-0"
               >Change</button>
             </div>
@@ -417,7 +410,7 @@ export default function CollectPayment() {
                     <thead>
                       <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
                         <th className="px-5 py-3 w-12">
-                          <input type="checkbox" checked={selectAll && selectedItems.length === dueItems.length} onChange={toggleSelectAll}
+                          <input type="checkbox" checked={allUnpaidSelected} onChange={toggleSelectAll}
                             className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                           />
                         </th>

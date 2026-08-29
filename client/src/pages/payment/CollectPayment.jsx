@@ -8,8 +8,6 @@ const months = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-const shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 export default function CollectPayment() {
   const [searchParams] = useSearchParams();
   const studentIdParam = searchParams.get("studentId");
@@ -59,25 +57,30 @@ export default function CollectPayment() {
   const loadAllStudentData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const [dueRes, summaryRes, historyRes] = await Promise.all([
+      const [dueRes, summaryRes, historyRes] = await Promise.allSettled([
         api.get(`/payments/due-items/${student._id}`),
         api.get(`/ledger/due-summary/${student._id}`),
         api.get(`/payments/history/${student._id}`),
       ]);
 
-      if (dueRes.data.success) {
-        setDueItems(dueRes.data.dueItems || []);
-        setFeeLedger(dueRes.data.feeLedger || []);
-        setFeeStructure(dueRes.data.feeStructure || []);
+      if (dueRes.status === "fulfilled" && dueRes.value.data.success) {
+        setDueItems(dueRes.value.data.dueItems || []);
+        setFeeLedger(dueRes.value.data.feeLedger || []);
+        setFeeStructure(dueRes.value.data.feeStructure || []);
       }
-      const sd = summaryRes.data || {};
-      setDueSummary({
-        openingBalance: sd.summary?.openingBalance ?? 0,
-        totalPaid: sd.summary?.totalPaid ?? 0,
-        totalDue: sd.summary?.totalDue ?? 0,
-        balance: sd.summary?.currentBalance ?? 0,
-      });
-      setPaymentHistory(Array.isArray(historyRes.data) ? historyRes.data.slice(0, 10) : (historyRes.data.payments?.slice(0, 10) || []));
+      if (summaryRes.status === "fulfilled") {
+        const sd = summaryRes.value.data || {};
+        setDueSummary({
+          openingBalance: sd.summary?.openingBalance ?? 0,
+          totalPaid: sd.summary?.totalPaid ?? 0,
+          totalDue: sd.summary?.totalDue ?? 0,
+          balance: sd.summary?.currentBalance ?? 0,
+        });
+      }
+      if (historyRes.status === "fulfilled") {
+        const hd = historyRes.value.data;
+        setPaymentHistory(Array.isArray(hd) ? hd.slice(0, 10) : (hd.payments?.slice(0, 10) || []));
+      }
     } catch {
       // silent
     } finally {
@@ -116,52 +119,7 @@ export default function CollectPayment() {
     );
   };
 
-  // ---- Grouped fee ledger helpers (month/exam chips) ----
-
-  const groupSelectedCount = (group) => {
-    if (group.applicableType === "Month") {
-      return (group.months || []).filter((m) => m.dueIndex >= 0 && selectedItems.includes(m.dueIndex)).length;
-    }
-    if (group.applicableType === "Exam") {
-      return (group.exams || []).filter((e) => e.dueIndex >= 0 && selectedItems.includes(e.dueIndex)).length;
-    }
-    return group.dueIndex >= 0 && selectedItems.includes(group.dueIndex) ? 1 : 0;
-  };
-
-  const groupSelectableCount = (group) => {
-    if (group.applicableType === "Month") {
-      return (group.months || []).filter((m) => m.dueIndex >= 0).length;
-    }
-    if (group.applicableType === "Exam") {
-      return (group.exams || []).filter((e) => e.dueIndex >= 0).length;
-    }
-    return group.dueIndex >= 0 ? 1 : 0;
-  };
-
-  const groupSubtotal = (group) => {
-    if (group.applicableType === "Month") {
-      return (group.months || [])
-        .filter((m) => m.dueIndex >= 0 && selectedItems.includes(m.dueIndex))
-        .reduce((sum, m) => sum + Number(m.dueAmount || m.amount || 0), 0);
-    }
-    if (group.applicableType === "Exam") {
-      return (group.exams || [])
-        .filter((e) => e.dueIndex >= 0 && selectedItems.includes(e.dueIndex))
-        .reduce((sum, e) => sum + Number(e.dueAmount || 0), 0);
-    }
-    return group.dueIndex >= 0 && selectedItems.includes(group.dueIndex) ? Number(group.dueAmount || group.amount || 0) : 0;
-  };
-
-  const toggleGroup = (group) => {
-    const indices = group.applicableType === "Month"
-      ? (group.months || []).filter((m) => m.dueIndex >= 0).map((m) => m.dueIndex)
-      : group.applicableType === "Exam"
-        ? (group.exams || []).filter((e) => e.dueIndex >= 0).map((e) => e.dueIndex)
-        : (group.dueIndex >= 0 ? [group.dueIndex] : []);
-    if (indices.length === 0) return;
-    const allSelected = indices.every((i) => selectedItems.includes(i));
-    setSelectedItems((prev) => (allSelected ? prev.filter((i) => !indices.includes(i)) : Array.from(new Set([...prev, ...indices]))));
-  };
+  // ---- Grouped fee ledger helpers (removed; flat table uses dueIndex directly) ----
 
   const selectedFees = useMemo(() => {
     return dueItems.filter((_, i) => selectedItems.includes(i));
@@ -174,6 +132,61 @@ export default function CollectPayment() {
   const total = useMemo(() => {
     return subtotal + Number(fine || 0) - Number(discount || 0);
   }, [subtotal, fine, discount]);
+
+  // Flatten the fee ledger into professional line items (every fee, every month)
+  const ledgerRows = useMemo(() => {
+    const rows = [];
+    (feeLedger || []).forEach((group, gi) => {
+      if (group.applicableType === "Month") {
+        (group.months || []).forEach((m) => {
+          rows.push({
+            key: `${gi}-m${m.month}`,
+            feeName: group.feeName,
+            frequency: "Monthly",
+            period: `${months[m.month - 1]} ${m.year}`,
+            amount: Number(m.amount || 0),
+            paid: Number(m.amount || 0) - Number(m.dueAmount || 0),
+            due: Number(m.dueAmount || 0),
+            status: m.status,
+            dueIndex: m.dueIndex,
+          });
+        });
+      } else if (group.applicableType === "Exam") {
+        (group.exams || []).forEach((e) => {
+          rows.push({
+            key: `${gi}-e${e.examName}`,
+            feeName: group.feeName,
+            frequency: "Per Exam",
+            period: e.examName,
+            amount: Number(e.amount || 0),
+            paid: Number(e.amount || 0) - Number(e.dueAmount || 0),
+            due: Number(e.dueAmount || 0),
+            status: e.status,
+            dueIndex: e.dueIndex,
+          });
+        });
+      } else {
+        rows.push({
+          key: `${gi}-x`,
+          feeName: group.feeName,
+          frequency: group.frequency || group.applicableType,
+          period: group.period || "One Time",
+          amount: Number(group.amount || 0),
+          paid: Number(group.amount || 0) - Number(group.dueAmount || 0),
+          due: Number(group.dueAmount || 0),
+          status: group.status,
+          dueIndex: group.dueIndex,
+        });
+      }
+    });
+    return rows;
+  }, [feeLedger]);
+
+  const totals = useMemo(() => ({
+    fees: ledgerRows.reduce((s, r) => s + r.amount, 0),
+    paid: ledgerRows.reduce((s, r) => s + r.paid, 0),
+    due: ledgerRows.reduce((s, r) => s + r.due, 0),
+  }), [ledgerRows]);
 
   const handleStudentSelect = (studentData) => {
     setStudent(studentData);
@@ -366,7 +379,7 @@ export default function CollectPayment() {
               <div>
                 <h2 className="text-base font-bold text-slate-800">Due Fees</h2>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {dueItems.length === 0 ? "All fees cleared" : `${dueItems.length} unpaid item${dueItems.length !== 1 ? "s" : ""} due`}
+                  {dueItems.length === 0 ? "All fees settled" : `${dueItems.length} unpaid item${dueItems.length !== 1 ? "s" : ""} due`}
                 </p>
               </div>
               <button onClick={loadAllStudentData}
@@ -374,152 +387,88 @@ export default function CollectPayment() {
               >↻ Refresh</button>
             </div>
 
-            {dueItems.length === 0 ? (
+            {ledgerRows.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-3xl mb-2">✅</p>
-                <p className="text-gray-400 text-sm font-medium">All fees cleared</p>
-                <p className="text-gray-300 text-xs mt-1">No pending dues for this student</p>
+                <p className="text-3xl mb-2">📋</p>
+                <p className="text-gray-400 text-sm font-medium">No fees configured</p>
+                <p className="text-gray-300 text-xs mt-1">No fee categories apply to this student</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {/* Global select all */}
-                <div className="px-5 py-3 bg-gray-50/50 flex items-center justify-between gap-3">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 cursor-pointer">
-                    <input type="checkbox" checked={selectAll && selectedItems.length === dueItems.length} onChange={toggleSelectAll}
-                      className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    Select all unpaid fees
-                  </label>
-                  <span className="text-xs text-gray-400">{selectedItems.length} selected</span>
+                {/* Session totals */}
+                <div className="px-5 py-3 bg-slate-50/80 border-b border-gray-100 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Session Fees</p>
+                    <p className="text-lg font-black text-slate-800 mt-1">{fmt(totals.fees)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Total Paid</p>
+                    <p className="text-lg font-black text-emerald-700 mt-1">{fmt(totals.paid)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Total Due</p>
+                    <p className="text-lg font-black text-red-600 mt-1">{fmt(totals.due)}</p>
+                  </div>
                 </div>
 
-                {feeLedger.map((group, gi) => {
-                  const selectable = groupSelectableCount(group);
-                  const selected = groupSelectedCount(group);
-                  const allOn = selectable > 0 && selected === selectable;
-
-                  if (group.applicableType === "Month") {
-                    return (
-                      <div key={gi} className="px-5 py-4 hover:bg-gray-50/40 transition">
-                        <div className="flex items-start gap-3">
-                          <input type="checkbox" checked={allOn} onChange={() => toggleGroup(group)}
-                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                {/* Line items — every fee, every month; paid rows have no selection */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                        <th className="px-5 py-3 w-12">
+                          <input type="checkbox" checked={selectAll && selectedItems.length === dueItems.length} onChange={toggleSelectAll}
+                            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                           />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center flex-wrap gap-2">
-                              <p className="font-semibold text-slate-800">{group.feeName}</p>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 uppercase tracking-wide">Monthly</span>
-                              <span className="text-xs text-gray-500 font-medium">{fmt(group.amount)}/month</span>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5 mt-2.5">
-                              {(group.months || []).map((m, mi) => {
-                                const label = `${shortMonths[m.month - 1]} ${String(m.year || "").slice(2)}`;
-                                if (m.status === "Paid") {
-                                  return (
-                                    <span key={mi} title={`${months[m.month - 1]} paid`}
-                                      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                    >✓ {label}</span>
-                                  );
-                                }
-                                const on = selectedItems.includes(m.dueIndex);
-                                return (
-                                  <button key={mi} type="button" onClick={() => toggleItem(m.dueIndex)}
-                                    title={m.status === "Partial" ? `${months[m.month - 1]} — partial payment due ${fmt(m.dueAmount)}` : months[m.month - 1]}
-                                    className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition ${
-                                      on
-                                        ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                        : m.status === "Partial"
-                                          ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                                          : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:text-emerald-700"
-                                    }`}
-                                  >
-                                    {on && "✓ "}{label}
-                                    {m.status === "Partial" && <span className="opacity-80">· {Number(Math.round(m.dueAmount)).toLocaleString("en-BD")}</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-bold text-emerald-700">{selected > 0 ? fmt(groupSubtotal(group)) : "—"}</p>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">{selected ? `${selected} month${selected !== 1 ? "s" : ""}` : "none"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
+                        </th>
+                        <th className="px-4 py-3 font-semibold">Fee</th>
+                        <th className="px-4 py-3 font-semibold">Period</th>
+                        <th className="px-4 py-3 font-semibold text-right">Amount</th>
+                        <th className="px-4 py-3 font-semibold text-right">Paid</th>
+                        <th className="px-4 py-3 font-semibold text-right">Due</th>
+                        <th className="px-5 py-3 font-semibold text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {ledgerRows.map((row) => {
+                        const isPaid = row.status === "Paid";
+                        const on = !isPaid && row.dueIndex >= 0 && selectedItems.includes(row.dueIndex);
+                        return (
+                          <tr key={row.key} className={`transition ${on ? "bg-emerald-50/40" : "hover:bg-gray-50/50"}`}>
+                            <td className="px-5 py-3">
+                              {isPaid ? (
+                                <span title="Paid" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 text-xs font-black">✓</span>
+                              ) : (
+                                <input type="checkbox" checked={on} onChange={() => toggleItem(row.dueIndex)}
+                                  className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className={`font-medium ${isPaid ? "text-gray-400" : "text-slate-700"}`}>{row.feeName}</p>
+                              <p className="text-[10px] text-gray-400 uppercase tracking-wide">{row.frequency}</p>
+                            </td>
+                            <td className={`px-4 py-3 whitespace-nowrap ${isPaid ? "text-gray-400" : "text-gray-600"}`}>{row.period}</td>
+                            <td className={`px-4 py-3 text-right ${isPaid ? "text-gray-400" : "text-gray-600"}`}>{fmt(row.amount)}</td>
+                            <td className={`px-4 py-3 text-right ${row.paid > 0 ? "text-emerald-600" : "text-gray-300"}`}>{row.paid > 0 ? fmt(row.paid) : "—"}</td>
+                            <td className={`px-4 py-3 text-right font-semibold ${row.due > 0 ? "text-red-500" : "text-gray-300"}`}>{row.due > 0 ? fmt(row.due) : "—"}</td>
+                            <td className="px-5 py-3 text-right">
+                              {isPaid ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">✓ Paid</span>
+                              ) : row.status === "Partial" ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">Partial</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600">Due</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-                  if (group.applicableType === "Exam") {
-                    return (
-                      <div key={gi} className="px-5 py-4 hover:bg-gray-50/40 transition">
-                        <div className="flex items-start gap-3">
-                          <input type="checkbox" checked={allOn} onChange={() => toggleGroup(group)}
-                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center flex-wrap gap-2">
-                              <p className="font-semibold text-slate-800">{group.feeName}</p>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 uppercase tracking-wide">Per Exam</span>
-                              <span className="text-xs text-gray-500 font-medium">{fmt(group.amount)}/exam</span>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5 mt-2.5">
-                              {(group.exams || []).map((ex, ei) => {
-                                if (ex.status === "Paid") {
-                                  return (
-                                    <span key={ei} title="Paid"
-                                      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                    >✓ {ex.examName}</span>
-                                  );
-                                }
-                                const on = ex.dueIndex >= 0 && selectedItems.includes(ex.dueIndex);
-                                return (
-                                  <button key={ei} type="button" onClick={() => ex.dueIndex >= 0 && toggleItem(ex.dueIndex)}
-                                    className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition ${
-                                      on
-                                        ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                        : ex.status === "Partial"
-                                          ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                                          : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:text-emerald-700"
-                                    }`}
-                                  >
-                                    {on && "✓ "}{ex.examName}
-                                    {ex.status === "Partial" && <span className="opacity-80">· {Number(Math.round(ex.dueAmount)).toLocaleString("en-BD")}</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-bold text-emerald-700">{selected > 0 ? fmt(groupSubtotal(group)) : "—"}</p>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">{selected ? `${selected} selected` : "none"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // One Time / Yearly / Custom
-                  return (
-                    <div key={gi} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50/40 transition">
-                      <input type="checkbox" checked={group.dueIndex >= 0 && selectedItems.includes(group.dueIndex)} onChange={() => group.dueIndex >= 0 && toggleItem(group.dueIndex)}
-                        className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <div className="flex-1 min-w-0 flex items-center flex-wrap gap-2">
-                        <p className={`font-semibold ${group.status === "Paid" ? "text-gray-400 line-through" : "text-slate-800"}`}>{group.feeName}</p>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 uppercase tracking-wide">{group.frequency}</span>
-                        <span className="text-xs text-gray-500">{group.period}</span>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        {group.status === "Paid" ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">✓ Paid</span>
-                        ) : (
-                          <p className="text-sm font-bold text-emerald-700">{fmt(group.dueAmount)}</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-
+                {/* Footer */}
                 <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-sm">
                   <span className="text-gray-500">
                     {selectedItems.length} of {dueItems.length} unpaid item{dueItems.length !== 1 ? "s" : ""} selected

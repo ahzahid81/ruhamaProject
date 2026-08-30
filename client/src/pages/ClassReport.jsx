@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as htmlToImage from "html-to-image";
 
 import api from "../services/api";
+import { getSettings } from "../services/settingsCache";
 import logo from "../assets/logo.png";
 import Toast from "../components/Toast";
 
@@ -21,10 +22,11 @@ const ClassReport = () => {
 
     const [sharing, setSharing] = useState(false);
     const [systemSettings, setSystemSettings] = useState(null);
+    const [settingsLoading, setSettingsLoading] = useState(true);
     const [toast, setToast] = useState(null);
 
     useEffect(() => {
-        api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+        getSettings().then((res) => setSystemSettings(res.data)).catch(() => {
             setSystemSettings({
               classes: [
                 { name: "Play Group", code: "P", order: 1 },
@@ -37,7 +39,7 @@ const ClassReport = () => {
                 { name: "STD-V", code: "V", order: 8 },
               ],
             });
-        });
+        }).finally(() => setSettingsLoading(false));
     }, []);
 
     // GET REPORT
@@ -231,6 +233,14 @@ const ClassReport = () => {
             setSharing(false);
         }
     };
+
+    if (settingsLoading) {
+        return (
+            <div className="min-h-screen bg-[#eef2ff] flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
 

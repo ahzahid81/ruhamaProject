@@ -94,7 +94,8 @@ const getClassReport = async (
                 .populate(
                     "entries.takenBy",
                     "name"
-                );
+                )
+                .lean();
 
         if (!report) {
 
@@ -131,7 +132,8 @@ const getAllReports = async (
                 )
                 .sort({
                     createdAt: -1,
-                });
+                })
+                .lean();
 
         res.status(200).json(reports);
 

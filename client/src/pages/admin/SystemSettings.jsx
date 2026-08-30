@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
+import { getSettings, clearSettingsCache } from "../../services/settingsCache";
 
 const SECTIONS = ["classes", "sections", "subjects", "examNames", "paymentMethods", "academicSessions"];
 
@@ -36,7 +37,7 @@ export default function SystemSettings() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const res = await api.get("/settings");
+      const res = await getSettings();
       setSettings(res.data);
     } catch (err) {
       showMessage("Failed to load from server — using defaults", "error");
@@ -107,6 +108,7 @@ export default function SystemSettings() {
     try {
       const res = await api.put("/settings", settings);
       setSettings(res.data);
+      clearSettingsCache();
       showMessage("Settings saved");
     } catch (err) {
       showMessage(err.response?.data?.message || "Failed to save", "error");

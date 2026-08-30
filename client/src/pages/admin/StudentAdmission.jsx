@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import {
   UserPlus,
   Camera,
@@ -40,7 +41,7 @@ const StudentAdmission = () => {
   const [systemSettings, setSystemSettings] = useState(null);
 
   useEffect(() => {
-    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+    getSettings().then((res) => setSystemSettings(res.data)).catch(() => {
       setSystemSettings({
         classes: [
           { name: "Play Group", code: "P", order: 1 },

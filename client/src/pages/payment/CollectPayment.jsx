@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useReactToPrint } from "react-to-print";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -92,7 +93,7 @@ export default function CollectPayment() {
 
   const loadPaymentMethods = async () => {
     try {
-      const res = await api.get("/settings");
+      const res = await getSettings();
       if (res.data.paymentMethods?.length) setPaymentMethodsList(res.data.paymentMethods);
     } catch {
       // silent

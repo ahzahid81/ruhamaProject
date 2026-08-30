@@ -4,6 +4,7 @@ import {
 } from "react";
 
 import api from "../services/api";
+import { getSettings } from "../services/settingsCache";
 
 const Student = () => {
 
@@ -43,7 +44,7 @@ const Student = () => {
 
   // LOAD SETTINGS (subjects & classes from backend)
   useEffect(() => {
-    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+    getSettings().then((res) => setSystemSettings(res.data)).catch(() => {
       setSystemSettings({
         subjects: ["Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies"],
         classes: [

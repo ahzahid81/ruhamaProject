@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import Toast from "../../components/Toast";
 
 const emptyExamForm = {
@@ -56,7 +57,7 @@ const ExamManagement = () => {
       const [examRes, catRes, settingsRes] = await Promise.all([
         api.get("/exams"),
         api.get("/payments/fee-categories"),
-        api.get("/settings"),
+        getSettings(),
       ]);
       setExams(examRes.data.exams || []);
       setCategories(catRes.data || []);

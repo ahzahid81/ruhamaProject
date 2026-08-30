@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import { BarChart3, Download, Calendar } from "lucide-react";
 
 export default function AttendanceReport() {
   const [settings, setSettings] = useState(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -17,13 +19,15 @@ export default function AttendanceReport() {
 
   const loadSettings = async () => {
     try {
-      const res = await api.get("/settings");
+      const res = await getSettings();
       setSettings(res.data);
       if (res.data.classes?.length > 0) {
         setSelectedClass(res.data.classes[0].name);
       }
     } catch {
       // silent
+    } finally {
+      setSettingsLoading(false);
     }
   };
 
@@ -54,9 +58,8 @@ export default function AttendanceReport() {
 
   const exportCSV = () => {
     if (!report?.students?.length) return;
-    const headers = ["Roll", "Student ID", "Name", "Total Days", "Present", "Absent", "Late", "Leave", "Percentage %"];
+    const headers = ["Student ID", "Name", "Total Days", "Present", "Absent", "Late", "Leave", "Percentage %"];
     const rows = report.students.map((s) => [
-      s.student?.roll || "",
       s.student?.studentId || "",
       s.student?.name || "",
       s.totalDays,
@@ -75,6 +78,14 @@ export default function AttendanceReport() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (settingsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -200,7 +211,6 @@ export default function AttendanceReport() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
-                      <th className="px-5 py-3 font-semibold">Roll</th>
                       <th className="px-5 py-3 font-semibold">Student</th>
                       <th className="px-5 py-3 font-semibold text-center">Total</th>
                       <th className="px-5 py-3 font-semibold text-center">Present</th>
@@ -213,7 +223,6 @@ export default function AttendanceReport() {
                   <tbody className="divide-y divide-gray-100">
                     {report.students?.map((s, i) => (
                       <tr key={s.student?._id || i} className="hover:bg-gray-50/50 transition">
-                        <td className="px-5 py-3 font-mono text-gray-500">{s.student?.roll || "—"}</td>
                         <td className="px-5 py-3">
                           <p className="font-medium text-slate-700">{s.student?.name}</p>
                           <p className="text-xs text-gray-400">{s.student?.studentId}</p>

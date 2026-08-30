@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import Toast from "../../components/Toast";
 
 const GRADE_TABLE = [
@@ -54,19 +55,20 @@ const MarksEntry = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [toast, setToast] = useState(null);
   const inputRefs = useRef({});
 
   useEffect(() => {
     Promise.all([
       api.get("/exams"),
-      api.get("/settings"),
+      getSettings(),
     ]).then(([examRes, settingsRes]) => {
       setExams(examRes.data.exams || []);
       setSystemSettings(settingsRes.data);
     }).catch(() => {
       setToast({ message: "Failed to load exams.", type: "error" });
-    });
+    }).finally(() => setInitializing(false));
   }, []);
 
   const loadSheet = async (eId, cls) => {
@@ -175,6 +177,14 @@ const MarksEntry = () => {
       }
     }
   }, [data, examId, className]);
+
+  if (initializing) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto">

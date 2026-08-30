@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import Toast from "../../components/Toast";
 import ReportCard from "../../components/exam/ReportCard";
 import { Download, Printer } from "lucide-react";
@@ -13,6 +14,7 @@ const ExamResults = () => {
   const [className, setClassName] = useState("");
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [toast, setToast] = useState(null);
   const [printAll, setPrintAll] = useState(false);
   const printTimeoutRef = useRef(null);
@@ -20,11 +22,12 @@ const ExamResults = () => {
   useEffect(() => {
     Promise.all([
       api.get("/exams"),
-      api.get("/settings"),
+      getSettings(),
     ]).then(([examRes, settingsRes]) => {
       setExams(examRes.data.exams || []);
       setSystemSettings(settingsRes.data);
-    }).catch(() => setToast({ message: "Failed to load exams.", type: "error" }));
+    }).catch(() => setToast({ message: "Failed to load exams.", type: "error" }))
+      .finally(() => setInitializing(false));
   }, []);
 
   useEffect(() => {
@@ -114,6 +117,14 @@ const ExamResults = () => {
 
   const passCount = results?.results?.filter((r) => r.status === "Pass").length || 0;
   const totalCount = results?.results?.length || 0;
+
+  if (initializing) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 
 const toCode = (name) =>
   name.trim().toUpperCase().replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
@@ -87,7 +88,7 @@ export default function FeeSettings() {
     Promise.all([
       api.get("/payments/fee-categories").then((r) => setCategories(r.data)).catch(() => {}),
       api.get("/fees/settings").then((r) => setRates(r.data.settings || r.data || [])).catch(() => {}),
-      api.get("/settings").then((r) => {
+      getSettings().then((r) => {
         setSystemSettings(r.data);
         setRateForm((p) => ({ ...p, academicSession: r.data.currentSession || "" }));
       }).catch(() => {

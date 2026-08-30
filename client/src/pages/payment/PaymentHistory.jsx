@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import { Search, Filter, Receipt } from "lucide-react";
 
 export default function PaymentHistory() {
@@ -22,7 +23,7 @@ export default function PaymentHistory() {
 
   const loadSettings = async () => {
     try {
-      const res = await api.get("/settings");
+      const res = await getSettings();
       setSettings(res.data);
     } catch {
       // silent

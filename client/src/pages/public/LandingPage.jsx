@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { School, Users, BookOpen, Award, Phone, Mail, MapPin, ChevronRight, GraduationCap, Shield, Heart } from "lucide-react";
+import logo from "../../assets/logo.png";
+import { Users, BookOpen, Award, Phone, Mail, MapPin, ChevronRight, GraduationCap, Shield, Heart } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -8,9 +9,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center shadow-lg shadow-indigo-200">
-              <School className="w-5 h-5 text-white" />
-            </div>
+            <img src={logo} alt="Ruhama United School" className="w-10 h-10 object-contain" />
             <div>
               <h1 className="text-xl font-bold text-gray-900 leading-tight">Ruhama United School</h1>
             </div>
@@ -107,9 +106,7 @@ export default function LandingPage() {
           </div>
           <div className="bg-gradient-to-br from-indigo-100 to-purple-100 rounded-3xl p-12 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-2xl shadow-indigo-300">
-                <School className="w-12 h-12 text-white" />
-              </div>
+              <img src={logo} alt="Ruhama United School" className="w-24 h-24 object-contain mx-auto" />
               <p className="text-2xl font-bold text-indigo-800 mt-6">Ruhama United School</p>
               <p className="text-indigo-600/60 mt-2">Excellence in Education</p>
             </div>
@@ -173,9 +170,7 @@ export default function LandingPage() {
       <footer className="bg-gray-900 text-gray-400 py-8 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-              <School className="w-4 h-4 text-white" />
-            </div>
+            <img src={logo} alt="Ruhama United School" className="w-8 h-8 object-contain" />
             <span className="text-sm font-semibold text-white">Ruhama United School</span>
           </div>
           <p className="text-xs">&copy; {new Date().getFullYear()} Ruhama United School. All rights reserved.</p>

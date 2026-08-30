@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import Toast from "../../components/Toast";
 
 import StudentSearch from "../../components/exam/StudentSearch";
@@ -19,7 +20,7 @@ const AdmitCard = () => {
     const printTimeoutRef = useRef(null);
 
     useEffect(() => {
-        api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+        getSettings().then((res) => setSystemSettings(res.data)).catch(() => {
             setSystemSettings({
               examName: "Half Yearly Examination",
               currentSession: "2026",

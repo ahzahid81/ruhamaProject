@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import { Calendar, Users, CheckCircle2, XCircle, Save, RefreshCw, Search } from "lucide-react";
 
 export default function DailyAttendance() {
@@ -9,6 +10,7 @@ export default function DailyAttendance() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [students, setStudents] = useState([]);
   const [absentIds, setAbsentIds] = useState(new Set());
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
@@ -21,13 +23,15 @@ export default function DailyAttendance() {
 
   const loadSettings = async () => {
     try {
-      const res = await api.get("/settings");
+      const res = await getSettings();
       setSettings(res.data);
       if (res.data.classes?.length > 0) {
         setSelectedClass(res.data.classes[0].name);
       }
     } catch {
       // silent
+    } finally {
+      setSettingsLoading(false);
     }
   };
 
@@ -102,14 +106,21 @@ export default function DailyAttendance() {
     const q = searchQuery.toLowerCase();
     return (
       s.name?.toLowerCase().includes(q) ||
-      s.studentId?.toLowerCase().includes(q) ||
-      String(s.roll).includes(q)
+      s.studentId?.toLowerCase().includes(q)
     );
   });
 
   const presentCount = students.length - absentIds.size;
   const sections = settings?.sections || [];
   const classes = settings?.classes || [];
+
+  if (settingsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -243,7 +254,6 @@ export default function DailyAttendance() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="px-5 py-3 font-semibold w-12">Roll</th>
                     <th className="px-5 py-3 font-semibold">Student</th>
                     <th className="px-5 py-3 font-semibold">ID</th>
                     <th className="px-5 py-3 font-semibold text-center">Status</th>
@@ -262,7 +272,6 @@ export default function DailyAttendance() {
                             : "hover:bg-emerald-50/30"
                         }`}
                       >
-                        <td className="px-5 py-3 font-mono text-gray-500">{student.roll || "—"}</td>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
                             {student.photo ? (

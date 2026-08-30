@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
+import logo from "../../assets/logo.png";
 import {
-  School, LayoutDashboard, User, CheckSquare, BarChart3, Wallet,
+  LayoutDashboard, User, CheckSquare, BarChart3, Wallet,
   BookOpen, LogOut, Menu, X,
 } from "lucide-react";
 
@@ -44,9 +45,7 @@ export default function StudentPortal() {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200">
-          <School className="w-5 h-5 text-white" />
-        </div>
+        <img src={logo} alt="Ruhama" className="w-10 h-10 object-contain" />
         <div>
           <h1 className="text-lg font-bold text-gray-900 leading-tight">Ruhama</h1>
           <p className="text-[10px] text-gray-400 font-medium">Student Portal</p>
@@ -175,7 +174,7 @@ function Dashboard({ fmt }) {
       {/* Welcome */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white">
         <h2 className="text-2xl font-bold">Welcome, {data.student?.name}</h2>
-        <p className="text-emerald-100 mt-1">{data.student?.className} — Roll #{data.student?.roll}</p>
+        <p className="text-emerald-100 mt-1">{data.student?.className}</p>
       </div>
 
       {/* Stats */}
@@ -253,7 +252,6 @@ function Profile({ student }) {
     { label: "Name", value: student.name },
     { label: "Class", value: student.className },
     { label: "Section", value: student.section },
-    { label: "Roll", value: student.roll },
     { label: "Session", value: student.session },
   ];
 
@@ -425,7 +423,7 @@ function Results() {
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-slate-800">{r.exam?.examName || "Exam"}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Class: {r.className} — Roll: {r.roll}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Class: {r.className}</p>
               </div>
               <div className="text-right">
                 <p className="text-lg font-black text-slate-800">{r.percentage}%</p>

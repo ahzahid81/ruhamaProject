@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
+import logo from "../assets/logo.png";
 import {
   LayoutDashboard,
   FileText,
@@ -16,7 +17,6 @@ import {
   X,
   ChevronDown,
   User,
-  School,
   BookOpen,
   BarChart3,
   CheckSquare,
@@ -141,9 +141,7 @@ const MainLayout = () => {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center shadow-lg shadow-indigo-200">
-          <School className="w-5 h-5 text-white" />
-        </div>
+        <img src={logo} alt="Ruhama" className="w-10 h-10 object-contain" />
         <div>
           <h1 className="text-xl font-bold text-gray-900 leading-tight">Ruhama</h1>
           <p className="text-xs text-gray-400 font-medium">School Management</p>
@@ -334,9 +332,7 @@ const MainLayout = () => {
           <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-500 flex items-center justify-center shadow-md">
-                  <School className="w-4.5 h-4.5 text-white" />
-                </div>
+                <img src={logo} alt="Ruhama" className="w-9 h-9 object-contain" />
                 <span className="font-bold text-gray-900">Ruhama</span>
               </div>
               <button

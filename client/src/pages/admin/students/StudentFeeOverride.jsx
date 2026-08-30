@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../../../services/api";
+import { getSettings } from "../../../services/settingsCache";
 import { AlertTriangle } from "lucide-react";
 
 export default function StudentFeeOverride() {
@@ -28,7 +29,7 @@ export default function StudentFeeOverride() {
 
   const loadSystemSettings = useCallback(async () => {
     try {
-      const res = await api.get("/settings");
+      const res = await getSettings();
       setSystemSettings(res.data);
       setForm((prev) => ({
         ...prev,

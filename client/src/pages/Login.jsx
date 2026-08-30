@@ -1,6 +1,7 @@
 import { useState } from "react";
 import api from "../services/api";
-import { School, Mail, Lock, LogIn, Eye, EyeOff, AlertCircle } from "lucide-react";
+import logo from "../assets/logo.png";
+import { Mail, Lock, LogIn, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -45,9 +46,7 @@ const Login = () => {
         <div className="bg-white/10 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 md:p-10 shadow-2xl">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-indigo-500/20">
-              <School className="w-10 h-10 text-white" />
-            </div>
+            <img src={logo} alt="Ruhama" className="w-20 h-20 object-contain mx-auto mb-5" />
             <h1 className="text-3xl font-bold text-white tracking-tight">Ruhama</h1>
             <p className="text-indigo-200/70 mt-2 text-sm">School Management System</p>
           </div>

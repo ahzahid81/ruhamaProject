@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
+import { getSettings } from "../services/settingsCache";
 import {
   UserPlus,
   Trash2,
@@ -22,6 +23,7 @@ const Teachers = () => {
   const [selectedClasses, setSelectedClasses] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [systemSettings, setSystemSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [editModal, setEditModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
@@ -32,7 +34,7 @@ const Teachers = () => {
       : ["Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies"];
 
   useEffect(() => {
-    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+    getSettings().then((res) => setSystemSettings(res.data)).catch(() => {
       setSystemSettings({
         classes: [
           { name: "Play Group", code: "P", order: 1 },
@@ -54,6 +56,8 @@ const Teachers = () => {
       setTeachers(res.data);
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -151,6 +155,14 @@ const Teachers = () => {
       setToast({ message: error.response?.data?.message || "Delete failed", type: "error" });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
 } from "react-router-dom";
+import { getSettings } from "./services/settingsCache";
 
 import Login from "./pages/Login";
 import LandingPage from "./pages/public/LandingPage";
@@ -45,6 +47,10 @@ import PaymentHistory from "./pages/payment/PaymentHistory";
 import FeeCategories from "./pages/admin/FeeCategories";
 
 function App() {
+
+  useEffect(() => {
+    getSettings().catch(() => {});
+  }, []);
 
   return (
     <BrowserRouter>

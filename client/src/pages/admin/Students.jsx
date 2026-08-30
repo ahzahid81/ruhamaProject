@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
+import { getSettings } from "../../services/settingsCache";
 import {
   Users,
   UserPlus,
@@ -27,7 +28,7 @@ const Students = () => {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    api.get("/settings").then((res) => setSystemSettings(res.data)).catch(() => {
+    getSettings().then((res) => setSystemSettings(res.data)).catch(() => {
       setSystemSettings({
         classes: [
           { name: "Play Group", code: "P", order: 1 },

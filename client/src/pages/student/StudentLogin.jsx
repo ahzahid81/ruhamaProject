@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
-import { School, Hash, Lock, LogIn, Eye, EyeOff, AlertCircle, ArrowLeft } from "lucide-react";
+import logo from "../../assets/logo.png";
+import { Hash, Lock, LogIn, Eye, EyeOff, AlertCircle, ArrowLeft } from "lucide-react";
 
 export default function StudentLogin() {
   const [studentId, setStudentId] = useState("");
@@ -39,9 +40,7 @@ export default function StudentLogin() {
 
         <div className="bg-white/10 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 md:p-10 shadow-2xl">
           <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-400 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-emerald-500/20">
-              <School className="w-10 h-10 text-white" />
-            </div>
+            <img src={logo} alt="Ruhama" className="w-20 h-20 object-contain mx-auto mb-5" />
             <h1 className="text-3xl font-bold text-white tracking-tight">Student Portal</h1>
             <p className="text-emerald-200/70 mt-2 text-sm">Sign in with your Student ID</p>
           </div>

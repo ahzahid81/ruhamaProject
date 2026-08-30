@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
 import { getSettings } from "../services/settingsCache";
 import {
@@ -10,6 +11,7 @@ import {
   BookOpen,
   Users,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import Toast from "../components/Toast";
 
@@ -24,7 +26,6 @@ const Teachers = () => {
   const [assignments, setAssignments] = useState([]);
   const [systemSettings, setSystemSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editModal, setEditModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -124,23 +125,6 @@ const Teachers = () => {
       getTeachers();
     } catch (error) {
       setToast({ message: error.response?.data?.message || "Failed to create teacher", type: "error" });
-    }
-  };
-
-  const handleEditSubmit = async () => {
-    if (!editModal) return;
-    try {
-      await api.put(`/teachers/${editModal._id}`, {
-        name: editModal.name,
-        email: editModal.email,
-        role: editModal.role,
-        assignments: editModal.assignments,
-      });
-      setToast({ message: "Teacher Updated", type: "success" });
-      setEditModal(null);
-      getTeachers();
-    } catch (error) {
-      setToast({ message: error.response?.data?.message || "Update failed", type: "error" });
     }
   };
 
@@ -362,13 +346,14 @@ const Teachers = () => {
                     <Shield className="w-3 h-3" />
                     {teacher.role}
                   </span>
-                  <button
-                    onClick={() => setEditModal({ ...teacher })}
+                  <Link
+                    to={`/teachers/${teacher._id}/edit`}
+                    state={{ teacher }}
                     className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                     title="Edit"
                   >
                     <Edit3 className="w-4 h-4" />
-                  </button>
+                  </Link>
                   <button
                     onClick={() => setDeleteTarget(teacher._id)}
                     className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
@@ -395,60 +380,6 @@ const Teachers = () => {
           ))}
         </div>
       )}
-      {/* Edit Teacher Modal */}
-      {editModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-gray-900">Edit Teacher</h2>
-              <button onClick={() => setEditModal(null)} className="p-1 rounded-lg hover:bg-gray-100">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Name</label>
-                <input
-                  type="text"
-                  value={editModal.name || ""}
-                  onChange={(e) => setEditModal({ ...editModal, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Email</label>
-                <input
-                  type="email"
-                  value={editModal.email || ""}
-                  onChange={(e) => setEditModal({ ...editModal, email: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Role</label>
-                <select
-                  value={editModal.role || "teacher"}
-                  onChange={(e) => setEditModal({ ...editModal, role: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all bg-white"
-                >
-                  <option value="teacher">Teacher</option>
-                  <option value="admin">Admin</option>
-                  <option value="account-manager">Account Manager</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={handleEditSubmit} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all">
-                Save Changes
-              </button>
-              <button onClick={() => setEditModal(null)} className="px-6 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-semibold transition-all border border-gray-100">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Confirm Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">

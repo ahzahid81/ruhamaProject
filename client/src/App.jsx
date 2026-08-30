@@ -45,6 +45,14 @@ import DailyAttendance from "./pages/attendance/DailyAttendance";
 import AttendanceReport from "./pages/attendance/AttendanceReport";
 import PaymentHistory from "./pages/payment/PaymentHistory";
 import FeeCategories from "./pages/admin/FeeCategories";
+import FeeCategoryForm from "./pages/admin/FeeCategoryForm";
+import ClassRateForm from "./pages/admin/ClassRateForm";
+import ExamForm from "./pages/exam/ExamForm";
+import ExamSubjects from "./pages/exam/ExamSubjects";
+import TeacherEdit from "./pages/TeacherEdit";
+import AdminEntryEdit from "./pages/AdminEntryEdit";
+import PaymentReceipt from "./pages/payment/PaymentReceipt";
+import AdmissionSuccess from "./pages/admin/AdmissionSuccess";
 
 function App() {
 
@@ -239,6 +247,148 @@ function App() {
               >
 
                 <FeeSettings />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fee Category Form */}
+          <Route
+            path="/fees/settings/categories/new"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <FeeCategoryForm />
+
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fees/settings/categories/:id/edit"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <FeeCategoryForm />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Class Rate Form */}
+          <Route
+            path="/fees/settings/rates/new"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <ClassRateForm />
+
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fees/settings/rates/:id/edit"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <ClassRateForm />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Exam Form / Subjects */}
+          <Route
+            path="/exam/management/new"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <ExamForm />
+
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exam/management/:id/edit"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <ExamForm />
+
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exam/management/:id/subjects"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <ExamSubjects />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Teacher Edit */}
+          <Route
+            path="/teachers/:id/edit"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <TeacherEdit />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Entry Edit */}
+          <Route
+            path="/admin/report-entry"
+            element={
+              <ProtectedRoute
+                adminOnly={true}
+              >
+
+                <AdminEntryEdit />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Payment Receipt */}
+          <Route
+            path="/payment/receipt/:id"
+            element={
+              <ProtectedRoute>
+
+                <PaymentReceipt />
+
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admission Success */}
+          <Route
+            path="/student-admission/success"
+            element={
+              <ProtectedRoute>
+
+                <AdmissionSuccess />
 
               </ProtectedRoute>
             }

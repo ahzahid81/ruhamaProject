@@ -10,7 +10,6 @@ import {
   Shield,
   MapPin,
   FileText,
-  CheckCircle,
   ArrowLeft,
   Upload,
 } from "lucide-react";
@@ -36,7 +35,6 @@ const StudentAdmission = () => {
   const [loading, setLoading] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState("");
-  const [success, setSuccess] = useState(null);
   const [toast, setToast] = useState(null);
   const [systemSettings, setSystemSettings] = useState(null);
 
@@ -109,10 +107,12 @@ const StudentAdmission = () => {
       const res = await api.post("/students/create", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setSuccess({
-        studentId: res.data.student.studentId,
-        admissionNo: res.data.student.admissionNo,
-        password: res.data.student.plainPassword,
+      navigate("/student-admission/success", {
+        state: {
+          studentId: res.data.student.studentId,
+          admissionNo: res.data.student.admissionNo,
+          password: res.data.student.plainPassword,
+        },
       });
     } catch (error) {
       console.log(error);
@@ -366,40 +366,6 @@ const StudentAdmission = () => {
         </div>
       </form>
 
-      {/* Success Modal */}
-      {success && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-emerald-600" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">Admission Successful</h2>
-              <p className="text-sm text-gray-400 mt-1">Student has been registered</p>
-            </div>
-            <div className="space-y-3 bg-gray-50 rounded-xl p-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Student ID</span>
-                <span className="font-semibold text-gray-900">{success.studentId}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Admission No</span>
-                <span className="font-semibold text-gray-900">{success.admissionNo}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Password</span>
-                <span className="font-semibold text-gray-900 font-mono">{success.password}</span>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate("/students")}
-              className="mt-6 w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all"
-            >
-              Go to Student List
-            </button>
-          </div>
-        </div>
-      )}
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );

@@ -1,6 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { useReactToPrint } from "react-to-print";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
 
@@ -11,6 +10,7 @@ const months = [
 
 export default function CollectPayment() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const studentIdParam = searchParams.get("studentId");
 
   const [student, setStudent] = useState(null);
@@ -19,8 +19,6 @@ export default function CollectPayment() {
   const [feeStructure, setFeeStructure] = useState([]);
   const [dueSummary, setDueSummary] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
-  const [receipt, setReceipt] = useState(null);
-  const [showReceipt, setShowReceipt] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [toast, setToast] = useState(null);
@@ -38,8 +36,6 @@ export default function CollectPayment() {
 
   // All unpaid items currently selected? (manual selection only)
   const allUnpaidSelected = dueItems.length > 0 && selectedItems.length === dueItems.length;
-
-  const receiptRef = useRef();
 
   useEffect(() => {
     loadPaymentMethods();
@@ -238,8 +234,9 @@ export default function CollectPayment() {
         items,
       };
       const res = await api.post("/payments/collect", payload);
-      setReceipt({ ...res.data, student, items, paidAmount });
-      setShowReceipt(true);
+      navigate(`/payment/receipt/${res.data.paymentId}`, {
+        state: { receipt: { ...res.data, paymentMethod, transactionId, referenceNo }, student },
+      });
       setDiscount(0); setFine(0); setTransactionId(""); setReferenceNo(""); setRemarks(""); setPayingAmount("");
       loadAllStudentData();
     } catch (error) {
@@ -248,11 +245,6 @@ export default function CollectPayment() {
       setLoading(false);
     }
   };
-
-  const handlePrintReceipt = useReactToPrint({
-    contentRef: receiptRef,
-    documentTitle: receipt?.receiptNo || "Receipt",
-  });
 
   const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
 
@@ -580,48 +572,6 @@ export default function CollectPayment() {
           </div>
         )}
       </div>
-
-      {/* Receipt Modal */}
-      {showReceipt && receipt && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowReceipt(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div ref={receiptRef} className="p-8">
-              <h2 className="text-center text-xl font-black text-slate-800">RUHAMA UNITED SCHOOL</h2>
-              <p className="text-center text-xs text-gray-400 mt-0.5">Money Receipt</p>
-              <div className="flex justify-center my-4">
-                <div className="bg-emerald-50 text-emerald-700 px-4 py-1 rounded-full text-xs font-bold border border-emerald-200">Payment Successful</div>
-              </div>
-              <hr />
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-400">Receipt No</span><b className="text-slate-800">{receipt.receiptNo}</b></div>
-                <div className="flex justify-between"><span className="text-gray-400">Date</span><b className="text-slate-800">{new Date().toLocaleDateString("en-IN")}</b></div>
-                <hr />
-                <div className="flex justify-between"><span className="text-gray-400">Student</span><b className="text-slate-800">{receipt.student?.name}</b></div>
-                <div className="flex justify-between"><span className="text-gray-400">Student ID</span><b className="text-slate-800">{receipt.student?.studentId}</b></div>
-                <div className="flex justify-between"><span className="text-gray-400">Class</span><b className="text-slate-800">{receipt.student?.className}</b></div>
-                <hr />
-                <div className="flex justify-between"><span className="text-gray-400">Total Amount</span><b className="text-slate-800">{fmt(receipt.totalAmount)}</b></div>
-                <div className="flex justify-between"><span className="text-gray-400">Discount</span><b className="text-slate-800">{fmt(receipt.totalDiscount || 0)}</b></div>
-                <div className="flex justify-between"><span className="text-gray-400">Fine</span><b className="text-slate-800">{fmt(receipt.totalFine || 0)}</b></div>
-                <div className="flex justify-between text-base"><span className="font-semibold">Paid</span><b className="text-emerald-700">{fmt(receipt.paidAmount)}</b></div>
-                <div className="flex justify-between"><span className="text-gray-400">Payment Method</span><b className="text-slate-800">{receipt.paymentMethod || paymentMethod}</b></div>
-                {receipt.transactionId && <div className="flex justify-between"><span className="text-gray-400">Transaction ID</span><b className="text-slate-800">{receipt.transactionId}</b></div>}
-              </div>
-              <div className="mt-6 pt-4 border-t text-center">
-                <p className="text-xs text-gray-400">Thank you</p>
-              </div>
-            </div>
-            <div className="flex gap-3 p-6 pt-0">
-              <button onClick={handlePrintReceipt}
-                className="flex-1 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition"
-              >Print Receipt</button>
-              <button onClick={() => { setShowReceipt(false); setReceipt(null); }}
-                className="flex-1 px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition"
-              >Close</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

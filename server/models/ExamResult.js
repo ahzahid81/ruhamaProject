@@ -73,11 +73,6 @@ const examResultSchema = new mongoose.Schema(
       default: "",
     },
 
-    roll: {
-      type: Number,
-      default: 0,
-    },
-
     studentName: {
       type: String,
       default: "",

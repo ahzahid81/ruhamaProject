@@ -14,7 +14,6 @@ const {
   deleteStudent,
   resetPassword,
   importStudents,
-  generateRollNumbers,
   searchStudents,
 } = require("../controllers/studentController");
 
@@ -75,15 +74,6 @@ router.delete(
 router.put(
   "/reset-password/:id",
   resetPassword
-);
-
-// =====================================
-// GENERATE ROLL NUMBERS
-// =====================================
-
-router.post(
-  "/generate-roll",
-  generateRollNumbers
 );
 
 router.get(

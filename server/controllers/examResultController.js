@@ -133,7 +133,6 @@ const getStudentsForMarks = async (req, res) => {
         studentId: s._id,
         studentCode: s.studentId,
         name: s.name,
-        roll: s.roll,
         section: s.section,
         photo: s.photo,
         marks,
@@ -249,7 +248,6 @@ const saveMarks = async (req, res) => {
           $set: {
             className,
             academicSession: exam.academicSession,
-            roll: student.roll,
             studentName: student.name,
             studentId: student.studentId,
             entries,
@@ -403,7 +401,7 @@ const getResults = async (req, res) => {
     if (className) filter.className = className;
 
     let results = await ExamResult.find(filter)
-      .populate("student", "photo studentId name roll className section")
+      .populate("student", "photo studentId name className section")
       .sort({ totalObtained: -1, gpa: -1 });
 
     results = results.map((r) => {
@@ -473,7 +471,6 @@ const getResult = async (req, res) => {
         name: student.name,
         className: student.className,
         section: student.section,
-        roll: student.roll,
         photo: student.photo,
         fatherName: student.fatherName,
         motherName: student.motherName,

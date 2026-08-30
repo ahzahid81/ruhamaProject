@@ -26,7 +26,7 @@ const markAttendance = async (req, res) => {
     const filter = { className, status: { $ne: "Inactive" } };
     if (section) filter.section = section;
 
-    const students = await Student.find(filter).select("_id studentId name").sort({ roll: 1 });
+    const students = await Student.find(filter).select("_id studentId name").sort({ name: 1 });
 
     if (students.length === 0) {
       return res.status(404).json({ success: false, message: "No students found for this class/section." });
@@ -95,14 +95,13 @@ const getAttendanceByClass = async (req, res) => {
     if (section) filter.section = section;
 
     const records = await Attendance.find(filter)
-      .populate("student", "name studentId roll photo")
-      .sort({ "student.roll": 1 });
+      .populate("student", "name studentId photo");
 
     const students = await Student.find({
       className,
       ...(section ? { section } : {}),
       status: { $ne: "Inactive" },
-    }).select("_id studentId name roll photo");
+    }).select("_id studentId name photo");
 
     const attendanceMap = {};
     records.forEach((r) => {
@@ -202,7 +201,7 @@ const getMonthlyReport = async (req, res) => {
       className,
       ...(section ? { section } : {}),
       status: { $ne: "Inactive" },
-    }).select("_id studentId name roll").sort({ roll: 1 });
+    }).select("_id studentId name").sort({ name: 1 });
 
     const statsMap = {};
     students.forEach((s) => {

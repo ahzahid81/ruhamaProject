@@ -474,8 +474,6 @@ const importStudents = async (req, res) => {
 
                     photo: "",
 
-                    roll: 0,
-
                     className,
 
                     section: "A",
@@ -614,8 +612,6 @@ const createStudent = async (req, res) => {
         const {
 
             name,
-
-            roll,
 
             className,
 
@@ -815,10 +811,6 @@ const createStudent = async (req, res) => {
                 photo,
 
 
-                roll:
-                    roll || 0,
-
-
                 className,
 
 
@@ -992,7 +984,6 @@ const getStudents = async (req, res) => {
             await Student.find(filter)
                 .sort({
                     className: 1,
-                    roll: 1,
                     createdAt: 1,
                 });
 
@@ -1091,8 +1082,6 @@ const updateStudent = async (req, res) => {
 
             name,
 
-            roll,
-
             className,
 
             section,
@@ -1162,10 +1151,6 @@ const updateStudent = async (req, res) => {
 
         student.name =
             name || student.name;
-
-
-        student.roll =
-            roll || student.roll;
 
 
         student.className =
@@ -1418,78 +1403,6 @@ const resetPassword = async (req, res) => {
 
 };
 
-// ======================================================
-// GENERATE ROLL NUMBERS
-// ======================================================
-
-const generateRollNumbers = async (req, res) => {
-
-    try {
-
-        const {
-
-            className,
-
-            section = "A",
-
-            session = "2026",
-
-        } = req.body;
-
-        const students =
-            await Student.find({
-
-                className,
-
-                section,
-
-                session,
-
-                status: "Active",
-
-            }).sort({
-
-                studentId: 1,
-
-            });
-
-        let roll = 1;
-
-        for (const student of students) {
-
-            student.roll = roll++;
-
-            await student.save();
-
-        }
-
-        res.status(200).json({
-
-            success: true,
-
-            message: "Roll numbers generated successfully.",
-
-            total: students.length,
-
-        });
-
-    }
-
-    catch (error) {
-
-        res.status(500).json({
-
-            success: false,
-
-            message: error.message,
-
-        });
-
-    }
-
-};
-
-
 // ======================================
 // SEARCH STUDENTS
 // ======================================
@@ -1536,13 +1449,12 @@ const searchStudents = async (req, res) => {
         })
 
             .select(
-                "studentId name className section roll photo fatherName fatherMobile status"
+                "studentId name className section photo fatherName fatherMobile status"
             )
 
             .sort({
                 className: 1,
                 studentId: 1,
-                roll: 1,
             })
 
             .limit(20);
@@ -1584,8 +1496,6 @@ module.exports = {
     deleteStudent,
 
     resetPassword,
-
-    generateRollNumbers,
 
     searchStudents,
 

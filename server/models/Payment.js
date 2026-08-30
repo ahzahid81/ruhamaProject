@@ -29,11 +29,6 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
-    roll: {
-      type: Number,
-      default: 0,
-    },
-
     // ===========================
     // RECEIPT
     // ===========================

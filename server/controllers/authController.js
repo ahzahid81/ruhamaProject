@@ -138,7 +138,6 @@ const loginStudent = async (req, res) => {
         name: student.name,
         className: student.className,
         section: student.section,
-        roll: student.roll,
         photo: student.photo,
         session: student.session,
       },

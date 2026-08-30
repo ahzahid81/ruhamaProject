@@ -44,11 +44,6 @@ const studentSchema = new mongoose.Schema(
       sparse: true,
     },
 
-    roll: {
-      type: Number,
-      required: true,
-    },
-
     className: {
       type: String,
       required: true,

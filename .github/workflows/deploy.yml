@@ -26,11 +26,18 @@ jobs:
 
             cd /var/www/ruhamaProject
 
-            echo ">>> Checking Git status"
-            git status
+            echo ">>> Backing up production .env"
+            if [ -f server/.env ]; then cp server/.env /tmp/ruhama-server.env; fi
 
-            echo ">>> Pulling latest code from GitHub"
-            git pull --ff-only origin main
+            echo ">>> Syncing repository to origin/main"
+            git fetch origin
+            git reset --hard origin/main
+
+            echo ">>> Removing generated node_modules (recreated by npm ci)"
+            rm -rf server/node_modules client/node_modules
+
+            echo ">>> Restoring production .env"
+            if [ -f /tmp/ruhama-server.env ]; then cp /tmp/ruhama-server.env server/.env; fi
 
             echo "======================================"
             echo "Backend deployment"

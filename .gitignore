@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets (real values live on the server; see server/.env.example)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+dist-ssr/
+
+# Logs
+*.log
+logs/
+
+# Stale local artifacts
+backup/
+*.zip

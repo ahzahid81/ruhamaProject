@@ -240,6 +240,15 @@ export default function LandingPage() {
                 </Link>
               ))}
             </div>
+
+            <div className="text-center mt-10">
+              <Link
+                to="/events"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+              >
+                See All Events <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </section>
       )}

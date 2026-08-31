@@ -9,6 +9,7 @@ import { getSettings } from "./services/settingsCache";
 import Login from "./pages/Login";
 import LandingPage from "./pages/public/LandingPage";
 import EventDetails from "./pages/public/EventDetails";
+import EventsPage from "./pages/public/EventsPage";
 import StudentLogin from "./pages/student/StudentLogin";
 import StudentPortal from "./pages/student/StudentPortal";
 
@@ -70,6 +71,9 @@ function App() {
 
         {/* Public Website */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* Public Events List */}
+        <Route path="/events" element={<EventsPage />} />
 
         {/* Public Event Detail */}
         <Route path="/events/:id" element={<EventDetails />} />

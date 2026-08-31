@@ -11,12 +11,12 @@ const { sortStudents } = require("../utils/sort");
 // ======================================================
 
 const getClassCode = async (className = "") => {
-  if (!className) return "";
-  const settings = await Settings.getSettings();
-  const found = settings.classes.find(
-    (c) => c.name.toLowerCase() === className.trim().toLowerCase()
-  );
-  return found ? found.code : "";
+    if (!className) return "";
+    const settings = await Settings.getSettings();
+    const found = settings.classes.find(
+        (c) => c.name.toLowerCase() === className.trim().toLowerCase()
+    );
+    return found ? found.code : "";
 };
 
 // ======================================================
@@ -33,23 +33,23 @@ const getGenderCode = (gender = "") => {
 // ======================================================
 
 const getClassName = async (value = "") => {
-  const cls = value.toString().trim();
-  if (!cls) return "";
+    const cls = value.toString().trim();
+    if (!cls) return "";
 
-  // Strip legacy "(Boy's)" / "(Girl's)" suffix
-  const clean = cls.replace(/\(.*?\)/g, "").trim();
+    // Strip legacy "(Boy's)" / "(Girl's)" suffix
+    const clean = cls.replace(/\(.*?\)/g, "").trim();
 
-  const settings = await Settings.getSettings();
-  const found = settings.classes.find(
-    (c) => c.name.toLowerCase() === clean.toLowerCase()
-  );
-  if (found) return found.name;
+    const settings = await Settings.getSettings();
+    const found = settings.classes.find(
+        (c) => c.name.toLowerCase() === clean.toLowerCase()
+    );
+    if (found) return found.name;
 
-  // fallback: try exact match on full string
-  const exact = settings.classes.find(
-    (c) => c.name.toLowerCase() === cls.toLowerCase()
-  );
-  return exact ? exact.name : cls;
+    // fallback: try exact match on full string
+    const exact = settings.classes.find(
+        (c) => c.name.toLowerCase() === cls.toLowerCase()
+    );
+    return exact ? exact.name : cls;
 };
 
 // ======================================================
@@ -773,12 +773,8 @@ const createStudent = async (req, res) => {
 
         let photo = "";
 
-
         if (req.file) {
-
-            photo =
-                req.file.path;
-
+            photo = `/uploads/students/${req.file.filename}`;
         }
 
 
@@ -1135,10 +1131,7 @@ const updateStudent = async (req, res) => {
         // ==========================
 
         if (req.file) {
-
-            student.photo =
-                req.file.path;
-
+            student.photo = `/uploads/students/${req.file.filename}`;
         }
 
 
@@ -1421,35 +1414,35 @@ const searchStudents = async (req, res) => {
         const students = await sortStudents(
             await Student.find({
 
-            $or: [
+                $or: [
 
-                {
-                    studentId: {
-                        $regex: q,
-                        $options: "i",
+                    {
+                        studentId: {
+                            $regex: q,
+                            $options: "i",
+                        },
                     },
-                },
 
-                {
-                    name: {
-                        $regex: q,
-                        $options: "i",
+                    {
+                        name: {
+                            $regex: q,
+                            $options: "i",
+                        },
                     },
-                },
 
-                {
-                    fatherMobile: {
-                        $regex: q,
-                        $options: "i",
+                    {
+                        fatherMobile: {
+                            $regex: q,
+                            $options: "i",
+                        },
                     },
-                },
 
-            ],
+                ],
 
-        })
-            .select(
-                "studentId name className section photo fatherName fatherMobile status"
-            )
+            })
+                .select(
+                    "studentId name className section photo fatherName fatherMobile status"
+                )
         )
             .slice(0, 20);
 

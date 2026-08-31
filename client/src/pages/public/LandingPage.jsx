@@ -327,9 +327,9 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: Phone, label: "Phone", value: "+880 1XXXXXXXXX", color: "text-emerald-600 bg-emerald-50" },
-              { icon: Mail, label: "Email", value: "info@ruhamaunitedschool.com", color: "text-indigo-600 bg-indigo-50" },
-              { icon: MapPin, label: "Address", value: "Ruhama, Sylhet, Bangladesh", color: "text-amber-600 bg-amber-50" },
+              { icon: Phone, label: "Phone", value: "+8801805230146", color: "text-emerald-600 bg-emerald-50" },
+              { icon: Mail, label: "Email", value: "ruhamaunitedschool@gmail.com", color: "text-indigo-600 bg-indigo-50" },
+              { icon: MapPin, label: "Address", value: "Ludhi House-101/102 , Road-9, Housing Estate, Amberkhana, Sylhet", color: "text-amber-600 bg-amber-50" },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="flex items-start gap-4 p-6 bg-white rounded-2xl border border-gray-100">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
@@ -346,20 +346,89 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="Ruhama United School" className="w-8 h-8 object-contain" />
-            <span className="text-sm font-semibold text-white">Ruhama United School</span>
+      <footer className="bg-gray-900 text-gray-400">
+        <div className="max-w-7xl mx-auto px-6 py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+          {/* Brand */}
+          <div>
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="Ruhama United School" className="w-10 h-10 object-contain" />
+              <div>
+                <p className="text-base font-bold text-white leading-tight">Ruhama United School</p>
+                <p className="text-xs text-indigo-400 mt-0.5">An English Version School with Tahfizul Quran</p>
+              </div>
+            </div>
+            <p className="mt-5 text-sm leading-relaxed">
+              Change yourself, Decorate the world. A place where young minds grow strong in knowledge, faith and character.
+            </p>
+            <div className="mt-6 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+                <Heart className="w-3.5 h-3.5" /> Tahfizul Quran
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-5 text-xs">
-            <a href="#about" className="hover:text-indigo-400 transition">About</a>
-            <a href="#students" className="hover:text-indigo-400 transition">Students</a>
-            <a href="#programs" className="hover:text-indigo-400 transition">Programs</a>
-            <a href="#gallery" className="hover:text-indigo-400 transition">Gallery</a>
-            <a href="#contact" className="hover:text-indigo-400 transition">Contact</a>
+
+          {/* Explore */}
+          <div>
+            <h3 className="text-white text-sm font-bold uppercase tracking-wider">Explore</h3>
+            <ul className="mt-5 space-y-3 text-sm">
+              {[
+                { name: "About Us", href: "#about" },
+                { name: "Our Students", href: "#students" },
+                { name: "Academic Programs", href: "#programs" },
+                { name: "School Gallery", href: "#gallery" },
+                { name: "Contact Us", href: "#contact" },
+              ].map((l) => (
+                <li key={l.name}>
+                  <a href={l.href} className="hover:text-indigo-400 transition inline-flex items-center gap-2">
+                    <ChevronRight className="w-3.5 h-3.5 text-indigo-500" /> {l.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
-          <p className="text-xs">&copy; {new Date().getFullYear()} Ruhama United School. All rights reserved.</p>
+
+          {/* Programs */}
+          <div>
+            <h3 className="text-white text-sm font-bold uppercase tracking-wider">Programs</h3>
+            <ul className="mt-5 space-y-3 text-sm">
+              <li className="hover:text-indigo-400 transition cursor-default">Early Childhood</li>
+              <li className="hover:text-indigo-400 transition cursor-default">Primary Education</li>
+              <li className="hover:text-indigo-400 transition cursor-default">Hifzul Quran</li>
+              <li className="hover:text-indigo-400 transition cursor-default">Daily Reports</li>
+              <li className="hover:text-indigo-400 transition cursor-default">Admit Cards</li>
+            </ul>
+          </div>
+
+          {/* Contact */}
+          <div>
+            <h3 className="text-white text-sm font-bold uppercase tracking-wider">Contact</h3>
+            <ul className="mt-5 space-y-3 text-sm">
+              <li className="flex items-start gap-3">
+                <Phone className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" /> +8801805230146
+              </li>
+              <li className="flex items-start gap-3">
+                <Mail className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" /> ruhamaunitedschool@gmail.com
+              </li>
+              <li className="flex items-start gap-3">
+                <MapPin className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" /> Ludhi House-101/102 , Road-9, Housing Estate, Amberkhana, Sylhet
+              </li>
+            </ul>
+            <Link
+              to="/student-login"
+              className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
+            >
+              Student Login <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-800">
+          <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs">&copy; {new Date().getFullYear()} Ruhama United School. All rights reserved.</p>
+            <p className="text-xs text-gray-500">
+              "Change yourself, Decorate the world."
+            </p>
+          </div>
         </div>
       </footer>
     </div>

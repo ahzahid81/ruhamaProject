@@ -22,7 +22,7 @@ import {
   CheckSquare,
   ClipboardList,
   Receipt,
-  Tag,
+  UserCheck,
   CalendarDays,
   Image as ImageIcon,
 } from "lucide-react";
@@ -58,8 +58,8 @@ const navGroups = [
     items: [
       { name: "Collect Payment", path: "/collect-payment", icon: Wallet, roles: ["admin", "account-manager"] },
       { name: "Payment History", path: "/payment-history", icon: Receipt, roles: ["admin", "account-manager"] },
-      { name: "Fee Categories", path: "/fees/categories", icon: Tag, roles: ["admin"] },
       { name: "Fee Settings", path: "/fees/settings", icon: Settings, roles: ["admin"] },
+      { name: "Student-wise Fees", path: "/fees/student-wise", icon: UserCheck, roles: ["admin", "account-manager"] },
     ],
   },
   {

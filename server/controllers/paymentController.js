@@ -645,6 +645,14 @@ const deleteFeeCategory = async (req, res) => {
     if (!category) {
       return res.status(404).json({ message: "Fee category not found" });
     }
+
+    // Cascade: remove class rates, student overrides and assignments for this fee
+    await Promise.all([
+      ClassFeeSetting.deleteMany({ feeCategory: category._id }),
+      StudentFeeOverride.deleteMany({ feeCategory: category._id }),
+      StudentFeeAssignment.deleteMany({ feeCategory: category._id }),
+    ]);
+
     return res.status(200).json({ message: "Fee category deleted" });
   } catch (error) {
     console.log(error);

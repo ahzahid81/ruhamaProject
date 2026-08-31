@@ -15,6 +15,7 @@ const {
   getStudentFeeBreakdown,
   getStudentOverrides,
   createStudentFeeOverride,
+  updateStudentFeeOverride,
   deleteStudentFeeOverride,
 } = require("../controllers/feeSettingController");
 
@@ -85,14 +86,21 @@ router.get(
 router.post(
   "/student-overrides",
   protect,
-  authorizeRoles("admin"),
+  authorizeRoles("admin", "account-manager"),
   createStudentFeeOverride
+);
+
+router.put(
+  "/student-overrides/:id",
+  protect,
+  authorizeRoles("admin", "account-manager"),
+  updateStudentFeeOverride
 );
 
 router.delete(
   "/student-overrides/:id",
   protect,
-  authorizeRoles("admin"),
+  authorizeRoles("admin", "account-manager"),
   deleteStudentFeeOverride
 );
 

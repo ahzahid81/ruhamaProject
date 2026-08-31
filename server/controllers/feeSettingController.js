@@ -10,10 +10,11 @@ const Student = require("../models/Student");
 
 const getClassFeeSettings = async (req, res) => {
   try {
-    const { className, academicSession, isActive } = req.query;
+    const { className, academicSession, feeCategory, isActive } = req.query;
     const filter = {};
     if (className) filter.className = className;
     if (academicSession) filter.academicSession = academicSession;
+    if (feeCategory) filter.feeCategory = feeCategory;
     if (isActive !== undefined) filter.isActive = isActive === "true";
 
     const settings = await ClassFeeSetting.find(filter)
@@ -245,10 +246,11 @@ const getStudentFeeBreakdown = async (req, res) => {
 
 const getStudentOverrides = async (req, res) => {
   try {
-    const { studentId, academicSession } = req.query;
+    const { studentId, academicSession, feeCategory } = req.query;
     const filter = {};
     if (studentId) filter.student = studentId;
     if (academicSession) filter.academicSession = academicSession;
+    if (feeCategory) filter.feeCategory = feeCategory;
 
     const overrides = await StudentFeeOverride.find(filter)
       .populate("feeCategory", "name code category")
@@ -286,9 +288,10 @@ const createStudentFeeOverride = async (req, res) => {
       existing.amount = amount;
       existing.frequency = frequency || existing.frequency;
       existing.reason = reason || existing.reason;
+      existing.isActive = true;
       existing.modifiedBy = req.user?._id || null;
       await existing.save();
-      return res.status(200).json({ success: true, message: "Fee override updated.", override: existing });
+      return res.status(200).json({ success: true, message: "Fee override activated.", override: existing });
     }
 
     const override = await StudentFeeOverride.create({
@@ -299,11 +302,34 @@ const createStudentFeeOverride = async (req, res) => {
       amount,
       frequency: frequency || "Monthly",
       reason: reason || "",
+      isActive: true,
       createdBy: req.user?._id || null,
       modifiedBy: req.user?._id || null,
     });
 
-    return res.status(201).json({ success: true, message: "Fee override created.", override });
+    return res.status(201).json({ success: true, message: "Fee override activated.", override });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateStudentFeeOverride = async (req, res) => {
+  try {
+    const override = await StudentFeeOverride.findById(req.params.id);
+    if (!override) {
+      return res.status(404).json({ success: false, message: "Override not found." });
+    }
+
+    const { amount, frequency, isActive, reason } = req.body;
+    if (amount !== undefined) override.amount = amount;
+    if (frequency !== undefined) override.frequency = frequency;
+    if (isActive !== undefined) override.isActive = isActive;
+    if (reason !== undefined) override.reason = reason;
+    override.modifiedBy = req.user?._id || null;
+    await override.save();
+
+    return res.status(200).json({ success: true, message: "Fee override updated.", override });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error.message });
@@ -332,5 +358,6 @@ module.exports = {
   getStudentFeeBreakdown,
   getStudentOverrides,
   createStudentFeeOverride,
+  updateStudentFeeOverride,
   deleteStudentFeeOverride,
 };

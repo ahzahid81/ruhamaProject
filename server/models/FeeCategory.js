@@ -66,6 +66,19 @@ const feeCategorySchema = new mongoose.Schema(
     },
 
     // ===================================
+    // APPLICABLE TO
+    // Global = one amount for everyone
+    // Class Wise = per-class amounts
+    // Specific = per-student amounts
+    // ===================================
+
+    applicableTo: {
+      type: String,
+      enum: ["Global", "Class Wise", "Specific"],
+      default: "Global",
+    },
+
+    // ===================================
     // DEFAULT AMOUNT
     // ===================================
 

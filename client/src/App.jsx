@@ -3,6 +3,7 @@ import {
   BrowserRouter,
   Routes,
   Route,
+  Navigate,
 } from "react-router-dom";
 import { getSettings } from "./services/settingsCache";
 
@@ -40,6 +41,7 @@ import ReportCard from "./pages/exam/ReportCard";
 import ResultSheet from "./pages/exam/ResultSheet";
 import CollectPayment from "./pages/payment/CollectPayment";
 import FeeSettings from "./pages/admin/FeeSettings";
+import StudentWiseFees from "./pages/admin/StudentWiseFees";
 import SystemSettings from "./pages/admin/SystemSettings";
 import StudentLedger from "./pages/admin/students/StudentLedger";
 import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
@@ -47,7 +49,6 @@ import StudentFeeAssignments from "./pages/admin/students/StudentFeeAssignments"
 import DailyAttendance from "./pages/attendance/DailyAttendance";
 import AttendanceReport from "./pages/attendance/AttendanceReport";
 import PaymentHistory from "./pages/payment/PaymentHistory";
-import FeeCategories from "./pages/admin/FeeCategories";
 import FeeCategoryForm from "./pages/admin/FeeCategoryForm";
 import ClassRateForm from "./pages/admin/ClassRateForm";
 import ExamForm from "./pages/exam/ExamForm";
@@ -487,12 +488,18 @@ function App() {
             }
           />
 
-          {/* Fee Categories */}
+          {/* Fee Categories (old page -> unified Fee Settings) */}
           <Route
             path="/fees/categories"
+            element={<Navigate to="/fees/settings" replace />}
+          />
+
+          {/* Student-wise Fee Settings & Override */}
+          <Route
+            path="/fees/student-wise"
             element={
-              <ProtectedRoute adminOnly={true}>
-                <FeeCategories />
+              <ProtectedRoute>
+                <StudentWiseFees />
               </ProtectedRoute>
             }
           />

@@ -1,5 +1,6 @@
 const Attendance = require("../models/Attendance");
 const Student = require("../models/Student");
+const { sortStudents } = require("../utils/sort");
 
 // ============================================
 // MARK ATTENDANCE (Bulk)
@@ -26,7 +27,9 @@ const markAttendance = async (req, res) => {
     const filter = { className, status: { $ne: "Inactive" } };
     if (section) filter.section = section;
 
-    const students = await Student.find(filter).select("_id studentId name").sort({ name: 1 });
+    const students = await sortStudents(
+      await Student.find(filter).select("_id studentId name").lean()
+    );
 
     if (students.length === 0) {
       return res.status(404).json({ success: false, message: "No students found for this class/section." });
@@ -97,11 +100,13 @@ const getAttendanceByClass = async (req, res) => {
     const records = await Attendance.find(filter)
       .populate("student", "name studentId photo");
 
-    const students = await Student.find({
-      className,
-      ...(section ? { section } : {}),
-      status: { $ne: "Inactive" },
-    }).select("_id studentId name photo");
+    const students = await sortStudents(
+      await Student.find({
+        className,
+        ...(section ? { section } : {}),
+        status: { $ne: "Inactive" },
+      }).select("_id studentId name photo").lean()
+    );
 
     const attendanceMap = {};
     records.forEach((r) => {
@@ -197,11 +202,13 @@ const getMonthlyReport = async (req, res) => {
 
     const records = await Attendance.find(filter);
 
-    const students = await Student.find({
-      className,
-      ...(section ? { section } : {}),
-      status: { $ne: "Inactive" },
-    }).select("_id studentId name").sort({ name: 1 });
+    const students = await sortStudents(
+      await Student.find({
+        className,
+        ...(section ? { section } : {}),
+        status: { $ne: "Inactive" },
+      }).select("_id studentId name").lean()
+    );
 
     const statsMap = {};
     students.forEach((s) => {

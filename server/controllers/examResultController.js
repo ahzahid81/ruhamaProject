@@ -2,6 +2,7 @@ const ExamResult = require("../models/ExamResult");
 const ExamSubject = require("../models/ExamSubject");
 const ExamSetting = require("../models/ExamSetting");
 const Student = require("../models/Student");
+const { sortStudents } = require("../utils/sort");
 
 const XLSX = require("xlsx");
 
@@ -106,7 +107,9 @@ const getStudentsForMarks = async (req, res) => {
 
     const subjects = await ExamSubject.find({ exam: examId, className }).sort({ order: 1, subjectName: 1 });
 
-    const students = await Student.find({ className, status: { $ne: "Inactive" } }).sort({ studentId: 1, name: 1 });
+    const students = await sortStudents(
+      await Student.find({ className, status: { $ne: "Inactive" } }).lean()
+    );
 
     const results = await ExamResult.find({ exam: examId, className });
 

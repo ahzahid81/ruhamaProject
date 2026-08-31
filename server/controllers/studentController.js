@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const Student = require("../models/Student");
 const Counter = require("../models/Counter");
 const Settings = require("../models/Settings");
+const { sortStudents } = require("../utils/sort");
 
 // ======================================================
 // DYNAMIC CLASS CODE (from Settings)
@@ -981,11 +982,9 @@ const getStudents = async (req, res) => {
         }
 
         const students =
-            await Student.find(filter)
-                .sort({
-                    className: 1,
-                    createdAt: 1,
-                });
+            await sortStudents(
+                await Student.find(filter).lean()
+            );
 
         res.status(200).json(students);
 

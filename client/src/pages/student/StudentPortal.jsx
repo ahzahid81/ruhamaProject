@@ -135,12 +135,9 @@ export default function StudentPortal() {
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
           <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <span className="font-bold text-gray-900">Student Portal</span>
-              <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 transition">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <button onClick={() => setSidebarOpen(false)} className="absolute top-4 right-3 z-10 p-2 rounded-xl text-gray-400 hover:bg-gray-100 transition">
+              <X className="w-5 h-5" />
+            </button>
             <div className="flex-1 overflow-y-auto">{sidebarContent}</div>
           </div>
         </div>

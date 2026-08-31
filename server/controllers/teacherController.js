@@ -16,7 +16,7 @@ const getTeachers = async (
           "_id name role assignments"
         )
         .sort({
-          createdAt: -1,
+          createdAt: 1,
         });
 
     res.status(200).json(

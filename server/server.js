@@ -23,6 +23,7 @@ const studentPortalRoutes = require("./routes/studentPortalRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
+const examNameRoutes = require("./routes/examNameRoutes");
 
 
 dotenv.config();
@@ -69,6 +70,8 @@ app.use("/api/public", publicRoutes);
 app.use("/api/events", eventRoutes);
 
 app.use("/api/gallery", galleryRoutes);
+
+app.use("/api/exam-names", examNameRoutes);
 
 app.get("/", (req, res) => {
   res.send("API Running");

@@ -44,13 +44,6 @@ const DEFAULT_SETTINGS = {
     "MDP",
     "Islamic Studies",
   ],
-  examNames: [
-    "Half Yearly",
-    "Year Final",
-    "Model Test",
-    "Monthly Assessment",
-    "Admission Test",
-  ],
   paymentMethods: [
     "Cash",
     "bKash",
@@ -65,6 +58,14 @@ const DEFAULT_SETTINGS = {
   academicSessions: ["2025", "2026", "2027"],
   currentSession: "2026",
 };
+
+const LEGACY_EXAM_NAMES = [
+  "Half Yearly",
+  "Year Final",
+  "Model Test",
+  "Monthly Assessment",
+  "Admission Test",
+];
 
 settingsSchema.statics.getSettings = async function () {
   let settings = await this.findOne();
@@ -87,6 +88,18 @@ settingsSchema.statics.getSettings = async function () {
       changed = true;
     }
   }
+
+  if (
+    Array.isArray(settings.examNames) &&
+    settings.examNames.length === LEGACY_EXAM_NAMES.length &&
+    settings.examNames.every((name) =>
+      LEGACY_EXAM_NAMES.includes(name)
+    )
+  ) {
+    settings.examNames = [];
+    changed = true;
+  }
+
   if (changed) await settings.save();
 
   return settings;

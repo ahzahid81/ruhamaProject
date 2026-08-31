@@ -8,7 +8,7 @@ const StudentLedger = require("../models/StudentLedger");
 const ClassFeeSetting = require("../models/ClassFeeSetting");
 const StudentFeeOverride = require("../models/StudentFeeOverride");
 const StudentFeeAssignment = require("../models/StudentFeeAssignment");
-const Settings = require("../models/Settings");
+const ExamName = require("../models/ExamName");
 
 const { createLedgerEntry } = require("./studentLedgerController");
 
@@ -528,7 +528,15 @@ const cancelPayment = async (req, res) => {
 const checkAdmitCardEligibility = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const { month = 6, year = new Date().getFullYear(), examName = "Half Yearly" } = req.query;
+    const { month = 6, year = new Date().getFullYear(), examName } = req.query;
+
+    if (!examName) {
+      return res.status(400).json({
+        success: false,
+        eligible: false,
+        message: "Please select an exam. Add exam names in System Settings first.",
+      });
+    }
 
     const student = await Student.findOne({ studentId, status: "Active" });
 
@@ -673,7 +681,6 @@ const getStudentDueItems = async (req, res) => {
       overrides,
       assignments,
       paidItems,
-      settingsDoc,
     ] = await Promise.all([
       FeeCategory.find({ isActive: true }).sort({ sortOrder: 1 }),
       ClassFeeSetting.find({
@@ -695,7 +702,6 @@ const getStudentDueItems = async (req, res) => {
         student: student._id,
         paymentStatus: { $in: ["Paid", "Partial"] },
       }),
-      Settings.findOne(),
     ]);
 
     // Build sets for fully-paid and partial items.
@@ -747,8 +753,12 @@ const getStudentDueItems = async (req, res) => {
     const classSettingMap = {};
     classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
 
-    // Get exam names from Settings
-    const examNames = settingsDoc?.examNames?.filter(Boolean) || [];
+    // Get exam names from the ExamName collection
+    const examNameDocs =
+      await ExamName.find()
+        .sort({ order: 1, name: 1 });
+    const examNames =
+      examNameDocs.map((e) => e.name);
 
     const dueItems = [];
     const feeLedger = [];

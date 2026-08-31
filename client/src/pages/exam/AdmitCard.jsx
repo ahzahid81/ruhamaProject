@@ -16,23 +16,23 @@ const AdmitCard = () => {
     const [loading, setLoading] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [systemSettings, setSystemSettings] = useState(null);
+    const [examList, setExamList] = useState([]);
     const [toast, setToast] = useState(null);
     const printTimeoutRef = useRef(null);
 
     useEffect(() => {
         getSettings().then((res) => setSystemSettings(res.data)).catch(() => {
             setSystemSettings({
-              examName: "Half Yearly Examination",
-              currentSession: "2026",
-              academicSessions: ["2025", "2026", "2027"],
-              examNames: ["Half Yearly", "Year Final", "Model Test", "Monthly Assessment", "Admission Test"],
+              currentSession: "",
+              academicSessions: [],
             });
         });
+        api.get("/exam-names").then((res) => setExamList(res.data)).catch(() => setExamList([]));
     }, []);
 
     const exam = {
-        examName: systemSettings?.examName || "Half Yearly Examination",
-        academicSession: systemSettings?.currentSession || "2026",
+        examName: examList?.[0]?.name || "",
+        academicSession: systemSettings?.currentSession || "",
     };
 
 
@@ -44,7 +44,7 @@ const AdmitCard = () => {
             setLoading(true);
             setStudent(selectedStudent);
             const res = await api.get(
-                `/payments/admit-card/${selectedStudent.studentId}`
+                `/payments/admit-card/${selectedStudent.studentId}?examName=${encodeURIComponent(exam.examName)}`
             );
             setEligibility({
                 reasons: [],
@@ -91,7 +91,7 @@ const AdmitCard = () => {
 
         loadStudent();
 
-    }, [studentId]);
+    }, [studentId, examList]);
 
     // ==========================
     // PRINT - FIXED VERSION

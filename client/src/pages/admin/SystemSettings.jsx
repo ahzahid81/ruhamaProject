@@ -30,9 +30,20 @@ export default function SystemSettings() {
   const [activeTab, setActiveTab] = useState("classes");
   const [newClass, setNewClass] = useState({ name: "", code: "" });
   const [newItem, setNewItem] = useState("");
+  const [examNames, setExamNames] = useState([]);
+  const [newExamName, setNewExamName] = useState("");
+  const [editingExamId, setEditingExamId] = useState(null);
+  const [editingExamName, setEditingExamName] = useState("");
 
   useEffect(() => {
     loadSettings();
+  }, []);
+
+  useEffect(() => {
+    api
+      .get("/exam-names")
+      .then((res) => setExamNames(res.data))
+      .catch(() => {});
   }, []);
 
   const loadSettings = useCallback(async () => {
@@ -54,7 +65,6 @@ export default function SystemSettings() {
         ],
         sections: ["A", "B", "C"],
         subjects: ["Arabic", "Math", "English", "Bangla", "BGS", "Science", "MDP", "Islamic Studies"],
-        examNames: ["Half Yearly", "Year Final", "Model Test", "Monthly Assessment", "Admission Test"],
         paymentMethods: ["Cash", "bKash", "Nagad", "Rocket", "Bank", "Cheque", "Card", "Online", "Other"],
         academicSessions: ["2025", "2026", "2027"],
         currentSession: "2026",
@@ -101,6 +111,44 @@ export default function SystemSettings() {
     const arr = settings[key] || [];
     const updated = { ...settings, [key]: arr.filter((_, i) => i !== index) };
     setSettings(updated);
+  };
+
+  const addExamName = async () => {
+    const name = newExamName.trim();
+    if (!name) return;
+    try {
+      const res = await api.post("/exam-names", { name });
+      setExamNames([...examNames, res.data]);
+      setNewExamName("");
+      showMessage("Exam name added");
+    } catch (err) {
+      showMessage(err.response?.data?.message || "Failed to add", "error");
+    }
+  };
+
+  const saveExamName = async (id) => {
+    const name = editingExamName.trim();
+    if (!name) return;
+    try {
+      await api.put(`/exam-names/${id}`, { name });
+      setExamNames(examNames.map((e) => (e._id === id ? { ...e, name } : e)));
+      setEditingExamId(null);
+      setEditingExamName("");
+      showMessage("Exam name updated");
+    } catch (err) {
+      showMessage(err.response?.data?.message || "Failed to update", "error");
+    }
+  };
+
+  const deleteExamName = async (id, name) => {
+    if (!window.confirm(`Delete exam name "${name}"?\n\nExam fees already recorded keep their name; new Per Exam fees will only use the remaining names.`)) return;
+    try {
+      await api.delete(`/exam-names/${id}`);
+      setExamNames(examNames.filter((e) => e._id !== id));
+      showMessage("Exam name deleted");
+    } catch (err) {
+      showMessage(err.response?.data?.message || "Failed to delete", "error");
+    }
   };
 
   const handleSave = async () => {
@@ -247,8 +295,94 @@ export default function SystemSettings() {
         </div>
       )}
 
+      {/* Exam Names CRUD (dedicated DB collection) */}
+      {activeTab === "examNames" && (
+        <div className="bg-white rounded-3xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-bold text-slate-700">Manage Exam Names</h2>
+            <span className="text-sm text-gray-400">
+              {examNames.length} exam name{examNames.length !== 1 && "s"}
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            These are the exam types used for "Per Exam" fees and admit cards. Saved directly to the database.
+          </p>
+          <div className="flex gap-3 mb-4">
+            <input
+              type="text"
+              placeholder="e.g. First Summative"
+              value={newExamName}
+              onChange={(e) => setNewExamName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addExamName()}
+              className="flex-1 border rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <button
+              onClick={addExamName}
+              className="px-5 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition"
+            >
+              Add
+            </button>
+          </div>
+          {examNames.length === 0 ? (
+            <p className="text-gray-400 text-center py-6">No exam names yet. Add your school's exam types above.</p>
+          ) : (
+            <ul className="space-y-2">
+              {examNames.map((e) => (
+                <li key={e._id} className="flex items-center justify-between gap-3 bg-gray-50 border rounded-xl px-4 py-2.5">
+                  {editingExamId === e._id ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editingExamName}
+                        onChange={(ev) => setEditingExamName(ev.target.value)}
+                        onKeyDown={(ev) => ev.key === "Enter" && saveExamName(e._id)}
+                        className="flex-1 border rounded-xl p-2 outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <button onClick={() => saveExamName(e._id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition">
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingExamId(null);
+                          setEditingExamName("");
+                        }}
+                        className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-300 transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium text-gray-700">{e.name}</span>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditingExamId(e._id);
+                            setEditingExamName(e.name);
+                          }}
+                          className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-200 transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteExamName(e._id, e.name)}
+                          className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Array-based tabs */}
-      {isArrayTab && activeTab !== "classes" && (
+      {isArrayTab && activeTab !== "classes" && activeTab !== "examNames" && (
         <div className="bg-white rounded-3xl shadow-lg p-6">
           <h2 className="text-lg font-bold text-slate-700 mb-4">Manage {LABELS[activeTab]}</h2>
           <div className="flex gap-3 mb-4">

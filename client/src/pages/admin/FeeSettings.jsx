@@ -187,7 +187,7 @@ export default function FeeSettings() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Per student</span>
                           {catOverrides.length === 0 ? (
-                            <span className="text-xs text-amber-600">No student amounts set yet — edit to add, or use Student-wise Fees.</span>
+                            <span className="text-xs text-amber-600">Not activated for anyone yet — activate per student from Student-wise Fees.</span>
                           ) : (
                             <>
                               <span className="px-2 py-1 bg-gray-50 rounded-lg text-xs text-gray-600">

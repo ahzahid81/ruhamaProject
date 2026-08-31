@@ -192,6 +192,9 @@ const getStudentFeeBreakdown = async (req, res) => {
       const classSetting = classSettingMap[catId];
       const isRequired = cat.isRequired === true;
 
+      // Specific fees only show when manually activated for this student
+      if (cat.applicableTo === "Specific" && !assignment && !override) return null;
+
       // Optional fees only appear when explicitly assigned or overridden
       if (!isRequired && !assignment && !override) return null;
 

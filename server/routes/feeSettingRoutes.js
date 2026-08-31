@@ -74,7 +74,7 @@ router.get(
 );
 
 // ============================================
-// STUDENT FEE OVERRIDES
+// STUDENT FEE OVERRIDES (admin only)
 // ============================================
 
 router.get(
@@ -86,21 +86,21 @@ router.get(
 router.post(
   "/student-overrides",
   protect,
-  authorizeRoles("admin", "account-manager"),
+  authorizeRoles("admin"),
   createStudentFeeOverride
 );
 
 router.put(
   "/student-overrides/:id",
   protect,
-  authorizeRoles("admin", "account-manager"),
+  authorizeRoles("admin"),
   updateStudentFeeOverride
 );
 
 router.delete(
   "/student-overrides/:id",
   protect,
-  authorizeRoles("admin", "account-manager"),
+  authorizeRoles("admin"),
   deleteStudentFeeOverride
 );
 

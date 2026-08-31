@@ -6,6 +6,7 @@ const fallbackSettings = { classes: [], academicSessions: ["2026"], currentSessi
 
 export default function StudentWiseFees() {
   const [students, setStudents] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [systemSettings, setSystemSettings] = useState(fallbackSettings);
 
   const [classFilter, setClassFilter] = useState("");
@@ -35,9 +36,29 @@ export default function StudentWiseFees() {
       } catch {
         // silent
       }
+      try {
+        const res = await api.get("/payments/fee-categories");
+        setCategories(res.data || []);
+      } catch {
+        // silent
+      }
       setLoading(false);
     })();
   }, []);
+
+  const loadBreakdown = async (studentId) => {
+    try {
+      const res = await api.get(`/fees/student-fees/${studentId}?academicSession=${session}`);
+      const items = res.data.breakdown || [];
+      setBreakdown(items);
+      const map = {};
+      categories.forEach((c) => { map[c._id] = c.defaultAmount || ""; });
+      items.forEach((b) => { map[b.feeCategory._id] = b.effectiveAmount; });
+      setAmounts(map);
+    } catch {
+      setBreakdown([]);
+    }
+  };
 
   useEffect(() => {
     if (!selected) return;
@@ -46,11 +67,13 @@ export default function StudentWiseFees() {
         const items = r.data.breakdown || [];
         setBreakdown(items);
         const map = {};
+        categories.forEach((c) => { map[c._id] = c.defaultAmount || ""; });
         items.forEach((b) => { map[b.feeCategory._id] = b.effectiveAmount; });
         setAmounts(map);
       })
       .catch(() => setBreakdown([]));
-  }, [selected, session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, session, categories.length]);
 
   const showToast = (text, type = "success") => {
     setToast({ text, type });
@@ -66,21 +89,25 @@ export default function StudentWiseFees() {
 
   const isActive = (b) => b.source === "Student Override";
 
-  const activateOverride = async (b) => {
-    const amount = Number(amounts[b.feeCategory._id] || 0);
+  const activatedCatIds = new Set(breakdown.map((b) => String(b.feeCategory._id)));
+  const pendingSpecific = categories.filter(
+    (c) => c.applicableTo === "Specific" && c.isActive && !activatedCatIds.has(String(c._id))
+  );
+
+  const activateCat = async (cat) => {
+    const amount = Number(amounts[cat._id] || 0);
     if (!(amount > 0)) return showToast("Enter an amount greater than 0", "error");
     setSaving(true);
     try {
       await api.post("/fees/student-overrides", {
         student: selected._id,
         academicSession: session,
-        feeCategory: b.feeCategory._id,
+        feeCategory: cat._id,
         amount,
-        frequency: b.frequency || b.feeCategory.frequency || "Monthly",
+        frequency: cat.frequency || "Monthly",
       });
       showToast("Override activated for " + selected.name);
-      const res = await api.get(`/fees/student-fees/${selected._id}?academicSession=${session}`);
-      setBreakdown(res.data.breakdown || []);
+      await loadBreakdown(selected._id);
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to activate", "error");
     } finally {
@@ -94,8 +121,7 @@ export default function StudentWiseFees() {
     try {
       await api.put(`/fees/student-overrides/${b.overrideId}`, { isActive: false });
       showToast("Override deactivated");
-      const res = await api.get(`/fees/student-fees/${selected._id}?academicSession=${session}`);
-      setBreakdown(res.data.breakdown || []);
+      await loadBreakdown(selected._id);
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to deactivate", "error");
     } finally {
@@ -234,7 +260,7 @@ export default function StudentWiseFees() {
                               Deactivate
                             </button>
                           ) : (
-                            <button onClick={() => activateOverride(b)} disabled={saving}
+                            <button onClick={() => activateCat(cat)} disabled={saving}
                               className="px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-50">
                               Activate
                             </button>
@@ -243,6 +269,37 @@ export default function StudentWiseFees() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {pendingSpecific.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-gray-100">
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                    Activate a Specific Fee
+                  </h3>
+                  <div className="space-y-3">
+                    {pendingSpecific.map((cat) => (
+                      <div key={cat._id} className="border border-dashed border-gray-300 rounded-xl p-3">
+                        <p className="text-sm font-semibold text-slate-700 mb-1">{cat.name}</p>
+                        <p className="text-xs text-gray-400 mb-2">
+                          Not activated for {selected.name} yet. Set the amount, then click Activate. Default amount: {fmt(cat.defaultAmount)}
+                        </p>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">৳</span>
+                            <input type="number" min="0" value={amounts[cat._id] ?? ""}
+                              className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40"
+                              onChange={(e) => setAmounts({ ...amounts, [cat._id]: e.target.value })}
+                            />
+                          </div>
+                          <button onClick={() => activateCat(cat)} disabled={saving}
+                            className="px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-50">
+                            Activate
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </>

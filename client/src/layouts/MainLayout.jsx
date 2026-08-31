@@ -24,6 +24,7 @@ import {
   Receipt,
   Tag,
   CalendarDays,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const navGroups = [
@@ -78,6 +79,7 @@ const navGroups = [
       { name: "Admin Panel", path: "/admin", icon: Shield, roles: ["admin"] },
       { name: "Teachers", path: "/teachers", icon: User, roles: ["admin"] },
       { name: "Events", path: "/admin/events", icon: CalendarDays, roles: ["admin"] },
+      { name: "Gallery", path: "/admin/gallery", icon: ImageIcon, roles: ["admin"] },
       { name: "System Settings", path: "/admin/settings", icon: Settings, roles: ["admin"] },
     ],
   },

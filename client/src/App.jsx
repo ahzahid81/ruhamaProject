@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import LandingPage from "./pages/public/LandingPage";
 import EventDetails from "./pages/public/EventDetails";
 import EventsPage from "./pages/public/EventsPage";
+import AllGallery from "./pages/public/AllGallery";
 import StudentLogin from "./pages/student/StudentLogin";
 import StudentPortal from "./pages/student/StudentPortal";
 
@@ -57,6 +58,8 @@ import PaymentReceipt from "./pages/payment/PaymentReceipt";
 import AdmissionSuccess from "./pages/admin/AdmissionSuccess";
 import Events from "./pages/admin/Events";
 import EventForm from "./pages/admin/EventForm";
+import Gallery from "./pages/admin/Gallery";
+import GalleryForm from "./pages/admin/GalleryForm";
 
 function App() {
 
@@ -74,6 +77,9 @@ function App() {
 
         {/* Public Events List */}
         <Route path="/events" element={<EventsPage />} />
+
+        {/* Public Gallery */}
+        <Route path="/gallery" element={<AllGallery />} />
 
         {/* Public Event Detail */}
         <Route path="/events/:id" element={<EventDetails />} />
@@ -513,6 +519,32 @@ function App() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <EventForm />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Gallery */}
+          <Route
+            path="/admin/gallery"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <Gallery />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/gallery/new"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <GalleryForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/gallery/:id/edit"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <GalleryForm />
               </ProtectedRoute>
             }
           />

@@ -34,6 +34,7 @@ export default function LandingPage() {
   const [students, setStudents] = useState([]);
   const [counts, setCounts] = useState(null);
   const [events, setEvents] = useState([]);
+  const [gallery, setGallery] = useState([]);
   const [showAll, setShowAll] = useState(false);
   const [paused, setPaused] = useState(false);
 
@@ -41,6 +42,7 @@ export default function LandingPage() {
     api.get("/public/students").then((res) => setStudents(res.data)).catch(() => {});
     api.get("/public/counts").then((res) => setCounts(res.data)).catch(() => {});
     api.get("/events?limit=4").then((res) => setEvents(res.data)).catch(() => {});
+    api.get("/gallery?limit=10").then((res) => setGallery(res.data)).catch(() => {});
   }, []);
 
   return (
@@ -59,6 +61,7 @@ export default function LandingPage() {
               { name: "About", href: "#about" },
               { name: "Students", href: "#students" },
               { name: "Programs", href: "#programs" },
+              { name: "Gallery", href: "#gallery" },
               { name: "Contact", href: "#contact" },
             ].map((l) => (
               <a key={l.name} href={l.href} className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">
@@ -253,8 +256,34 @@ export default function LandingPage() {
         </section>
       )}
 
+      {/* School Gallery */}
+      {gallery.length > 0 && (
+        <section id="gallery" className="py-20 px-6 scroll-mt-20">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">School Gallery</h3>
+              <h2 className="text-3xl font-bold text-gray-900 mt-3">Our Days, in Pictures</h2>
+              <p className="text-gray-500 mt-3 max-w-2xl mx-auto text-sm leading-relaxed">
+                Assemblies, celebrations and everyday moments — a window into Ruhama life.
+              </p>
+            </div>
+
+            <GalleryCarousel photos={gallery} />
+
+            <div className="text-center mt-10">
+              <Link
+                to="/gallery"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+              >
+                See All Photos <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features */}
-      <section id="experience" className="py-20 px-6 scroll-mt-20">
+      <section id="experience" className="py-20 px-6 bg-gray-50 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">The Ruhama Way</h3>
@@ -287,7 +316,7 @@ export default function LandingPage() {
       </section>
 
       {/* Contact */}
-      <section id="contact" className="py-20 px-6 bg-gray-50 scroll-mt-20">
+      <section id="contact" className="py-20 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Contact</h3>
@@ -327,6 +356,7 @@ export default function LandingPage() {
             <a href="#about" className="hover:text-indigo-400 transition">About</a>
             <a href="#students" className="hover:text-indigo-400 transition">Students</a>
             <a href="#programs" className="hover:text-indigo-400 transition">Programs</a>
+            <a href="#gallery" className="hover:text-indigo-400 transition">Gallery</a>
             <a href="#contact" className="hover:text-indigo-400 transition">Contact</a>
           </div>
           <p className="text-xs">&copy; {new Date().getFullYear()} Ruhama United School. All rights reserved.</p>
@@ -392,6 +422,78 @@ function Gallery({ students, paused, setPaused }) {
                 <div className="p-4 text-center flex-1 flex flex-col justify-center">
                   <p className="font-bold text-gray-900 truncate">{s.name}</p>
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {maxIndex > 0 && (
+        <>
+          <button
+            onClick={() => setIndex((i) => (i <= 0 ? maxIndex : i - 1))}
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 md:-translate-x-6 w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-700 hover:bg-indigo-600 hover:text-white transition-all z-10"
+            aria-label="Previous"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setIndex((i) => (i >= maxIndex ? 0 : i + 1))}
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 md:translate-x-6 w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-700 hover:bg-indigo-600 hover:text-white transition-all z-10"
+            aria-label="Next"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============ SCHOOL PHOTOS (sliding carousel, no text) ============
+
+function GalleryCarousel({ photos }) {
+  const [visible, setVisible] = useState(getVisibleCount());
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setVisible(getVisibleCount());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const maxIndex = Math.max(0, photos.length - visible);
+  const effIndex = Math.min(index, maxIndex);
+
+  useEffect(() => {
+    if (paused || photos.length === 0) return;
+    const t = setInterval(() => {
+      setIndex((i) => (i >= maxIndex ? 0 : i + 1));
+    }, 3200);
+    return () => clearInterval(t);
+  }, [paused, maxIndex, photos.length]);
+
+  if (photos.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
+        <p className="text-sm text-gray-400 mt-4">Loading photos...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <div className="overflow-hidden">
+        <div
+          className="flex transition-transform duration-700 ease-out"
+          style={{ transform: `translateX(-${effIndex * (100 / visible)}%)` }}
+        >
+          {photos.map((p) => (
+            <div key={p._id} className="flex-shrink-0 px-3" style={{ width: `${100 / visible}%` }}>
+              <div className="aspect-[4/3] bg-gray-100 rounded-2xl border border-gray-100 overflow-hidden">
+                <img src={p.photo} alt={p.altText || "School photo"} loading="lazy" className="w-full h-full object-cover" />
               </div>
             </div>
           ))}

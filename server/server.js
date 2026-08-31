@@ -19,6 +19,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const studentPortalRoutes = require("./routes/studentPortalRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const eventRoutes = require("./routes/eventRoutes");
+const galleryRoutes = require("./routes/galleryRoutes");
 
 
 dotenv.config();
@@ -63,6 +64,8 @@ app.use("/api/student-portal", studentPortalRoutes);
 app.use("/api/public", publicRoutes);
 
 app.use("/api/events", eventRoutes);
+
+app.use("/api/gallery", galleryRoutes);
 
 app.get("/", (req, res) => {
   res.send("API Running");

@@ -32,6 +32,7 @@ const registerTeacher = async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      plainPassword: password,
       assignments,
     });
 
@@ -87,6 +88,9 @@ const loginTeacher = async (req, res) => {
         expiresIn: "7d",
       }
     );
+
+    teacher.lastLogin = new Date();
+    await teacher.save();
 
     res.status(200).json({
       message: "Login Successful",

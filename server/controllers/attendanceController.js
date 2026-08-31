@@ -246,7 +246,15 @@ const getMonthlyReport = async (req, res) => {
       section: section || "",
       month: Number(month),
       year: Number(year),
-      totalWorkingDays: records.length > 0 ? new Set(records.map((r) => r.date.toISOString().split("T")[0])).size : 0,
+      totalWorkingDays:
+        records.length > 0
+          ? new Set(
+              records.map((r) => {
+                const d = r.date;
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+              })
+            ).size
+          : 0,
       students: Object.values(statsMap),
     });
   } catch (error) {

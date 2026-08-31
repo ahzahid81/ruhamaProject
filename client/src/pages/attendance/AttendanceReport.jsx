@@ -2,14 +2,15 @@ import { useState, useEffect } from "react";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
 import { BarChart3, Download, Calendar } from "lucide-react";
+import { bdMonth, bdYear } from "../../utils/bdTime";
 
 export default function AttendanceReport() {
   const [settings, setSettings] = useState(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(bdMonth());
+  const [selectedYear, setSelectedYear] = useState(bdYear());
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
 

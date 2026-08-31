@@ -7,8 +7,14 @@ const uploadImage =
   require("../middlewares/uploadImage");
 
 const {
+  protect,
+  authorizeRoles,
+} = require("../middlewares/authMiddleware");
+
+const {
   createStudent,
   getStudents,
+  getStudentsManage,
   getStudent,
   updateStudent,
   deleteStudent,
@@ -34,6 +40,17 @@ router.post(
 router.get(
   "/",
   getStudents
+);
+
+// =====================================
+// GET STUDENTS WITH PASSWORDS (admin / account manager only)
+// =====================================
+
+router.get(
+  "/manage",
+  protect,
+  authorizeRoles("admin", "account-manager"),
+  getStudentsManage
 );
 
 

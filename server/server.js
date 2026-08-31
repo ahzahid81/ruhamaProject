@@ -1,3 +1,6 @@
+// Force Bangladesh timezone (Asia/Dhaka, UTC+6) for every date/time in the server
+process.env.TZ = "Asia/Dhaka";
+
 const express = require("express");
 const path = require("path");
 const cors = require("cors");

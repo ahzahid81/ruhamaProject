@@ -6,7 +6,6 @@ import {
   UserPlus,
   Trash2,
   Edit3,
-  Mail,
   Shield,
   BookOpen,
   Users,
@@ -14,6 +13,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import Toast from "../components/Toast";
+import { bdDateTime } from "../utils/bdTime";
 
 const Teachers = () => {
   const [teachers, setTeachers] = useState([]);
@@ -53,7 +53,7 @@ const Teachers = () => {
 
   const getTeachers = async () => {
     try {
-      const res = await api.get("/teachers");
+      const res = await api.get("/teachers/manage");
       setTeachers(res.data);
     } catch (error) {
       console.log(error);
@@ -319,65 +319,77 @@ const Teachers = () => {
           <p className="text-sm text-gray-400">No teachers found</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {teachers.map((teacher) => (
-            <div key={teacher._id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center text-lg font-bold text-indigo-600 border border-indigo-100">
-                    {teacher.name?.charAt(0)?.toUpperCase() || "T"}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{teacher.name}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Mail className="w-3.5 h-3.5 text-gray-400" />
-                      <p className="text-xs text-gray-400">{teacher.email}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold ${
-                      teacher.role === "admin"
-                        ? "bg-purple-50 text-purple-700"
-                        : "bg-blue-50 text-blue-700"
-                    }`}
-                  >
-                    <Shield className="w-3 h-3" />
-                    {teacher.role}
-                  </span>
-                  <Link
-                    to={`/teachers/${teacher._id}/edit`}
-                    state={{ teacher }}
-                    className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                    title="Edit"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </Link>
-                  <button
-                    onClick={() => setDeleteTarget(teacher._id)}
-                    className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {teacher.assignments?.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-50">
-                  {teacher.assignments.map((item, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium"
-                    >
-                      {item.subject} - {item.className}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3.5 font-semibold">Teacher</th>
+                  <th className="px-5 py-3.5 font-semibold">Email</th>
+                  <th className="px-5 py-3.5 font-semibold">Password</th>
+                  <th className="px-5 py-3.5 font-semibold">Role</th>
+                  <th className="px-5 py-3.5 font-semibold">Last Login</th>
+                  <th className="px-5 py-3.5 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {teachers.map((teacher) => (
+                  <tr key={teacher._id} className="hover:bg-gray-50/50 transition">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center font-bold text-indigo-600 border border-indigo-100">
+                          {teacher.name?.charAt(0)?.toUpperCase() || "T"}
+                        </span>
+                        <span className="font-medium text-gray-900">{teacher.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-600">{teacher.email || "—"}</td>
+                    <td className="px-5 py-3.5">
+                      <span className="font-mono text-xs font-semibold bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700">
+                        {teacher.plainPassword || "—"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold ${
+                          teacher.role === "admin"
+                            ? "bg-purple-50 text-purple-700"
+                            : teacher.role === "account-manager"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-blue-50 text-blue-700"
+                        }`}
+                      >
+                        <Shield className="w-3 h-3" />
+                        {teacher.role === "account-manager" ? "A/C Manager" : teacher.role}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-500 text-xs whitespace-nowrap">
+                      {teacher.lastLogin ? bdDateTime(teacher.lastLogin, { shortMonth: true }) : "Never"}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/teachers/${teacher._id}/edit`}
+                          state={{ teacher }}
+                          className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => setDeleteTarget(teacher._id)}
+                          className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       {/* Delete Confirm Modal */}

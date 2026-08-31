@@ -5,6 +5,7 @@ import api from "../services/api";
 import { getSettings } from "../services/settingsCache";
 import logo from "../assets/logo.png";
 import Toast from "../components/Toast";
+import { bdToday } from "../utils/bdTime";
 
 const ClassReport = () => {
 
@@ -13,7 +14,7 @@ const ClassReport = () => {
     const [className, setClassName] = useState("");
 
     const [date, setDate] = useState(
-        new Date().toISOString().split("T")[0]
+        bdToday()
     );
 
     const [report, setReport] = useState(null);

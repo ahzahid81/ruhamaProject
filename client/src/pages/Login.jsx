@@ -2,6 +2,7 @@ import { useState } from "react";
 import api from "../services/api";
 import logo from "../assets/logo.png";
 import { Mail, Lock, LogIn, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { bdYear } from "../utils/bdTime";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -124,7 +125,7 @@ const Login = () => {
           {/* Footer */}
           <div className="text-center mt-8">
             <p className="text-indigo-200/40 text-xs">
-              &copy; {new Date().getFullYear()} Ruhama United School
+              &copy; {bdYear()} Ruhama United School
             </p>
           </div>
         </div>

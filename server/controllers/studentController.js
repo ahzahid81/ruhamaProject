@@ -458,7 +458,7 @@ const importStudents = async (req, res) => {
                     await generateAdmissionNo(
                         "2026"
                     );
-                // --------------------------
+// --------------------------
                 // CREATE
                 // --------------------------
 
@@ -467,8 +467,12 @@ const importStudents = async (req, res) => {
                     studentId,
 
                     password:
+
                         hashedPassword,
 
+                    plainPassword:
+
+                        password,
                     admissionNo,
 
                     name,
@@ -982,7 +986,68 @@ const getStudents = async (req, res) => {
                 await Student.find(filter).lean()
             );
 
+        // Strip login secrets from the general list
+        students.forEach((s) => {
+            delete s.password;
+            delete s.plainPassword;
+        });
+
         res.status(200).json(students);
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
+
+};
+
+// ======================================================
+// GET ALL STUDENTS (ADMIN / ACCOUNT MANAGER VIEW)
+// Includes the default password (plainPassword)
+// ======================================================
+
+const getStudentsManage = async (req, res) => {
+
+    try {
+
+        const filter = {};
+
+        if (req.query.className)
+            filter.className = req.query.className;
+
+        if (req.query.section)
+            filter.section = req.query.section;
+
+        if (req.query.status)
+            filter.status = req.query.status;
+
+        if (req.query.search) {
+            filter.$or = [
+                { name: { $regex: req.query.search, $options: "i" } },
+                { studentId: { $regex: req.query.search, $options: "i" } },
+                { fatherMobile: { $regex: req.query.search, $options: "i" } },
+            ];
+        }
+
+        const students = await sortStudents(
+            await Student.find(filter).lean()
+        );
+
+        const result = students.map((s) => {
+            const { password, plainPassword, ...rest } = s;
+            return {
+                ...rest,
+                plainPassword: plainPassword || s.fatherMobile || "123456",
+            };
+        });
+
+        res.status(200).json(result);
 
     }
 
@@ -1368,6 +1433,9 @@ const resetPassword = async (req, res) => {
 
             );
 
+        student.plainPassword =
+            student.fatherMobile;
+
         await student.save();
 
         res.status(200).json({
@@ -1475,6 +1543,8 @@ module.exports = {
     createStudent,
 
     getStudents,
+
+    getStudentsManage,
 
     getStudent,
 

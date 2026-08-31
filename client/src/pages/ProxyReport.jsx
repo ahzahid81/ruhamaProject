@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 import { UserCheck, BookOpen, Calendar, FileText, Loader2 } from "lucide-react";
 import Toast from "../components/Toast";
+import { bdToday } from "../utils/bdTime";
 
 const ProxyReport = () => {
   const teacher = JSON.parse(localStorage.getItem("teacher"));
@@ -10,7 +11,7 @@ const ProxyReport = () => {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [classWork, setClassWork] = useState("");
   const [homeWork, setHomeWork] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(bdToday());
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
 

@@ -26,6 +26,16 @@ const teacherSchema =
         type: String,
       },
 
+      plainPassword: {
+        type: String,
+        default: "",
+      },
+
+      lastLogin: {
+        type: Date,
+        default: null,
+      },
+
       role: {
         type: String,
 

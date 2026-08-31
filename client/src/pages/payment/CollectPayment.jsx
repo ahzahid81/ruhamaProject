@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
+import { bdYear, bdDate } from "../../utils/bdTime";
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -212,7 +213,7 @@ export default function CollectPayment() {
           feeName: fee.feeName,
           applicableType: fee.applicableType,
           month: fee.applicableType === "Month" ? fee.month : null,
-          year: fee.year || new Date().getFullYear(),
+          year: fee.year || bdYear(),
           examName: fee.applicableType === "Exam" ? fee.examName : "",
           payableAmount: payable,
           paidAmount: paid,
@@ -555,7 +556,7 @@ export default function CollectPayment() {
                 <tbody className="divide-y divide-gray-100">
                   {paymentHistory.map((p) => (
                     <tr key={p._id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-5 py-3 text-gray-500 text-xs">{new Date(p.createdAt || p.date).toLocaleDateString("en-IN")}</td>
+                      <td className="px-5 py-3 text-gray-500 text-xs">{bdDate(p.createdAt || p.date)}</td>
                       <td className="px-5 py-3 font-mono text-xs font-semibold text-indigo-600">{p.receiptNo || "—"}</td>
                       <td className="px-5 py-3 text-xs text-gray-500">{p.paymentMethod || "—"}</td>
                       <td className="px-5 py-3 text-right font-semibold text-emerald-700">{fmt(p.totalAmount || p.paidAmount || p.amount)}</td>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
+import { bdDate, bdWeekday, bdMonth, bdYear } from "../../utils/bdTime";
 import {
   LayoutDashboard, User, CheckSquare, BarChart3, Wallet,
   BookOpen, LogOut, Menu, X,
@@ -227,7 +228,7 @@ function Dashboard({ fmt }) {
               <div key={p._id} className="px-5 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-700">{p.receiptNo}</p>
-                  <p className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString("en-IN")}</p>
+                  <p className="text-xs text-gray-400">{bdDate(p.createdAt)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-emerald-700">{fmt(p.paidAmount)}</p>
@@ -288,8 +289,8 @@ function Profile({ student }) {
 function Attendance() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(bdMonth());
+  const [year, setYear] = useState(bdYear());
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   useEffect(() => {
@@ -360,8 +361,8 @@ function Attendance() {
               <tbody className="divide-y divide-gray-100">
                 {data.records.map((r) => (
                   <tr key={r._id} className="hover:bg-gray-50/50 transition">
-                    <td className="px-5 py-3 text-gray-700">{new Date(r.date).toLocaleDateString("en-IN")}</td>
-                    <td className="px-5 py-3 text-gray-500">{new Date(r.date).toLocaleDateString("en-IN", { weekday: "long" })}</td>
+                    <td className="px-5 py-3 text-gray-700">{bdDate(r.date)}</td>
+                    <td className="px-5 py-3 text-gray-500">{bdWeekday(r.date)}</td>
                     <td className="px-5 py-3">
                       <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                         r.status === "Present" ? "bg-emerald-100 text-emerald-700"
@@ -544,7 +545,7 @@ function Payments({ student, fmt }) {
               <tbody className="divide-y divide-gray-100">
                 {data.recentPayments.map((p) => (
                   <tr key={p._id} className="hover:bg-gray-50/50 transition">
-                    <td className="px-5 py-3 text-gray-500 text-xs">{new Date(p.createdAt).toLocaleDateString("en-IN")}</td>
+                    <td className="px-5 py-3 text-gray-500 text-xs">{bdDate(p.createdAt)}</td>
                     <td className="px-5 py-3 font-mono text-xs font-semibold text-indigo-600">{p.receiptNo}</td>
                     <td className="px-5 py-3 text-xs text-gray-500">{p.paymentMethod}</td>
                     <td className="px-5 py-3 text-right font-bold text-emerald-700">{fmt(p.paidAmount)}</td>
@@ -590,7 +591,7 @@ function Diary({ student }) {
           <div key={report._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800">{report.className}</h3>
-              <span className="text-xs text-gray-400">{new Date(report.date).toLocaleDateString("en-IN")}</span>
+              <span className="text-xs text-gray-400">{bdDate(report.date)}</span>
             </div>
             <div className="divide-y divide-gray-100">
               {report.entries?.map((entry, i) => (

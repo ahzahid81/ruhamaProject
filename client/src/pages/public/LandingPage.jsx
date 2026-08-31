@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
+import { bdYear } from "../../utils/bdTime";
 import {
   Users,
   BookOpen,
@@ -424,7 +425,7 @@ export default function LandingPage() {
 
         <div className="border-t border-gray-800">
           <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs">&copy; {new Date().getFullYear()} Ruhama United School. All rights reserved.</p>
+            <p className="text-xs">&copy; {bdYear()} Ruhama United School. All rights reserved.</p>
             <p className="text-xs text-gray-500">
               "Change yourself, Decorate the world."
             </p>

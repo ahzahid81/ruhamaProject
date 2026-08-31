@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { ArrowLeft } from "lucide-react";
 import api from "../../services/api";
+import { bdDate } from "../../utils/bdTime";
 
 const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
 
@@ -64,7 +65,7 @@ export default function PaymentReceipt() {
     );
   }
 
-  const date = payment.receiveDate || payment.createdAt ? new Date(payment.receiveDate || payment.createdAt).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN");
+  const date = payment.receiveDate || payment.createdAt ? bdDate(payment.receiveDate || payment.createdAt) : bdDate();
 
   return (
     <div className="max-w-md mx-auto py-6">

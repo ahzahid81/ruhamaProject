@@ -6,6 +6,7 @@ import {
 
 import api from "../services/api";
 import Toast from "../components/Toast";
+import { bdToday } from "../utils/bdTime";
 
 const CreateReport = () => {
 
@@ -35,9 +36,7 @@ const CreateReport = () => {
   const [date,
     setDate] =
     useState(
-      new Date()
-        .toISOString()
-        .split("T")[0]
+      bdToday()
     );
 
   const [loading,

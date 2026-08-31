@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { Hash, Lock, LogIn, Eye, EyeOff, AlertCircle, ArrowLeft } from "lucide-react";
+import { bdYear } from "../../utils/bdTime";
 
 export default function StudentLogin() {
   const [studentId, setStudentId] = useState("");
@@ -113,7 +114,7 @@ export default function StudentLogin() {
 
           <div className="text-center mt-8">
             <p className="text-emerald-200/40 text-xs">
-              &copy; {new Date().getFullYear()} Ruhama United School
+              &copy; {bdYear()} Ruhama United School
             </p>
           </div>
         </div>

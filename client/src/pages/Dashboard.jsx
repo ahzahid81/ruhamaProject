@@ -1,4 +1,5 @@
 import { LayoutDashboard, BookOpen, ClipboardList, ArrowRight, Clock, TrendingUp } from "lucide-react";
+import { bdDateLong } from "../utils/bdTime";
 
 const Dashboard = () => {
   const teacher = JSON.parse(localStorage.getItem("teacher"));
@@ -25,7 +26,7 @@ const Dashboard = () => {
             <div className="hidden sm:flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2.5 border border-white/10">
               <Clock className="w-4 h-4 text-indigo-200" />
               <span className="text-sm text-white font-medium">
-                {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                {bdDateLong(new Date(), { weekday: true })}
               </span>
             </div>
           </div>

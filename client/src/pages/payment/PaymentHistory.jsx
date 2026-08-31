@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
 import { Search, Filter, Receipt } from "lucide-react";
+import { bdDate } from "../../utils/bdTime";
 
 export default function PaymentHistory() {
   const [payments, setPayments] = useState([]);
@@ -196,7 +197,7 @@ export default function PaymentHistory() {
                     {payments.map((p) => (
                       <tr key={p._id} className="hover:bg-gray-50/50 transition">
                         <td className="px-5 py-3 text-gray-500 text-xs">
-                          {new Date(p.createdAt || p.receiveDate).toLocaleDateString("en-IN")}
+                          {bdDate(p.createdAt || p.receiveDate)}
                         </td>
                         <td className="px-5 py-3 font-mono text-xs font-semibold text-indigo-600">
                           {p.receiptNo || "—"}

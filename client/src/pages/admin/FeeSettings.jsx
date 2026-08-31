@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
+import { bdDate } from "../../utils/bdTime";
 
 const TABS = [
   { key: "categories", label: "Categories", icon: "📋" },
@@ -225,7 +226,7 @@ export default function FeeSettings() {
                         <td className="px-5 py-3.5 text-gray-500">{r.academicSession}</td>
                         <td className="px-5 py-3.5">{r.feeCategory?.name || getCatName(r.feeCategory)}</td>
                         <td className="px-5 py-3.5 text-right font-semibold text-emerald-700">{fmt(r.amount)}</td>
-                        <td className="px-5 py-3.5 text-sm">{r.dueDate ? new Date(r.dueDate).toLocaleDateString("en-IN") : "—"}</td>
+                        <td className="px-5 py-3.5 text-sm">{r.dueDate ? bdDate(r.dueDate) : "—"}</td>
                         <td className="px-5 py-3.5 text-gray-400 text-sm max-w-[160px] truncate">{r.description || "—"}</td>
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex gap-1.5 justify-end">

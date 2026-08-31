@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
+import { bdDateInput } from "../../utils/bdTime";
 
 const emptyRateForm = {
   className: "", academicSession: "", feeCategory: "",
@@ -63,7 +64,7 @@ export default function ClassRateForm() {
             setForm({
               className: rate.className, academicSession: rate.academicSession,
               feeCategory: rate.feeCategory?._id || rate.feeCategory || "",
-              amount: rate.amount, dueDate: rate.dueDate ? rate.dueDate.split("T")[0] : "",
+              amount: rate.amount, dueDate: rate.dueDate ? bdDateInput(rate.dueDate) : "",
               description: rate.description || "",
             });
           } else {
@@ -74,7 +75,7 @@ export default function ClassRateForm() {
               setForm({
                 className: found.className, academicSession: found.academicSession,
                 feeCategory: found.feeCategory?._id || found.feeCategory || "",
-                amount: found.amount, dueDate: found.dueDate ? found.dueDate.split("T")[0] : "",
+                amount: found.amount, dueDate: found.dueDate ? bdDateInput(found.dueDate) : "",
                 description: found.description || "",
               });
             }

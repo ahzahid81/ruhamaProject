@@ -32,6 +32,36 @@ const getTeachers = async (
 };
 
 
+// GET ALL TEACHERS (admin view: email, password, last login)
+const getTeachersManage = async (
+  req,
+  res
+) => {
+  try {
+
+    const teachers =
+      await Teacher.find()
+        .select(
+          "_id name email role assignments lastLogin plainPassword"
+        )
+        .sort({
+          createdAt: 1,
+        });
+
+    res.status(200).json(
+      teachers
+    );
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message,
+    });
+
+  }
+};
+
+
 // CREATE TEACHER
 const createTeacher = async (
   req,
@@ -69,6 +99,7 @@ const createTeacher = async (
         email,
         password:
           hashedPassword,
+        plainPassword: password,
         role,
         assignments,
       });
@@ -157,6 +188,7 @@ const updateTeacher = async (
 
 module.exports = {
   getTeachers,
+  getTeachersManage,
   createTeacher,
   deleteTeacher,
   updateTeacher,

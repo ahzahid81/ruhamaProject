@@ -14,6 +14,7 @@ import {
   GraduationCap,
   User,
   Phone,
+  KeyRound,
   AlertTriangle,
 } from "lucide-react";
 import Toast from "../../components/Toast";
@@ -46,7 +47,7 @@ const Students = () => {
 
   const loadStudents = async () => {
     try {
-      const res = await api.get("/students");
+      const res = await api.get("/students/manage");
       setStudents(res.data);
     } catch (error) {
       console.log(error);
@@ -199,6 +200,13 @@ const Students = () => {
                 <Phone className="w-3.5 h-3.5 text-gray-300" />
                 <span>
                   Mobile: <strong className="text-gray-700">{student.fatherMobile}</strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-3.5 h-3.5 text-gray-300" />
+                <span>
+                  Password:{" "}
+                  <strong className="font-mono text-indigo-700">{student.plainPassword || "—"}</strong>
                 </span>
               </div>
             </div>

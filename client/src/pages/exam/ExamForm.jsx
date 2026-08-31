@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
+import { bdDateInput } from "../../utils/bdTime";
 
 const emptyExamForm = {
   examName: "",
@@ -47,11 +48,11 @@ export default function ExamForm() {
     examName: exam.examName,
     examCode: exam.examCode,
     academicSession: exam.academicSession || "2026",
-    startDate: exam.startDate ? exam.startDate.split("T")[0] : "",
-    endDate: exam.endDate ? exam.endDate.split("T")[0] : "",
-    admitCardStart: exam.admitCardStart ? exam.admitCardStart.split("T")[0] : "",
-    admitCardEnd: exam.admitCardEnd ? exam.admitCardEnd.split("T")[0] : "",
-    resultPublishDate: exam.resultPublishDate ? exam.resultPublishDate.split("T")[0] : "",
+    startDate: exam.startDate ? bdDateInput(exam.startDate) : "",
+    endDate: exam.endDate ? bdDateInput(exam.endDate) : "",
+    admitCardStart: exam.admitCardStart ? bdDateInput(exam.admitCardStart) : "",
+    admitCardEnd: exam.admitCardEnd ? bdDateInput(exam.admitCardEnd) : "",
+    resultPublishDate: exam.resultPublishDate ? bdDateInput(exam.resultPublishDate) : "",
     isActive: exam.isActive,
     remarks: exam.remarks || "",
     requiredFees: (exam.requiredFees || []).map((f) => ({

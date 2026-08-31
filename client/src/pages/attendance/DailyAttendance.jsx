@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
 import { Calendar, Users, CheckCircle2, XCircle, Save, RefreshCw, Search } from "lucide-react";
+import { bdToday, bdDateLong } from "../../utils/bdTime";
 
 export default function DailyAttendance() {
   const [settings, setSettings] = useState(null);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(bdToday());
   const [students, setStudents] = useState([]);
   const [absentIds, setAbsentIds] = useState(new Set());
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -210,7 +211,7 @@ export default function DailyAttendance() {
             </div>
             <div className="rounded-xl p-4 border border-purple-200 bg-purple-50">
               <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-purple-600" /><p className="text-xs font-semibold uppercase tracking-wider text-purple-600">Date</p></div>
-              <p className="text-lg font-bold text-purple-800 mt-1">{new Date(selectedDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+              <p className="text-lg font-bold text-purple-800 mt-1">{bdDateLong(selectedDate, { shortMonth: true })}</p>
             </div>
           </div>
         )}

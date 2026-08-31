@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
 import Toast from "../../components/Toast";
+import { bdDate } from "../../utils/bdTime";
 
 const ExamManagement = () => {
   const [exams, setExams] = useState([]);
@@ -38,7 +39,7 @@ const ExamManagement = () => {
     }
   };
 
-  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN") : "—");
+  const fmtDate = (d) => (d ? bdDate(d) : "—");
 
   if (loading) {
     return (

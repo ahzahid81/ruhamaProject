@@ -3,7 +3,13 @@ const express = require("express");
 const router = express.Router();
 
 const {
+  protect,
+  authorizeRoles,
+} = require("../middlewares/authMiddleware");
+
+const {
   getTeachers,
+  getTeachersManage,
   createTeacher,
   deleteTeacher,
   updateTeacher,
@@ -14,6 +20,13 @@ const {
 router.get(
   "/",
   getTeachers
+);
+
+router.get(
+  "/manage",
+  protect,
+  authorizeRoles("admin"),
+  getTeachersManage
 );
 
 router.post(

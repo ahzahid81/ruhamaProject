@@ -18,6 +18,7 @@ import {
   Wallet,
   DollarSign,
 } from "lucide-react";
+import { bdDate } from "../../utils/bdTime";
 
 const HeaderInfo = ({ label, value }) => (
   <div className="bg-white/15 rounded-lg p-2.5 backdrop-blur-sm">
@@ -47,7 +48,7 @@ const InfoSection = ({ title, icon: Icon, iconBg, fields }) => (
 
 const formatDate = (date) => {
   if (!date) return "-";
-  return new Date(date).toLocaleDateString("en-GB");
+  return bdDate(date);
 };
 
 const StudentDetails = () => {

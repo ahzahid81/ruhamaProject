@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../../../services/api";
+import { bdDateLong } from "../../../utils/bdTime";
 
 export default function StudentLedger() {
   const { id: studentId } = useParams();
@@ -56,11 +57,7 @@ export default function StudentLedger() {
     })}`;
 
   const formatDate = (d) =>
-    d ? new Date(d).toLocaleDateString("en-BD", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }) : "—";
+    d ? bdDateLong(d, { shortMonth: true }) : "—";
 
   const typeStyles = {
     Payment: "bg-emerald-100 text-emerald-700",

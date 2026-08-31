@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
+import { bdYear } from "../../utils/bdTime";
 import { ArrowLeft, ChevronLeft, ChevronRight, Images, Loader2, X } from "lucide-react";
 
 export default function AllGallery() {
@@ -101,7 +102,7 @@ export default function AllGallery() {
             <img src={logo} alt="Ruhama United School" className="w-8 h-8 object-contain" />
             <span className="text-sm font-semibold text-white">Ruhama United School</span>
           </div>
-          <p className="text-xs">&copy; {new Date().getFullYear()} Ruhama United School. All rights reserved.</p>
+          <p className="text-xs">&copy; {bdYear()} Ruhama United School. All rights reserved.</p>
         </div>
       </footer>
 

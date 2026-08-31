@@ -247,18 +247,30 @@ const updateTeacher = async (
     const {
       name,
       email,
+      password,
+      role,
       assignments,
     } = req.body;
+
+    const updateFields = {
+      name,
+      email,
+      role,
+      assignments,
+    };
+
+    if (password && password.trim() !== "") {
+      updateFields.password =
+        await bcrypt.hash(password, 10);
+      updateFields.plainPassword =
+        password;
+    }
 
     const teacher =
       await Teacher.findByIdAndUpdate(
         req.params.id,
 
-        {
-          name,
-          email,
-          assignments,
-        },
+        updateFields,
 
         {
           new: true,

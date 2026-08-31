@@ -776,16 +776,13 @@ const getStudentDueItems = async (req, res) => {
       const override = overrideMap[catId];
       const assignment = assignmentMap[catId];
       const classSetting = classSettingMap[catId];
-      const isRequired = cat.isRequired === true;
 
       // Applicability:
-      // - Required fees charge every student (unchanged behavior).
-      // - Optional fees apply only when the student is explicitly
-      //   assigned that fee, or has an active per-student override.
-      // - Specific fees apply only when manually activated for the
-      //   student (override or assignment) from Student-wise Fees.
+      // - Global / Class Wise fees apply automatically once they have an
+      //   amount (default amount or per-class setting) — the standard flow.
+      // - Specific fees apply only when manually activated for the student
+      //   (override or assignment) from Student-wise Fees.
       if (cat.applicableTo === "Specific" && !assignment && !override) continue;
-      if (!isRequired && !assignment && !override) continue;
 
       let effectiveAmount = cat.defaultAmount || 0;
       let frequency = cat.frequency;
@@ -914,10 +911,8 @@ const getStudentDueItems = async (req, res) => {
       const override = overrideMap[catId];
       const assignment = assignmentMap[catId];
       const classSetting = classSettingMap[catId];
-      const isRequired = cat.isRequired === true;
 
       if (cat.applicableTo === "Specific" && !assignment && !override) return null;
-      if (!isRequired && !assignment && !override) return null;
 
       let effectiveAmount = cat.defaultAmount || 0;
       let frequency = cat.frequency;

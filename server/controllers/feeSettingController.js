@@ -190,13 +190,10 @@ const getStudentFeeBreakdown = async (req, res) => {
       const override = overrideMap[catId];
       const assignment = assignmentMap[catId];
       const classSetting = classSettingMap[catId];
-      const isRequired = cat.isRequired === true;
 
-      // Specific fees only show when manually activated for this student
+      // Specific fees only show when manually activated for this student.
+      // Global / Class Wise fees apply automatically from their amounts.
       if (cat.applicableTo === "Specific" && !assignment && !override) return null;
-
-      // Optional fees only appear when explicitly assigned or overridden
-      if (!isRequired && !assignment && !override) return null;
 
       let effectiveAmount = cat.defaultAmount || 0;
       let source = "System Default";

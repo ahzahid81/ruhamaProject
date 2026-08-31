@@ -9,6 +9,7 @@ import {
   Shield,
   BookOpen,
   Users,
+  KeyRound,
   X,
   AlertTriangle,
 } from "lucide-react";
@@ -19,7 +20,7 @@ const Teachers = () => {
   const [teachers, setTeachers] = useState([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState("Ruhama2026");
   const [role, setRole] = useState("teacher");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
@@ -28,6 +29,7 @@ const Teachers = () => {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
+  const [resetting, setResetting] = useState(null);
 
   const subjects =
     systemSettings?.subjects?.length > 0
@@ -140,6 +142,44 @@ const Teachers = () => {
     }
   };
 
+  const handleResetPassword = async (teacher) => {
+    const confirmed = window.confirm(
+      `Reset password for ${teacher.name} to Ruhama2026?\n\nThe old password will stop working immediately.`
+    );
+    if (!confirmed) return;
+    setResetting(teacher._id);
+    try {
+      const res = await api.put(`/teachers/${teacher._id}/reset-password`);
+      setTeachers((prev) =>
+        prev.map((t) =>
+          t._id === teacher._id ? { ...t, plainPassword: res.data.plainPassword } : t
+        )
+      );
+      setToast({ message: `Password reset to: ${res.data.plainPassword}`, type: "success" });
+    } catch (error) {
+      setToast({ message: error.response?.data?.message || "Reset failed", type: "error" });
+    } finally {
+      setResetting(null);
+    }
+  };
+
+  const handleResetAllPasswords = async () => {
+    const confirmed = window.confirm(
+      "Reset ALL teacher passwords to Ruhama2026?\n\nEvery teacher login will use this password immediately."
+    );
+    if (!confirmed) return;
+    setResetting("all");
+    try {
+      const res = await api.post("/teachers/reset-all-passwords");
+      setToast({ message: res.data.message, type: "success" });
+      getTeachers();
+    } catch (error) {
+      setToast({ message: error.response?.data?.message || "Reset failed", type: "error" });
+    } finally {
+      setResetting(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -154,11 +194,22 @@ const Teachers = () => {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 p-6 md:p-8">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-        <div className="relative z-10">
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Teacher Management</h1>
-          <p className="mt-1.5 text-indigo-200 text-sm md:text-base">
-            Smart Multi Assignment System
-          </p>
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">Teacher Management</h1>
+            <p className="mt-1.5 text-indigo-200 text-sm md:text-base">
+              Smart Multi Assignment System
+            </p>
+          </div>
+          <button
+            onClick={handleResetAllPasswords}
+            disabled={resetting === "all"}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors border border-white/20 flex-shrink-0 disabled:opacity-60"
+            title="Set every teacher's password to Ruhama2026"
+          >
+            <KeyRound className="w-4 h-4" />
+            {resetting === "all" ? "Resetting..." : "Reset All Passwords"}
+          </button>
         </div>
       </div>
 
@@ -345,8 +396,21 @@ const Teachers = () => {
                     </td>
                     <td className="px-5 py-3.5 text-gray-600">{teacher.email || "—"}</td>
                     <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs font-semibold bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700">
-                        {teacher.plainPassword || "—"}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-semibold bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700">
+                          {teacher.plainPassword || "—"}
+                        </span>
+                        {!teacher.plainPassword && (
+                          <button
+                            onClick={() => handleResetPassword(teacher)}
+                            disabled={resetting === teacher._id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors text-xs font-semibold disabled:opacity-60"
+                            title="Reset to Ruhama2026"
+                          >
+                            <KeyRound className="w-3 h-3" />
+                            {resetting === teacher._id ? "..." : "Reset"}
+                          </button>
+                        )}
                       </span>
                     </td>
                     <td className="px-5 py-3.5">

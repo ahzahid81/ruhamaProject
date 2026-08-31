@@ -10,6 +10,8 @@ const {
 const {
   getTeachers,
   getTeachersManage,
+  resetTeacherPassword,
+  resetAllTeacherPasswords,
   createTeacher,
   deleteTeacher,
   updateTeacher,
@@ -32,6 +34,20 @@ router.get(
 router.post(
   "/create",
   createTeacher
+);
+
+router.put(
+  "/:id/reset-password",
+  protect,
+  authorizeRoles("admin"),
+  resetTeacherPassword
+);
+
+router.post(
+  "/reset-all-passwords",
+  protect,
+  authorizeRoles("admin"),
+  resetAllTeacherPasswords
 );
 
 router.put(

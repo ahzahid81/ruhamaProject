@@ -2,6 +2,9 @@ const Teacher = require("../models/Teacher");
 
 const bcrypt = require("bcryptjs");
 
+const DEFAULT_TEACHER_PASSWORD =
+  "Ruhama2026";
+
 
 // GET ALL TEACHERS
 const getTeachers = async (
@@ -90,8 +93,11 @@ const createTeacher = async (
       });
     }
 
+    const finalPassword =
+      password || DEFAULT_TEACHER_PASSWORD;
+
     const hashedPassword =
-      await bcrypt.hash(password, 10);
+      await bcrypt.hash(finalPassword, 10);
 
     const teacher =
       await Teacher.create({
@@ -99,7 +105,7 @@ const createTeacher = async (
         email,
         password:
           hashedPassword,
-        plainPassword: password,
+        plainPassword: finalPassword,
         role,
         assignments,
       });
@@ -140,6 +146,94 @@ const deleteTeacher = async (
     res.status(500).json({
       message: error.message,
     });
+  }
+};
+
+// RESET A SINGLE TEACHER PASSWORD (to the fixed default)
+const resetTeacherPassword = async (
+  req,
+  res
+) => {
+  try {
+
+    const teacher =
+      await Teacher.findById(
+        req.params.id
+      );
+
+    if (!teacher) {
+      return res.status(404).json({
+        message: "Teacher not found",
+      });
+    }
+
+    teacher.password =
+      await bcrypt.hash(
+        DEFAULT_TEACHER_PASSWORD,
+        10
+      );
+
+    teacher.plainPassword =
+      DEFAULT_TEACHER_PASSWORD;
+
+    await teacher.save();
+
+    res.status(200).json({
+      message:
+        "Password reset to the default",
+      plainPassword: DEFAULT_TEACHER_PASSWORD,
+    });
+
+  } catch (error) {
+
+    if (error.kind === "ObjectId") {
+      return res.status(404).json({
+        message: "Teacher not found",
+      });
+    }
+
+    res.status(500).json({
+      message: error.message,
+    });
+
+  }
+};
+
+// RESET ALL TEACHERS PASSWORD (to the fixed default)
+const resetAllTeacherPasswords = async (
+  req,
+  res
+) => {
+  try {
+
+    const hashed =
+      await bcrypt.hash(
+        DEFAULT_TEACHER_PASSWORD,
+        10
+      );
+
+    const result =
+      await Teacher.updateMany(
+        {},
+
+        {
+          password: hashed,
+          plainPassword: DEFAULT_TEACHER_PASSWORD,
+        }
+      );
+
+    res.status(200).json({
+      message:
+        "All teacher passwords reset to the default",
+      count: result.modifiedCount,
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message,
+    });
+
   }
 };
 
@@ -189,6 +283,8 @@ const updateTeacher = async (
 module.exports = {
   getTeachers,
   getTeachersManage,
+  resetTeacherPassword,
+  resetAllTeacherPasswords,
   createTeacher,
   deleteTeacher,
   updateTeacher,

@@ -4,6 +4,9 @@ const Student = require("../models/Student");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+const DEFAULT_TEACHER_PASSWORD =
+  "Ruhama2026";
+
 
 // REGISTER
 const registerTeacher = async (req, res) => {
@@ -25,14 +28,17 @@ const registerTeacher = async (req, res) => {
       });
     }
 
+    const finalPassword =
+      password || DEFAULT_TEACHER_PASSWORD;
+
     const hashedPassword =
-      await bcrypt.hash(password, 10);
+      await bcrypt.hash(finalPassword, 10);
 
     const teacher = await Teacher.create({
       name,
       email,
       password: hashedPassword,
-      plainPassword: password,
+      plainPassword: finalPassword,
       assignments,
     });
 

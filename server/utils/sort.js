@@ -3,7 +3,8 @@ const Settings = require("../models/Settings");
 // ======================================================
 // CLASS-ORDER AWARE STUDENT SORTING
 // Orders students by class order (from Settings + default
-// fallback), then numerically by their trailing student id.
+// fallback), then boys before girls, then numerically by
+// their trailing student id serial.
 // ======================================================
 
 const DEFAULT_CLASSES = [
@@ -29,11 +30,26 @@ const getNumericId = (studentId = "") => {
   return match ? parseInt(match[1], 10) : null;
 };
 
+const getGenderRank = (s = {}) => {
+  const g = String(s.gender || "")
+    .trim()
+    .toLowerCase();
+  if (g.startsWith("m") || g.startsWith("b") || g.startsWith("boy")) return 0;
+  if (g.startsWith("f") || g.startsWith("g") || g.startsWith("girl")) return 1;
+  // fallback: infer from student id code (RB = boy, RG = girl)
+  const m = String(s.studentId || "").match(/[A-Za-z]?([BG])[A-Za-z]/);
+  if (m) return m[1] === "B" ? 0 : 1;
+  return 0;
+};
+
 const sortStudentsByClassAndId = (students = []) => {
   return students.sort((a, b) => {
     const orderA = a._classOrder ?? 0;
     const orderB = b._classOrder ?? 0;
     if (orderA !== orderB) return orderA - orderB;
+    const rankA = getGenderRank(a);
+    const rankB = getGenderRank(b);
+    if (rankA !== rankB) return rankA - rankB;
     const idA = getNumericId(a.studentId);
     const idB = getNumericId(b.studentId);
     if (idA !== null && idB !== null) return idA - idB;

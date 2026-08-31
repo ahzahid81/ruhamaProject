@@ -1418,7 +1418,8 @@ const searchStudents = async (req, res) => {
 
         }
 
-        const students = await Student.find({
+        const students = await sortStudents(
+            await Student.find({
 
             $or: [
 
@@ -1446,17 +1447,11 @@ const searchStudents = async (req, res) => {
             ],
 
         })
-
             .select(
                 "studentId name className section photo fatherName fatherMobile status"
             )
-
-            .sort({
-                className: 1,
-                studentId: 1,
-            })
-
-            .limit(20);
+        )
+            .slice(0, 20);
 
         res.json(students);
 

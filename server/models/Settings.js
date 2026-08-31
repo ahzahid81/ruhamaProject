@@ -100,7 +100,16 @@ settingsSchema.statics.getSettings = async function () {
     changed = true;
   }
 
-  if (changed) await settings.save();
+  if (changed) {
+    // Persist structural defaults when we can; if validation fails on an
+    // older/odd settings document, still return the corrected copy instead
+    // of crashing every read that consults the settings.
+    try {
+      await settings.save();
+    } catch {
+      /* keep in-memory corrected copy */
+    }
+  }
 
   return settings;
 };

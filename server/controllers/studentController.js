@@ -958,6 +958,7 @@ const getStudents = async (req, res) => {
 
                 {
                     name: {
+                        $type: "string",
                         $regex: search,
                         $options: "i",
                     },
@@ -965,6 +966,7 @@ const getStudents = async (req, res) => {
 
                 {
                     studentId: {
+                        $type: "string",
                         $regex: search,
                         $options: "i",
                     },
@@ -972,6 +974,7 @@ const getStudents = async (req, res) => {
 
                 {
                     fatherMobile: {
+                        $type: "string",
                         $regex: search,
                         $options: "i",
                     },
@@ -1486,6 +1489,7 @@ const searchStudents = async (req, res) => {
 
                     {
                         studentId: {
+                            $type: "string",
                             $regex: q,
                             $options: "i",
                         },
@@ -1493,6 +1497,7 @@ const searchStudents = async (req, res) => {
 
                     {
                         name: {
+                            $type: "string",
                             $regex: q,
                             $options: "i",
                         },
@@ -1500,6 +1505,7 @@ const searchStudents = async (req, res) => {
 
                     {
                         fatherMobile: {
+                            $type: "string",
                             $regex: q,
                             $options: "i",
                         },

@@ -4,6 +4,11 @@ import { getSettings } from "../../services/settingsCache";
 
 const fallbackSettings = { classes: [], academicSessions: ["2026"], currentSession: "2026" };
 
+const sortBreakdown = (items) =>
+  (items || []).slice().sort((a, b) =>
+    (a.feeCategory?.name || "").localeCompare(b.feeCategory?.name || "")
+  );
+
 export default function StudentWiseFees() {
   const [students, setStudents] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -32,7 +37,7 @@ export default function StudentWiseFees() {
       }
       try {
         const res = await api.get("/students");
-        setStudents((res.data || []).sort((a, b) => a.name.localeCompare(b.name)));
+        setStudents(res.data || []);
       } catch {
         // silent
       }
@@ -49,7 +54,7 @@ export default function StudentWiseFees() {
   const loadBreakdown = async (studentId) => {
     try {
       const res = await api.get(`/fees/student-fees/${studentId}?academicSession=${session}`);
-      const items = res.data.breakdown || [];
+      const items = sortBreakdown(res.data.breakdown);
       setBreakdown(items);
       const map = {};
       categories.forEach((c) => { map[c._id] = c.defaultAmount || ""; });
@@ -64,7 +69,7 @@ export default function StudentWiseFees() {
     if (!selected) return;
     api.get(`/fees/student-fees/${selected._id}?academicSession=${session}`)
       .then((r) => {
-        const items = r.data.breakdown || [];
+        const items = sortBreakdown(r.data.breakdown);
         setBreakdown(items);
         const map = {};
         categories.forEach((c) => { map[c._id] = c.defaultAmount || ""; });

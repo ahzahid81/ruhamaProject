@@ -37,8 +37,14 @@ export default function PaymentHistory() {
       let allPayments = [];
 
       if (filters.studentSearch) {
-        const searchRes = await api.get(`/students/search?q=${encodeURIComponent(filters.studentSearch)}`);
-        const students = searchRes.data || [];
+        let students = [];
+        try {
+          const res = await api.get(`/students/search?q=${encodeURIComponent(filters.studentSearch)}`);
+          students = res.data || [];
+        } catch {
+          const res = await api.get(`/students?search=${encodeURIComponent(filters.studentSearch)}`);
+          students = res.data || [];
+        }
 
         for (const s of students) {
           try {

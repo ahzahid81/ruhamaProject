@@ -9,6 +9,16 @@ const months = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+const findStudents = async (query) => {
+  try {
+    const res = await api.get(`/students/search?q=${encodeURIComponent(query)}`);
+    return res.data;
+  } catch {
+    const res = await api.get(`/students?search=${encodeURIComponent(query)}`);
+    return res.data;
+  }
+};
+
 export default function CollectPayment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -49,8 +59,8 @@ export default function CollectPayment() {
 
   useEffect(() => {
     if (!studentIdParam) return;
-    api.get(`/students/search?q=${studentIdParam}`).then((res) => {
-      if (res.data.length > 0) setStudent(res.data[0]);
+    findStudents(studentIdParam).then((list) => {
+      if (list.length > 0) setStudent(list[0]);
     }).catch(() => {});
   }, [studentIdParam]);
 
@@ -593,8 +603,8 @@ const StudentSearchInner = ({ onSelect }) => {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await api.get(`/students/search?q=${encodeURIComponent(query)}`);
-        setResults(res.data);
+        const res = await findStudents(query);
+        setResults(res);
         setShow(true);
       } catch { setResults([]); } finally { setSearching(false); }
     }, 300);

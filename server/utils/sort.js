@@ -19,7 +19,7 @@ const DEFAULT_CLASSES = [
 ];
 
 const getClassOrderMap = (classes = []) => {
-  const list = classes.length ? classes : DEFAULT_CLASSES;
+  const list = classes && classes.length ? classes : DEFAULT_CLASSES;
   const map = {};
   list.forEach((c, i) => { map[c.name] = c.order ?? i + 1; });
   return map;
@@ -63,8 +63,14 @@ const attachClassOrder = (students = [], className) => {
 };
 
 const sortStudents = async (students = []) => {
-  const settings = await Settings.getSettings();
-  const classList = settings?.classes || [];
+  let classList = null;
+  try {
+    const settings = await Settings.getSettings();
+    classList = settings?.classes;
+  } catch {
+    // Never fail a student read because of a settings hiccup;
+    // fall back to the default class order.
+  }
   const decorated = attachClassOrder(students, classList);
   const sorted = sortStudentsByClassAndId(decorated);
   sorted.forEach((s) => { delete s._classOrder; });

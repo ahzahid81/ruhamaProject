@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const connectDB = async () => {
   try {
 
-    let uri = process.env.MONGO_URI;
+    let uri = process.env.MONGO_URI || "";
     if (!/retryWrites=/.test(uri)) {
       uri += (uri.includes("?") ? "&" : "?") + "retryWrites=false";
     }

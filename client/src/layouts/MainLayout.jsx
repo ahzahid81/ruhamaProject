@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Receipt,
   Tag,
+  CalendarDays,
 } from "lucide-react";
 
 const navGroups = [
@@ -76,6 +77,7 @@ const navGroups = [
     items: [
       { name: "Admin Panel", path: "/admin", icon: Shield, roles: ["admin"] },
       { name: "Teachers", path: "/teachers", icon: User, roles: ["admin"] },
+      { name: "Events", path: "/admin/events", icon: CalendarDays, roles: ["admin"] },
       { name: "System Settings", path: "/admin/settings", icon: Settings, roles: ["admin"] },
     ],
   },

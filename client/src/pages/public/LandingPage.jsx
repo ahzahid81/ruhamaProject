@@ -33,12 +33,14 @@ const getVisibleCount = () => {
 export default function LandingPage() {
   const [students, setStudents] = useState([]);
   const [counts, setCounts] = useState(null);
+  const [events, setEvents] = useState([]);
   const [showAll, setShowAll] = useState(false);
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     api.get("/public/students").then((res) => setStudents(res.data)).catch(() => {});
     api.get("/public/counts").then((res) => setCounts(res.data)).catch(() => {});
+    api.get("/events?limit=4").then((res) => setEvents(res.data)).catch(() => {});
   }, []);
 
   return (
@@ -190,8 +192,60 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Events */}
+      {events.length > 0 && (
+        <section id="events" className="py-20 px-6 bg-gray-50 scroll-mt-20">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">What's Happening</h3>
+              <h2 className="text-3xl font-bold text-gray-900 mt-3">Events &amp; Activities</h2>
+              <p className="text-gray-500 mt-3 max-w-2xl mx-auto text-sm leading-relaxed">
+                The moments that make our school year memorable — caught on camera, shared with you.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {events.map((event) => (
+                <Link
+                  key={event._id}
+                  to={`/events/${event._id}`}
+                  className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col"
+                >
+                  <div className="aspect-video bg-gray-100 overflow-hidden">
+                    {event.thumbnail ? (
+                      <img
+                        src={event.thumbnail}
+                        alt={event.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 to-purple-100">
+                        <span className="text-5xl font-bold text-indigo-300">{event.title?.charAt(0)?.toUpperCase() || "?"}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5 flex flex-col gap-3 flex-1">
+                    <h3 className="font-bold text-gray-900 leading-snug group-hover:text-indigo-600 transition line-clamp-2">
+                      {event.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 leading-relaxed line-clamp-3 flex-1">
+                      {event.description || "Click to read more about this event."}
+                    </p>
+                    <span className="inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600 mt-1">
+                      See More
+                      <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features */}
-      <section id="experience" className="py-20 px-6 bg-gray-50 scroll-mt-20">
+      <section id="experience" className="py-20 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">The Ruhama Way</h3>
@@ -224,7 +278,7 @@ export default function LandingPage() {
       </section>
 
       {/* Contact */}
-      <section id="contact" className="py-20 px-6 scroll-mt-20">
+      <section id="contact" className="py-20 px-6 bg-gray-50 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Contact</h3>

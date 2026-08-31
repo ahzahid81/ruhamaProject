@@ -81,8 +81,20 @@ export default function LandingPage() {
         </div>
       </header>
 
+      {/* Motto */}
+      <section className="pt-24 pb-6 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">
+            An English Version School with Tahfizul Quran
+          </p>
+          <h2 className="mt-4 text-4xl sm:text-5xl font-bold text-gray-900 leading-tight">
+            Change Yourself,<br className="sm:hidden" /> Decorate the World
+          </h2>
+        </div>
+      </section>
+
       {/* About */}
-      <section id="about" className="pt-28 pb-20 px-6 scroll-mt-20">
+      <section id="about" className="pt-14 pb-20 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div>
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">About Us</h3>

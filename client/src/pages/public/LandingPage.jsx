@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
@@ -13,8 +13,12 @@ import {
   GraduationCap,
   Shield,
   Heart,
-  Image as ImageIcon,
-  Users2,
+  ClipboardList,
+  BadgeCheck,
+  CalendarCheck,
+  Wallet,
+  Sprout,
+  Star,
 } from "lucide-react";
 
 const getVisibleCount = () => {
@@ -29,23 +33,13 @@ const getVisibleCount = () => {
 export default function LandingPage() {
   const [students, setStudents] = useState([]);
   const [counts, setCounts] = useState(null);
-  const [view, setView] = useState("gallery");
+  const [showAll, setShowAll] = useState(false);
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     api.get("/public/students").then((res) => setStudents(res.data)).catch(() => {});
     api.get("/public/counts").then((res) => setCounts(res.data)).catch(() => {});
   }, []);
-
-  const stats = useMemo(
-    () => [
-      { icon: Users, label: "Students", value: counts?.students ?? "—" },
-      { icon: GraduationCap, label: "Teachers", value: counts?.teachers ?? "—" },
-      { icon: BookOpen, label: "Classes", value: counts?.classes ?? "—" },
-      { icon: Users2, label: "Sections", value: counts?.sections ?? "—" },
-    ],
-    [counts]
-  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -87,60 +81,16 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="pt-24 pb-16 px-6 bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full -translate-x-1/2 translate-y-1/2 blur-3xl" />
-        <div className="max-w-7xl mx-auto relative">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-semibold tracking-wide">
-              <Shield className="w-4 h-4" /> Admissions Open 2026
-            </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight mt-5">
-              Nurturing Minds,<br />Building Futures
-            </h2>
-            <p className="text-indigo-200/70 mt-6 text-lg leading-relaxed">
-              Ruhama United School is committed to providing quality education that empowers students to become confident, creative, and responsible global citizens.
-            </p>
-            <div className="flex flex-wrap gap-4 mt-8">
-              <a
-                href="#students"
-                className="px-8 py-3.5 bg-white text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-50 transition shadow-xl"
-              >
-                Our Students
-              </a>
-              <Link
-                to="/student-login"
-                className="px-8 py-3.5 bg-white/10 text-white border border-white/20 rounded-xl text-sm font-bold hover:bg-white/20 transition"
-              >
-                Student Portal
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Real Stats */}
-      <section className="py-12 px-6 bg-gray-50 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="text-center">
-              <Icon className="w-8 h-8 text-indigo-600 mx-auto mb-2" strokeWidth={1.5} />
-              <p className="text-3xl font-bold text-gray-900">{value}</p>
-              <p className="text-sm text-gray-500 mt-1">{label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* About */}
-      <section id="about" className="py-20 px-6 scroll-mt-20">
+      <section id="about" className="pt-28 pb-20 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div>
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">About Us</h3>
             <h2 className="text-3xl font-bold text-gray-900 mt-3">A Legacy of Academic Excellence</h2>
             <p className="text-gray-600 mt-6 leading-relaxed">
-              Ruhama United School has been at the forefront of quality education, combining traditional values with modern teaching methodologies. Our dedicated faculty and comprehensive curriculum ensure every student reaches their full potential.
+              Ruhama United School blends time-honoured values with modern teaching. Our dedicated faculty and
+              well-rounded curriculum help every child discover their strengths — and grow in confidence, character
+              and curiosity.
             </p>
             <div className="grid grid-cols-2 gap-6 mt-8">
               {[
@@ -158,14 +108,19 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <div className="bg-gradient-to-br from-indigo-100 to-purple-100 rounded-3xl p-12 flex items-center justify-center">
-            <div className="text-center">
-              <img src={logo} alt="Ruhama United School" className="w-24 h-24 object-contain mx-auto" />
-              <p className="text-2xl font-bold text-indigo-800 mt-6">Ruhama United School</p>
-              <p className="text-indigo-600/60 mt-2">Excellence in Education</p>
-              <p className="text-4xl font-black text-indigo-700 mt-6">{counts?.students ?? "—"}</p>
-              <p className="text-sm font-semibold text-indigo-500 mt-1">Students and counting</p>
-            </div>
+          <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-3xl p-12 text-white">
+            <p className="text-6xl font-black text-indigo-400 leading-none">&ldquo;</p>
+            <p className="text-2xl md:text-3xl font-bold leading-snug mt-2">
+              Small classes. Big hearts. Real results.
+            </p>
+            <p className="text-indigo-200/80 mt-6 text-sm leading-relaxed">
+              Today Ruhama United School is home to{" "}
+              <span className="font-bold text-white">{counts?.students ?? "—"}</span> young learners, guided by{" "}
+              <span className="font-bold text-white">{counts?.teachers ?? "—"}</span> teachers across{" "}
+              <span className="font-bold text-white">{counts?.classes ?? "—"}</span> classes — a family that keeps
+              growing with every admission season.
+            </p>
+            <p className="text-indigo-400/70 mt-6 text-sm">&mdash; Ruhama United School</p>
           </div>
         </div>
       </section>
@@ -177,36 +132,23 @@ export default function LandingPage() {
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Our Students</h3>
             <h2 className="text-3xl font-bold text-gray-900 mt-3">Meet Our Students</h2>
             <p className="text-gray-500 mt-3 max-w-2xl mx-auto text-sm leading-relaxed">
-              A look at the bright faces who make Ruhama United School what it is today.
+              The bright faces behind our proudest headline. Every learner invited, every smile remembered.
             </p>
-            <div className="inline-flex items-center gap-1 p-1 bg-white rounded-xl border border-gray-200 mt-6">
-              <button
-                onClick={() => setView("gallery")}
-                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  view === "gallery" ? "bg-indigo-600 text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <ImageIcon className="w-4 h-4" /> Photo Gallery
-              </button>
-              <button
-                onClick={() => setView("names")}
-                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  view === "names" ? "bg-indigo-600 text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Users className="w-4 h-4" /> All Names
-                {students.length > 0 && (
-                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-white/20">{students.length}</span>
-                )}
-              </button>
-            </div>
           </div>
 
-          {view === "gallery" ? (
-            <Gallery students={students} paused={paused} setPaused={setPaused} />
-          ) : (
-            <NamesList students={students} />
-          )}
+          <Gallery students={students} paused={paused} setPaused={setPaused} />
+
+          <div className="text-center mt-10">
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="mt-6 inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+            >
+              <Users className="w-4 h-4" />
+              {showAll ? "Hide Students" : "See All Students"}
+            </button>
+          </div>
+
+          {showAll && <NamesList students={students} />}
         </div>
       </section>
 
@@ -219,15 +161,49 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { title: "Early Childhood", desc: "Play Group, Nursery, and Kindergarten programs designed for holistic early development.", color: "from-pink-500 to-rose-500" },
-              { title: "Primary Education", desc: "Comprehensive curriculum from STD-I to STD-V building strong academic foundations.", color: "from-indigo-500 to-blue-500" },
-              { title: "Special Programs", desc: "Hifzul Quran program and special coaching for students seeking additional guidance.", color: "from-emerald-500 to-teal-500" },
-            ].map(({ title, desc, color }) => (
+              { title: "Early Childhood", tagline: "Where every day begins with wonder.", desc: "Play Group, Nursery and Kindergarten that make little learners love school.", icon: Sprout, color: "from-pink-500 to-rose-500" },
+              { title: "Primary Education", tagline: "Strong roots today. Bright futures tomorrow.", desc: "A complete journey from STD-I to STD-V on a firm academic foundation.", icon: BookOpen, color: "from-indigo-500 to-blue-500" },
+              { title: "Hifzul Quran", tagline: "Words memorised. Hearts strengthened for life.", desc: "Dedicated Hifz classes with special coaching for every learner.", icon: Star, color: "from-emerald-500 to-teal-500" },
+            ].map(({ title, tagline, desc, icon: Icon, color }) => (
               <div key={title} className="bg-white rounded-2xl p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
                 <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-5`}>
-                  <BookOpen className="w-7 h-7 text-white" />
+                  <Icon className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+                <p className="text-indigo-600 font-semibold text-sm mt-2">{tagline}</p>
+                <p className="text-gray-500 mt-3 text-sm leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="experience" className="py-20 px-6 bg-gray-50 scroll-mt-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">The Ruhama Way</h3>
+            <h2 className="text-3xl font-bold text-gray-900 mt-3">School Life, On Paper and On Screen</h2>
+            <p className="text-gray-500 mt-3 max-w-2xl mx-auto text-sm leading-relaxed">
+              Attendance, results, fees and homework — all together, all in one place parents can trust.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { icon: CalendarCheck, title: "Attendance", tagline: "Every day counts — and every day is recorded.", desc: "Real-time attendance for every student, visible privately to their family." },
+              { icon: GraduationCap, title: "Results", tagline: "Fair grades. Honest words.", desc: "Automatic marking from Fair to Outstanding, printed on a card you can be proud of." },
+              { icon: Wallet, title: "Fees", tagline: "No surprises at the office.", desc: "Clear fee breakdowns, due reminders and receipts for every payment." },
+              { icon: ClipboardList, title: "Homework", tagline: "Homework your family can follow at home.", desc: "Daily tasks shared with parents, so learning continues after the bell rings." },
+              { icon: BookOpen, title: "Daily Report", tagline: "Every lesson, captured the same day.", desc: "Class work and homework posted daily by teachers for every class." },
+              { icon: BadgeCheck, title: "Admit Card", tagline: "Ready, even on exam morning.", desc: "Fee eligibility checked automatically, so no student is turned away at the gate." },
+            ].map(({ icon: Icon, title, tagline, desc }) => (
+              <div key={title} className="bg-white rounded-2xl p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-5">
+                  <Icon className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+                <p className="text-indigo-600 font-semibold text-sm mt-2">{tagline}</p>
                 <p className="text-gray-500 mt-3 text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
@@ -236,11 +212,14 @@ export default function LandingPage() {
       </section>
 
       {/* Contact */}
-      <section id="contact" className="py-20 px-6 bg-gray-50 scroll-mt-20">
+      <section id="contact" className="py-20 px-6 scroll-mt-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Contact</h3>
             <h2 className="text-3xl font-bold text-gray-900 mt-3">Get in Touch</h2>
+            <p className="text-gray-500 mt-3 max-w-2xl mx-auto text-sm leading-relaxed">
+              We would love to hear from you — for admission, information, or a visit.
+            </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -334,13 +313,9 @@ function Gallery({ students, paused, setPaused }) {
                       </span>
                     </div>
                   )}
-                  <span className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur text-white text-[11px] font-semibold">
-                    {s.className}
-                  </span>
                 </div>
                 <div className="p-4 text-center flex-1 flex flex-col justify-center">
                   <p className="font-bold text-gray-900 truncate">{s.name}</p>
-                  <p className="text-xs text-gray-400 mt-1">{s.studentId}</p>
                 </div>
               </div>
             </div>
@@ -364,16 +339,6 @@ function Gallery({ students, paused, setPaused }) {
           >
             <ChevronRight className="w-5 h-5" />
           </button>
-          <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
-            {Array.from({ length: maxIndex + 1 }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setIndex(i)}
-                className={`h-2 rounded-full transition-all ${i === effIndex ? "w-7 bg-indigo-600" : "w-2 bg-gray-300 hover:bg-gray-400"}`}
-                aria-label={`Go to slide ${i + 1}`}
-              />
-            ))}
-          </div>
         </>
       )}
     </div>
@@ -383,19 +348,6 @@ function Gallery({ students, paused, setPaused }) {
 // ============ ALL STUDENTS (names only) ============
 
 function NamesList({ students }) {
-  const groups = useMemo(() => {
-    const out = [];
-    students.forEach((s) => {
-      const last = out[out.length - 1];
-      if (last && last.className === s.className) {
-        last.students.push(s);
-      } else {
-        out.push({ className: s.className, students: [s] });
-      }
-    });
-    return out;
-  }, [students]);
-
   if (students.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
@@ -406,30 +358,19 @@ function NamesList({ students }) {
   }
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {groups.map((g) => (
-        <div key={g.className} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-between">
-            <h3 className="font-bold text-white">{g.className}</h3>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white/20 text-white">{g.students.length}</span>
-          </div>
-          <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
-            {g.students.map((s) => (
-              <div key={s._id} className="px-6 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition">
-                <div className="flex items-center gap-3 min-w-0">
-                  {s.photo ? (
-                    <img src={s.photo} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-100 flex-shrink-0" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 font-bold text-xs flex-shrink-0">
-                      {s.name?.charAt(0)?.toUpperCase() || "?"}
-                    </div>
-                  )}
-                  <p className="text-sm font-medium text-gray-700 truncate">{s.name}</p>
-                </div>
-                <span className="text-xs text-gray-400 font-mono flex-shrink-0">{s.studentId}</span>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {students.map((s) => (
+        <div key={s._id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300">
+          <div className="aspect-square bg-gray-100 relative overflow-hidden">
+            {s.photo ? (
+              <img src={s.photo} alt={s.name} loading="lazy" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 to-purple-100">
+                <span className="text-4xl font-bold text-indigo-400">{s.name?.charAt(0)?.toUpperCase() || "?"}</span>
               </div>
-            ))}
+            )}
           </div>
+          <p className="px-3 py-2.5 text-sm font-semibold text-gray-800 text-center truncate">{s.name}</p>
         </div>
       ))}
     </div>

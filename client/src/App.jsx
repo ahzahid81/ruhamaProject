@@ -44,6 +44,7 @@ import ReportCard from "./pages/exam/ReportCard";
 import ResultSheet from "./pages/exam/ResultSheet";
 import CollectPayment from "./pages/payment/CollectPayment";
 import DiscountManagement from "./pages/payment/DiscountManagement";
+import SchoolStatement from "./pages/finance/SchoolStatement";
 import FeeSettings from "./pages/admin/FeeSettings";
 import StudentWiseFees from "./pages/admin/StudentWiseFees";
 import SystemSettings from "./pages/admin/SystemSettings";
@@ -283,6 +284,13 @@ function App() {
             path="/discounts/:studentId"
 
             element={<DiscountManagement></DiscountManagement>}
+
+          />
+          <Route
+
+            path="/statement"
+
+            element={<SchoolStatement></SchoolStatement>}
 
           />
           {/* Admin */}

@@ -25,6 +25,7 @@ import {
   Receipt,
   UserCheck,
   BadgePercent,
+  Landmark,
   CalendarDays,
   Image as ImageIcon,
   Scroll,
@@ -63,6 +64,7 @@ const navGroups = [
     roles: ["admin", "account-manager"],
     items: [
       { name: "Collect Payment", path: "/collect-payment", icon: Wallet, roles: ["admin", "account-manager"] },
+      { name: "School Statement", path: "/statement", icon: Landmark, roles: ["admin", "account-manager"] },
       { name: "Discount Management", path: "/discounts", icon: BadgePercent, roles: ["admin"] },
       { name: "Payment History", path: "/payment-history", icon: Receipt, roles: ["admin", "account-manager"] },
       { name: "Fee Settings", path: "/fees/settings", icon: Settings, roles: ["admin"] },

@@ -36,6 +36,11 @@ const teacherSchema =
         default: null,
       },
 
+      lastActive: {
+        type: Date,
+        default: null,
+      },
+
       role: {
         type: String,
 

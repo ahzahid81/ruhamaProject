@@ -35,7 +35,7 @@ const getTeachers = async (
 };
 
 
-// GET ALL TEACHERS (admin view: email, password, last login)
+// GET ALL TEACHERS (admin view: email, password, last activity)
 const getTeachersManage = async (
   req,
   res
@@ -45,7 +45,7 @@ const getTeachersManage = async (
     const teachers =
       await Teacher.find()
         .select(
-          "_id name email role assignments lastLogin plainPassword"
+          "_id name email role assignments lastLogin lastActive plainPassword"
         )
         .sort({
           createdAt: 1,

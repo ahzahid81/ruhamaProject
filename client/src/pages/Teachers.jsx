@@ -379,7 +379,7 @@ const Teachers = () => {
                   <th className="px-5 py-3.5 font-semibold">Email</th>
                   <th className="px-5 py-3.5 font-semibold">Password</th>
                   <th className="px-5 py-3.5 font-semibold">Role</th>
-                  <th className="px-5 py-3.5 font-semibold">Last Login</th>
+                  <th className="px-5 py-3.5 font-semibold">Last Seen</th>
                   <th className="px-5 py-3.5 font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -427,8 +427,27 @@ const Teachers = () => {
                         {teacher.role === "account-manager" ? "A/C Manager" : teacher.role}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-gray-500 text-xs whitespace-nowrap">
-                      {teacher.lastLogin ? bdDateTime(teacher.lastLogin, { shortMonth: true }) : "Never"}
+                    <td className="px-5 py-3.5 text-xs whitespace-nowrap">
+                      {teacher.lastActive ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          {new Date() - new Date(teacher.lastActive) < 5 * 60 * 1000 ? (
+                            <>
+                              <span className="relative flex w-2 h-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full w-2 h-2 bg-emerald-500" />
+                              </span>
+                              <span className="text-emerald-600 font-semibold">Online</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
+                              {bdDateTime(teacher.lastActive, { shortMonth: true })}
+                            </>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Never</span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">

@@ -40,6 +40,18 @@ const protect = async (req, res, next) => {
 
     req.user = teacher;
 
+    // Track "last active on the website" (throttled to once per minute)
+    try {
+      const now = new Date();
+      const last = teacher.lastActive ? new Date(teacher.lastActive).getTime() : 0;
+      if (now.getTime() - last > 60000) {
+        teacher.lastActive = now;
+        Teacher.updateOne({ _id: teacher._id }, { $set: { lastActive: now } }).catch(() => {});
+      }
+    } catch {
+      // never block a request because of activity tracking
+    }
+
     next();
 
   } catch (error) {

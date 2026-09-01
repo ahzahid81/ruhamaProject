@@ -5,7 +5,7 @@ import logo from "../../assets/logo.png";
 import { bdDate, bdWeekday, bdMonth, bdYear } from "../../utils/bdTime";
 import {
   LayoutDashboard, User, CheckSquare, BarChart3, Wallet,
-  BookOpen, LogOut, Menu, X,
+  BookOpen, LogOut, Menu, X, Eye,
 } from "lucide-react";
 
 const tabs = [
@@ -471,6 +471,7 @@ function Results() {
 function Payments({ student, fmt }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -526,7 +527,7 @@ function Payments({ student, fmt }) {
         </div>
       )}
 
-      {/* Recent Payments */}
+      {/* Payment History */}
       {data?.recentPayments?.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
@@ -537,18 +538,39 @@ function Payments({ student, fmt }) {
               <thead>
                 <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
                   <th className="px-5 py-3 font-semibold">Date</th>
-                  <th className="px-5 py-3 font-semibold">Receipt</th>
-                  <th className="px-5 py-3 font-semibold">Method</th>
+                  <th className="px-5 py-3 font-semibold">Receipt Id</th>
+                  <th className="px-5 py-3 font-semibold">Fee Details</th>
+                  <th className="px-5 py-3 font-semibold">Receiver</th>
+                  <th className="px-5 py-3 font-semibold">Payment Type</th>
                   <th className="px-5 py-3 font-semibold text-right">Amount</th>
+                  <th className="px-5 py-3 font-semibold text-center">View</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {data.recentPayments.map((p) => (
                   <tr key={p._id} className="hover:bg-gray-50/50 transition">
-                    <td className="px-5 py-3 text-gray-500 text-xs">{bdDate(p.createdAt)}</td>
+                    <td className="px-5 py-3 text-gray-500 whitespace-nowrap text-xs">{bdDate(p.receiveDate || p.createdAt)}</td>
                     <td className="px-5 py-3 font-mono text-xs font-semibold text-indigo-600">{p.receiptNo}</td>
-                    <td className="px-5 py-3 text-xs text-gray-500">{p.paymentMethod}</td>
+                    <td className="px-5 py-3">
+                      <p className="text-xs text-gray-600 max-w-xs">{p.feeDetails || "—"}</p>
+                    </td>
+                    <td className="px-5 py-3 text-xs text-gray-600">
+                      {p.receivedBy?.name || "—"}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg font-semibold">{p.paymentMethod || "—"}</span>
+                    </td>
                     <td className="px-5 py-3 text-right font-bold text-emerald-700">{fmt(p.paidAmount)}</td>
+                    <td className="px-5 py-3 text-center">
+                      <button
+                        onClick={() => navigate(`/payment/receipt/${p._id}`)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition"
+                        title="View receipt"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

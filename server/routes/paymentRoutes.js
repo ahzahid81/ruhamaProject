@@ -13,7 +13,9 @@ const router = express.Router();
 const {
     collectPayment,
     getStudentPaymentHistory,
+    getAllPayments,
     getPaymentReceipt,
+    updatePayment,
     checkAdmitCardEligibility,
     cancelPayment,
     getFeeCategories,
@@ -60,6 +62,18 @@ router.get(
 
     getStudentPaymentHistory
 
+);
+
+// All Payments (admin list)
+router.get(
+    "/",
+    getAllPayments
+);
+
+// Update Payment (metadata)
+router.put(
+    "/:paymentId",
+    updatePayment
 );
 
 // Single Receipt

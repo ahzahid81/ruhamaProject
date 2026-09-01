@@ -13,7 +13,6 @@ import {
   Users,
   Shield,
   FileText,
-  BookOpen,
   ArrowLeft,
   Wallet,
   DollarSign,
@@ -244,32 +243,18 @@ const StudentDetails = () => {
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              to={`/collect-payment?studentId=${student._id}`}
+              to={`/collect-payment/${student.studentId}`}
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-sm font-semibold transition-colors border border-emerald-200"
             >
               <DollarSign className="w-4 h-4" />
               Collect Payment
             </Link>
             <Link
-              to={`/students/${student._id}/ledger`}
+              to={`/payment-history?student=${student.studentId}`}
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm font-semibold transition-colors border border-blue-200"
             >
               <Wallet className="w-4 h-4" />
-              View Ledger
-            </Link>
-            <Link
-              to={`/students/${student._id}/fee-override`}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-sm font-semibold transition-colors border border-amber-200"
-            >
-              <DollarSign className="w-4 h-4" />
-              Fee Override
-            </Link>
-            <Link
-              to={`/students/${student._id}/fees`}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-orange-50 text-orange-700 hover:bg-orange-100 text-sm font-semibold transition-colors border border-orange-200"
-            >
-              <BookOpen className="w-4 h-4" />
-              Optional Fees
+              Payment History
             </Link>
           </div>
         </div>

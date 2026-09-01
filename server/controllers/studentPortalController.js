@@ -192,6 +192,36 @@ const getPaymentInfo = async (req, res) => {
       .filter((e) => e.transactionType === "Payment")
       .reduce((sum, e) => sum + (e.credit || 0), 0);
 
+    // Attach fee details + receiver to payment history for the student
+    let recentPayments = payments.slice(0, 20);
+    if (recentPayments.length > 0) {
+      const ids = recentPayments.map((p) => p._id);
+      await Payment.populate(recentPayments, "receivedBy");
+      const items = await PaymentItem.find({ payment: { $in: ids } }).populate("feeCategory", "name");
+
+      const itemMap = {};
+      if (items) {
+        items.forEach((it) => {
+          const key = it.payment?._id?.toString?.() || it.payment?.toString?.();
+          if (!itemMap[key]) itemMap[key] = [];
+          itemMap[key].push(it);
+        });
+      }
+
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      recentPayments = recentPayments.map((p) => {
+        const po = p.toObject ? p.toObject() : p;
+        const details = (itemMap[p._id.toString()] || []).map((it) => {
+          let label = it.feeName || it.feeCategory?.name || "Fee";
+          if (it.applicableType === "Month" && it.month) label += ` (${monthNames[(it.month || 1) - 1]} ${it.year || ""})`;
+          else if (it.applicableType === "Exam" && it.examName) label += ` (${it.examName})`;
+          else if (it.applicableType !== "Month" && it.customTitle) label += ` (${it.customTitle})`;
+          return label;
+        });
+        return { ...po, feeDetails: details.join(", "), receivedBy: po.receivedBy || null };
+      });
+    }
+
     return res.status(200).json({
       success: true,
       summary: {
@@ -200,7 +230,7 @@ const getPaymentInfo = async (req, res) => {
         balance: totalPaid - totalDue,
       },
       feeBreakdown,
-      recentPayments: payments.slice(0, 10),
+      recentPayments,
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });

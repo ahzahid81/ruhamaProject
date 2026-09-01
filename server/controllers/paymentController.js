@@ -450,6 +450,158 @@ const getPaymentReceipt = async (req, res) => {
 };
 
 // ============================================
+// BUILD FEE DETAILS STRING (for history tables)
+// ============================================
+
+const buildFeeDetails = (items = []) => {
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return items
+    .map((it) => {
+      let label = it.feeName || it.feeCategory?.name || "Fee";
+      if (it.applicableType === "Month" && it.month) {
+        label += ` (${monthNames[(it.month || 1) - 1]} ${it.year || ""})`;
+      } else if (it.applicableType === "Exam" && it.examName) {
+        label += ` (${it.examName})`;
+      } else if (it.applicableType !== "Month" && it.customTitle) {
+        label += ` (${it.customTitle})`;
+      }
+      return label;
+    })
+    .join(", ");
+};
+
+// ============================================
+// GET ALL PAYMENTS (ADMIN) with filters
+// ============================================
+
+const getAllPayments = async (req, res) => {
+  try {
+    const { search, className, paymentMethod, status, page = 1, limit = 50 } = req.query;
+
+    const filter = { isVoided: false };
+
+    if (className) filter.className = className;
+    if (paymentMethod) filter.paymentMethod = paymentMethod;
+    if (status) filter.paymentStatus = status;
+
+    if (search) {
+      const re = { $regex: String(search).trim(), $options: "i" };
+      filter.$or = [
+        { studentId: re },
+        { studentName: re },
+        { receiptNo: re },
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const total = await Payment.countDocuments(filter);
+    const payments = await Payment.find(filter)
+      .sort({ receiveDate: -1, createdAt: -1 })
+      .populate("receivedBy", "name")
+      .skip(skip)
+      .limit(Number(limit));
+
+    // Attach fee details from payment items
+    const ids = payments.map((p) => p._id);
+    const items = await PaymentItem.find({ payment: { $in: ids } })
+      .populate("feeCategory", "name");
+
+    const itemMap = {};
+    items.forEach((it) => {
+      const key = it.payment?._id?.toString?.() || it.payment?.toString?.();
+      if (!itemMap[key]) itemMap[key] = [];
+      itemMap[key].push(it);
+    });
+
+    const serialized = payments.map((p) => {
+      const po = p.toObject ? p.toObject() : p;
+      const feeDetails = buildFeeDetails(itemMap[p._id.toString()] || []);
+      return { ...po, feeDetails };
+    });
+
+    return res.status(200).json({
+      success: true,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      payments: serialized,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================
+// UPDATE PAYMENT (metadata only - not amounts)
+// ============================================
+
+const updatePayment = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const {
+      paymentMethod,
+      senderNumber,
+      transactionId,
+      bankName,
+      bankBranch,
+      chequeNo,
+      chequeDate,
+      referenceNo,
+      remarks,
+      receivedBy,
+      receiveDate,
+      paymentStatus,
+    } = req.body;
+
+    const payment = await Payment.findById(paymentId);
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Receipt not found." });
+    }
+
+    if (payment.isVoided) {
+      return res.status(400).json({ success: false, message: "Cannot edit a cancelled receipt." });
+    }
+
+    const fields = {
+      paymentMethod,
+      senderNumber,
+      transactionId,
+      bankName,
+      bankBranch,
+      chequeNo,
+      chequeDate,
+      referenceNo,
+      remarks,
+      paymentStatus,
+    };
+
+    Object.keys(fields).forEach((k) => {
+      if (fields[k] !== undefined) payment[k] = fields[k];
+    });
+    if (receivedBy !== undefined) payment.receivedBy = receivedBy;
+    if (receiveDate !== undefined) payment.receiveDate = receiveDate;
+
+    await payment.save();
+
+    // Sync the PaymentItem status if only the header was changed globally
+    if (paymentStatus && paymentStatus !== "Completed") {
+      await PaymentItem.updateMany({ payment: payment._id }, { paymentStatus });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment updated successfully.",
+      payment: await Payment.findById(payment._id).populate("receivedBy", "name"),
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================
 // CANCEL RECEIPT
 // ============================================
 
@@ -933,7 +1085,9 @@ const getStudentDueItems = async (req, res) => {
 module.exports = {
   collectPayment,
   getStudentPaymentHistory,
+  getAllPayments,
   getPaymentReceipt,
+  updatePayment,
   cancelPayment,
   checkAdmitCardEligibility,
   getFeeCategories,

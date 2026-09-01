@@ -172,6 +172,13 @@ function App() {
           />
           <Route
 
+            path="/admit-card/:studentId"
+
+            element={<AdmitCard />}
+
+          />
+          <Route
+
             path="/exam/management"
 
             element={
@@ -224,6 +231,13 @@ function App() {
           <Route
 
             path="/collect-payment"
+
+            element={<CollectPayment></CollectPayment>}
+
+          />
+          <Route
+
+            path="/collect-payment/:studentId"
 
             element={<CollectPayment></CollectPayment>}
 

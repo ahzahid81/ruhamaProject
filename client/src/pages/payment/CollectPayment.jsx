@@ -1,7 +1,8 @@
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { useSearchParams, useParams, useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
+import StudentPicker from "../../components/StudentPicker";
 import { bdYear, bdDate } from "../../utils/bdTime";
 
 const months = [
@@ -10,19 +11,34 @@ const months = [
 ];
 
 const findStudents = async (query) => {
+  const q = (query || "").trim();
+  if (!q) return [];
+  // Direct Mongo id lookup (deep links that pass _id)
+  if (/^[0-9a-fA-F]{24}$/.test(q)) {
+    try {
+      const res = await api.get(`/students/${q}`);
+      return res.data ? [res.data] : [];
+    } catch {
+      /* fall through to search */
+    }
+  }
   try {
-    const res = await api.get(`/students/search?q=${encodeURIComponent(query)}`);
+    const res = await api.get(`/students/search?q=${encodeURIComponent(q)}`);
     return res.data;
   } catch {
-    const res = await api.get(`/students?search=${encodeURIComponent(query)}`);
+    const res = await api.get(`/students?search=${encodeURIComponent(q)}`);
     return res.data;
   }
 };
 
 export default function CollectPayment() {
   const [searchParams] = useSearchParams();
+  const { studentId: studentIdRoute } = useParams();
   const navigate = useNavigate();
-  const studentIdParam = searchParams.get("studentId");
+  const isDedicated = Boolean(studentIdRoute);
+  const studentIdParam = searchParams.get("studentId")
+    ? searchParams.get("studentId")
+    : studentIdRoute;
 
   const [student, setStudent] = useState(null);
   const [dueItems, setDueItems] = useState([]);
@@ -56,6 +72,21 @@ export default function CollectPayment() {
     if (!student) return;
     loadAllStudentData();
   }, [student]);
+
+  useEffect(() => {
+    // Whenever the dedicated route changes (or we return to browse mode),
+    // reset the loaded student so stale data doesn't linger.
+    setStudent(null);
+    setDueItems([]);
+    setFeeLedger([]);
+    setFeeStructure([]);
+    setDueSummary(null);
+    setPaymentHistory([]);
+    setSelectedItems([]);
+    setDiscount(0);
+    setFine(0);
+    setPayingAmount("");
+  }, [studentIdRoute]);
 
   useEffect(() => {
     if (!studentIdParam) return;
@@ -136,13 +167,16 @@ export default function CollectPayment() {
   }, [subtotal, fine, discount]);
 
   // Flatten the fee ledger into professional line items (every fee, every month)
+  // Ordered: paid one-time fees on top, then new (unpaid) one-time fees,
+  // then monthly fees sorted by year + month.
   const ledgerRows = useMemo(() => {
     const rows = [];
-    (feeLedger || []).forEach((group, gi) => {
+    (feeLedger || []).forEach((group) => {
+      const isOneTime = group.applicableType !== "Month";
       if (group.applicableType === "Month") {
         (group.months || []).forEach((m) => {
           rows.push({
-            key: `${gi}-m${m.month}`,
+            key: `o-${group._id}-m${m.month}`,
             feeName: group.feeName,
             frequency: "Monthly",
             period: `${months[m.month - 1]} ${m.year}`,
@@ -151,12 +185,15 @@ export default function CollectPayment() {
             due: Number(m.dueAmount || 0),
             status: m.status,
             dueIndex: m.dueIndex,
+            sortKind: "month",
+            sortYear: Number(m.year || 0),
+            sortMonth: Number(m.month || 0),
           });
         });
       } else if (group.applicableType === "Exam") {
         (group.exams || []).forEach((e) => {
           rows.push({
-            key: `${gi}-e${e.examName}`,
+            key: `o-${group._id}-e${e.examName}`,
             feeName: group.feeName,
             frequency: "Per Exam",
             period: e.examName,
@@ -165,11 +202,14 @@ export default function CollectPayment() {
             due: Number(e.dueAmount || 0),
             status: e.status,
             dueIndex: e.dueIndex,
+            sortKind: "onetime",
+            sortPaid: e.status === "Paid" ? 0 : 1,
+            sortName: group.feeName || "",
           });
         });
       } else {
         rows.push({
-          key: `${gi}-x`,
+          key: `o-${group._id}-x`,
           feeName: group.feeName,
           frequency: group.frequency || group.applicableType,
           period: group.period || "One Time",
@@ -178,9 +218,24 @@ export default function CollectPayment() {
           due: Number(group.dueAmount || 0),
           status: group.status,
           dueIndex: group.dueIndex,
+          sortKind: "onetime",
+          sortPaid: group.status === "Paid" ? 0 : 1,
+          sortName: group.feeName || "",
         });
       }
     });
+
+    rows.sort((a, b) => {
+      if (a.sortKind !== b.sortKind) return a.sortKind === "onetime" ? -1 : 1;
+      if (a.sortKind === "onetime") {
+        if (a.sortPaid !== b.sortPaid) return a.sortPaid - b.sortPaid;
+        return String(a.sortName || "").localeCompare(String(b.sortName || ""));
+      }
+      if (a.sortYear !== b.sortYear) return a.sortYear - b.sortYear;
+      if (a.sortMonth !== b.sortMonth) return a.sortMonth - b.sortMonth;
+      return String(a.feeName || "").localeCompare(String(b.feeName || ""));
+    });
+
     return rows;
   }, [feeLedger]);
 
@@ -280,16 +335,29 @@ export default function CollectPayment() {
             <h1 className="text-2xl font-bold text-slate-800">Collect Payment</h1>
             <p className="text-sm text-gray-400 mt-0.5">Student fee collection & receipt management</p>
           </div>
+          {isDedicated && (
+            <button onClick={() => navigate("/collect-payment")}
+              className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition">
+              ← All Students
+            </button>
+          )}
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
 
-        {/* Student Search */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <label className={labelClass}>Search Student</label>
-          <StudentSearchInner onSelect={handleStudentSelect} />
-        </div>
+        {/* Student Search (only in browse mode) */}
+        {!isDedicated && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <label className={labelClass}>Select Student</label>
+            <StudentPicker
+              onSelect={handleStudentSelect}
+              onOpen={(s) => navigate(`/collect-payment/${s.studentId}`)}
+              selectedId={student?._id}
+              title="Search or browse students by class"
+            />
+          </div>
+        )}
 
         {/* Loading State */}
         {loadingData && (
@@ -584,62 +652,5 @@ export default function CollectPayment() {
         )}
       </div>
     </div>
-  );
-}
-
-// =========================================
-// Student Search Sub-component
-// =========================================
-const StudentSearchInner = ({ onSelect }) => {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [show, setShow] = useState(false);
-  const debounceRef = useRef(null);
-
-  useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); return; }
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await findStudents(query);
-        setResults(res);
-        setShow(true);
-      } catch { setResults([]); } finally { setSearching(false); }
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
-
-  return (
-    <div className="relative">
-      <div className="flex gap-2">
-        <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by Student ID, Name, or Father's Mobile..."
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 transition"
-        />
-        {searching && <div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full self-center" />}
-      </div>
-      {show && !searching && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
-          {results.map((s) => (
-            <button key={s._id} type="button" onClick={() => { onSelect(s); setQuery(s.studentId); setShow(false); }}
-              className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition border-b last:border-none flex items-center gap-3"
-            >
-              {s.photo ? (
-                <img src={s.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg">👤</div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-slate-700">{s.name}</p>
-                <p className="text-xs text-gray-400">{s.studentId} — {s.className}</p>
-              </div>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>{s.status}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+);
 };

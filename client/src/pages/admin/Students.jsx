@@ -228,14 +228,14 @@ const Students = () => {
                 Edit
               </Link>
               <Link
-                to={`/collect-payment?studentId=${student.studentId}`}
+                to={`/collect-payment/${student.studentId}`}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors text-xs font-semibold"
               >
                 <Wallet className="w-3.5 h-3.5" />
                 Payment
               </Link>
               <Link
-                to={`/exam/admit-card?studentId=${student.studentId}`}
+                to={`/admit-card/${student.studentId}`}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors text-xs font-semibold"
               >
                 <IdCard className="w-3.5 h-3.5" />

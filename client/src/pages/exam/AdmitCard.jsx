@@ -1,16 +1,21 @@
 import { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
 import Toast from "../../components/Toast";
 
-import StudentSearch from "../../components/exam/StudentSearch";
+import StudentPicker from "../../components/StudentPicker";
 import EligibilityCard from "../../components/exam/EligibilityCard";
 import AdmitCardPreview from "../../components/exam/AdmitCardPreview";
 
 const AdmitCard = () => {
     const [searchParams] = useSearchParams();
-    const studentId = searchParams.get("studentId");
+    const { studentId: studentIdRoute } = useParams();
+    const navigate = useNavigate();
+    const isDedicated = Boolean(studentIdRoute);
+    const studentId = searchParams.get("studentId")
+        ? searchParams.get("studentId")
+        : studentIdRoute;
     const [student, setStudent] = useState(null);
     const [eligibility, setEligibility] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -65,29 +70,44 @@ const AdmitCard = () => {
 
     useEffect(() => {
 
-        if (!studentId) return;
+        if (!studentId) {
+            setStudent(null);
+            setEligibility(null);
+            return;
+        }
 
         const loadStudent = async () => {
 
-            try {
+                if (/^[0-9a-fA-F]{24}$/.test(studentId)) {
+                    try {
+                        const res = await api.get(`/students/${studentId}`);
+                        return loadEligibility(res.data);
+                    } catch {
+                        /* fall through to search */
+                    }
+                }
 
-                const res = await api.get(
-                    `/students/search?q=${studentId}`
-                );
+                let list = [];
 
-                if (res.data.length > 0) {
+                try {
+                    const res = await api.get(
+                        `/students/search?q=${studentId}`
+                    );
+                    list = res.data || [];
+                } catch {
+                    const res = await api.get(
+                        `/students?search=${encodeURIComponent(studentId)}`
+                    );
+                    list = res.data || [];
+                }
 
-                    loadEligibility(res.data[0]);
+                if (list.length > 0) {
+
+                    loadEligibility(list[0]);
 
                 }
 
-            } catch (err) {
-
-                console.log(err);
-
-            }
-
-        };
+            };
 
         loadStudent();
 
@@ -147,23 +167,38 @@ const AdmitCard = () => {
                 {/* HEADER */}
                 <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white">
                     <div className="max-w-7xl mx-auto px-6 py-10">
-                        <h1 className="text-5xl font-black">
-                            Admit Card
-                        </h1>
-                        <p className="mt-3 text-white/80 text-lg">
-                            Generate Student Admit Card
-                        </p>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-5xl font-black">
+                                    Admit Card
+                                </h1>
+                                <p className="mt-3 text-white/80 text-lg">
+                                    Generate Student Admit Card
+                                </p>
+                            </div>
+                            {isDedicated && (
+                                <button onClick={() => navigate("/exam/admit-card")}
+                                    className="px-5 py-2.5 bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl text-white/90 text-sm font-semibold transition">
+                                    ← All Students
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* CONTENT */}
                 <div className="max-w-7xl mx-auto px-4 py-8">
-                    <StudentSearch
-                        onSelect={(student) => {
-                            setStudent(student);
-                            loadEligibility(student);
-                        }}
-                    />
+                    {!isDedicated && (
+                        <StudentPicker
+                            title="Search or browse students by class"
+                            onSelect={(student) => {
+                                setStudent(student);
+                                loadEligibility(student);
+                            }}
+                            onOpen={(s) => navigate(`/admit-card/${s.studentId}`)}
+                            selectedId={student?._id}
+                        />
+                    )}
                     {/* ELIGIBILITY */}
                     <div className="mt-8">
                         <EligibilityCard

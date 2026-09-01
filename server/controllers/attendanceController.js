@@ -461,17 +461,32 @@ const deleteAttendanceRecord = async (req, res) => {
 
 const deleteAttendanceByClassDate = async (req, res) => {
   try {
-    const { className, section, date } = req.body;
+    const { className, section, date, from, to } = req.body;
 
-    if (!className || !date) {
-      return res.status(400).json({ success: false, message: "className and date are required." });
+    if (!className) {
+      return res.status(400).json({ success: false, message: "className is required." });
     }
 
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
+    const filter = { className };
 
-    const filter = { className, date: d };
     if (section) filter.section = section;
+
+    if (from || date) {
+      filter.date = {};
+      const start = new Date(from || date);
+      start.setHours(0, 0, 0, 0);
+      filter.date.$gte = start;
+
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        filter.date.$lte = end;
+      } else {
+        const end = new Date(start);
+        end.setHours(23, 59, 59, 999);
+        filter.date.$lte = end;
+      }
+    }
 
     const result = await Attendance.deleteMany(filter);
 

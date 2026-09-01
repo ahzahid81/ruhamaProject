@@ -61,6 +61,7 @@ export default function AttendanceManagement() {
 
   // Delete confirmations
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkDeleteForm, setBulkDeleteForm] = useState({ className: "", section: "", from: "", to: "" });
   const [bulkDelete, setBulkDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -157,17 +158,20 @@ export default function AttendanceManagement() {
   };
 
   const handleBulkDelete = async () => {
+    if (!bulkDeleteForm.className || !bulkDeleteForm.from) return;
     setDeleting(true);
     try {
       const res = await api.delete("/attendance/admin", {
         data: {
-          className: filters.className,
-          section: filters.section,
-          date: filters.from || filters.to,
+          className: bulkDeleteForm.className,
+          section: bulkDeleteForm.section,
+          from: bulkDeleteForm.from,
+          to: bulkDeleteForm.to,
         },
       });
       showToast("success", res.data.message || "Attendance cleared.");
       setBulkDelete(false);
+      setBulkDeleteForm({ className: "", section: "", from: "", to: "" });
       loadRecords();
     } catch (err) {
       showToast("error", err.response?.data?.message || "Failed to clear attendance");
@@ -292,14 +296,75 @@ export default function AttendanceManagement() {
                 <span className="font-bold text-slate-800">{total}</span> record{total !== 1 ? "s" : ""} found
               </p>
             </div>
-            <button
-              onClick={() => setBulkDelete(true)}
-              disabled={!filters.className || !filters.from}
-              title={!filters.className || !filters.from ? "Select a class and From date to clear" : "Delete all attendance for selected class/date"}
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition disabled:opacity-40"
-            >
-              <Trash className="w-4 h-4" /> Clear Day (Class)
-            </button>
+          </div>
+        </div>
+
+        {/* Delete by Class & Date */}
+        <div className="bg-white rounded-xl border border-red-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center">
+              <Trash className="w-4 h-4 text-red-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Delete by Class &amp; Date</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Permanently remove all attendance records for a class on a date (or date range)</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Class</label>
+              <select
+                value={bulkDeleteForm.className}
+                onChange={(e) => setBulkDeleteForm((f) => ({ ...f, className: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-red-500/40 transition"
+              >
+                <option value="">Select Class</option>
+                {classes.map((c) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section</label>
+              <select
+                value={bulkDeleteForm.section}
+                onChange={(e) => setBulkDeleteForm((f) => ({ ...f, section: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-red-500/40 transition"
+              >
+                <option value="">All</option>
+                {sections.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">From Date</label>
+              <input
+                type="date"
+                value={bulkDeleteForm.from}
+                onChange={(e) => setBulkDeleteForm((f) => ({ ...f, from: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-red-500/40 transition"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">To Date <span className="normal-case text-gray-400">(optional)</span></label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={bulkDeleteForm.to}
+                  onChange={(e) => setBulkDeleteForm((f) => ({ ...f, to: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-red-500/40 transition"
+                />
+                <button
+                  onClick={() => setBulkDelete(true)}
+                  disabled={!bulkDeleteForm.className || !bulkDeleteForm.from}
+                  title={!bulkDeleteForm.className || !bulkDeleteForm.from ? "Select a class and From date" : "Delete attendance for this class/date"}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition disabled:opacity-40 whitespace-nowrap"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -537,11 +602,14 @@ export default function AttendanceManagement() {
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <Trash className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-bold text-slate-800">Clear Attendance Day</h3>
+              <h3 className="text-lg font-bold text-slate-800">Delete Attendance</h3>
               <p className="text-sm text-gray-500 mt-2">
                 This will permanently delete all attendance records for{" "}
-                <b>{filters.className}</b>
-                {filters.section ? " / " + filters.section : ""} on <b>{bdDate(filters.from)}</b>.
+                <b>{bulkDeleteForm.className}</b>
+                {bulkDeleteForm.section ? " / " + bulkDeleteForm.section : ""}
+                {bulkDeleteForm.to && bulkDeleteForm.from
+                  ? <> from <b>{bdDate(bulkDeleteForm.from)}</b> to <b>{bdDate(bulkDeleteForm.to)}</b></>
+                  : <> on <b>{bdDate(bulkDeleteForm.from)}</b></>}.
               </p>
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">

@@ -156,7 +156,7 @@ async function computeAccounts(period) {
 // Full statement payload returned by GET and every mutation, so the
 // client always renders freshly recalculated numbers.
 async function buildPayload(period) {
-  const { accounts, totals } = await computeAccounts(period);
+  const { accounts, incomeBreakdown, totals } = await computeAccounts(period);
   const [recentExpenses, recentTransfers, recentPayments, history, settings] = await Promise.all([
     Expense.find().sort({ date: -1, createdAt: -1 }).limit(50),
     FundTransfer.find().sort({ date: -1, createdAt: -1 }).limit(50),

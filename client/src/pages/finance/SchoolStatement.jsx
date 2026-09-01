@@ -33,6 +33,9 @@ export default function SchoolStatement() {
 
   const [expenseForm, setExpenseForm] = useState({ account: "Cash", amount: "", category: "", note: "", date: todayInput() });
   const [transferForm, setTransferForm] = useState({ fromAccount: "Cash", toAccount: "bKash", amount: "", charge: "", chargeAccount: "Cash", note: "", date: todayInput() });
+  const [dlFrom, setDlFrom] = useState("");
+  const [dlTo, setDlTo] = useState("");
+  const [downloading, setDownloading] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetForm, setResetForm] = useState({ cash: "", bkash: "", bank: "", note: "" });
 
@@ -65,6 +68,33 @@ export default function SchoolStatement() {
     loadStatement();
   }, [loadStatement]);
 
+  const applyPayload = (payload) => {
+    if (payload && payload.accounts) setData(payload);
+  };
+
+  const downloadCSV = async () => {
+    setDownloading(true);
+    try {
+      const params = new URLSearchParams();
+      if (dlFrom) params.set("from", dlFrom);
+      if (dlTo) params.set("to", dlTo);
+      const res = await api.get(`/statement/export?${params.toString()}`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `school-statement-${dlFrom || "all"}-${dlTo || "now"}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("Statement downloaded.", "success");
+    } catch (error) {
+      showToast(error.response?.data?.message || "Download failed.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const setExp = (field, value) => setExpenseForm((p) => ({ ...p, [field]: value }));
 
   const submitExpense = async (e) => {
@@ -72,16 +102,16 @@ export default function SchoolStatement() {
     if (!(Number(expenseForm.amount) > 0)) return showToast("Enter a valid expense amount.");
     setSaving(true);
     try {
-      await api.post("/statement/expense", {
+      const res = await api.post("/statement/expense", {
         account: expenseForm.account,
         amount: Number(expenseForm.amount),
         category: expenseForm.category,
         description: expenseForm.note,
         date: expenseForm.date ? new Date(expenseForm.date).toISOString() : undefined,
       });
-      showToast("Expense recorded.", "success");
+      showToast(res.data.message || "Expense recorded.", "success");
+      applyPayload(res.data);
       setExpenseForm({ ...expenseForm, amount: "", category: "", note: "" });
-      await loadStatement();
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to save expense.");
     } finally {
@@ -92,9 +122,9 @@ export default function SchoolStatement() {
   const removeExpense = async (id) => {
     setDeletingId(id);
     try {
-      await api.delete(`/statement/expense/${id}`);
-      showToast("Expense deleted.", "success");
-      await loadStatement();
+      const res = await api.delete(`/statement/expense/${id}`);
+      showToast(res.data.message || "Expense deleted.", "success");
+      applyPayload(res.data);
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to delete expense.");
     } finally {
@@ -116,7 +146,7 @@ export default function SchoolStatement() {
     if (!(Number(transferForm.amount) > 0)) return showToast("Enter a valid transfer amount.");
     setSaving(true);
     try {
-      await api.post("/statement/fund-transfer", {
+      const res = await api.post("/statement/fund-transfer", {
         fromAccount: transferForm.fromAccount,
         toAccount: transferForm.toAccount,
         amount: Number(transferForm.amount),
@@ -125,9 +155,9 @@ export default function SchoolStatement() {
         note: transferForm.note,
         date: transferForm.date ? new Date(transferForm.date).toISOString() : undefined,
       });
-      showToast("Fund moved.", "success");
+      showToast(res.data.message || "Fund moved.", "success");
+      applyPayload(res.data);
       setTransferForm({ ...transferForm, amount: "", charge: "", note: "" });
-      await loadStatement();
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to transfer funds.");
     } finally {
@@ -138,9 +168,9 @@ export default function SchoolStatement() {
   const removeTransfer = async (id) => {
     setDeletingId(id);
     try {
-      await api.delete(`/statement/fund-transfer/${id}`);
-      showToast("Transfer deleted.", "success");
-      await loadStatement();
+      const res = await api.delete(`/statement/fund-transfer/${id}`);
+      showToast(res.data.message || "Transfer deleted.", "success");
+      applyPayload(res.data);
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to delete transfer.");
     } finally {
@@ -164,9 +194,9 @@ export default function SchoolStatement() {
         note: resetForm.note,
       });
       showToast(res.data.message || "Account reset.", "success");
+      applyPayload(res.data);
       setResetOpen(false);
       setResetForm({ cash: "", bkash: "", bank: "", note: "" });
-      await loadStatement();
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to reset account.");
     } finally {
@@ -242,7 +272,7 @@ export default function SchoolStatement() {
                       <span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
                     </div>
                     <p className="text-2xl font-black text-slate-800 mt-2">{fmt(a.current)}</p>
-                    <p className="text-[11px] text-slate-500 mt-1">Opening {fmt(a.opening)}</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Opening {fmt(a.opening)} · Trans +{fmt(a.transferIn)} / −{fmt(a.transferOut + a.charges)}</p>
                   </div>
                 );
               })}
@@ -274,6 +304,30 @@ export default function SchoolStatement() {
                 </div>
               </section>
             )}
+
+            {/* Download */}
+            <section className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-wrap items-end gap-3 shadow-sm">
+              <div className="flex-1 min-w-[200px]">
+                <label className={labelClass}>From Date</label>
+                <input type="date" value={dlFrom} onChange={(e) => setDlFrom(e.target.value)} className={inputClass} />
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label className={labelClass}>To Date</label>
+                <input type="date" value={dlTo} onChange={(e) => setDlTo(e.target.value)} className={inputClass} />
+              </div>
+              <button onClick={downloadCSV} disabled={downloading}
+                className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M12 15V3" />
+                </svg>
+                {downloading ? "Downloading..." : "Download Statement (CSV)"}
+              </button>
+              <p className="w-full text-[11px] text-slate-400">
+                Leave dates empty for the whole audit period. Downloads payments, expenses, fund transfers and charges with running balance.
+              </p>
+            </section>
 
             {/* Tabs */}
             <div className="flex gap-1.5 bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm w-fit max-w-full overflow-x-auto">

@@ -5,6 +5,7 @@ const { protect, authorizeRoles } = require("../middlewares/authMiddleware");
 
 const {
   getStatement,
+  exportStatement,
   addExpense,
   deleteExpense,
   addFundTransfer,
@@ -14,6 +15,9 @@ const {
 
 // Full school statement (balances, breakdown, recent entries, audit history)
 router.get("/", protect, getStatement);
+
+// Date-wise CSV download
+router.get("/export", protect, exportStatement);
 
 // Expenses
 router.post("/expense", protect, addExpense);

@@ -20,7 +20,6 @@ const tabs = [
   { key: "payments", label: "Payments", icon: "↗" },
   { key: "expenses", label: "Expenses", icon: "↘" },
   { key: "transfer", label: "Fund Transfer", icon: "⇄" },
-  { key: "methods", label: "Payment Methods", icon: "⚙" },
   { key: "history", label: "Audit History", icon: "⊕" },
 ];
 
@@ -39,8 +38,6 @@ export default function SchoolStatement() {
   const [dlTo, setDlTo] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-  const [pmDraft, setPmDraft] = useState({});
-  const [pmSaving, setPmSaving] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetForm, setResetForm] = useState({ cash: "", bkash: "", bank: "", note: "" });
 
@@ -100,40 +97,21 @@ export default function SchoolStatement() {
     }
   };
 
-  const accountForMethod = (method) => {
-    const stored = data?.paymentMethodAccounts || {};
-    if (stored[method]) return stored[method];
-    const k = String(method || "").toLowerCase().replace(/[\s_-]/g, "");
-    if (k === "cash") return "Cash";
-    if (k === "bank" || k === "cheque") return "Bank";
-    return "bKash";
-  };
-
-  const savePaymentMethodAccounts = async () => {
-    if (!(data?.paymentMethods || []).length) return;
-    setPmSaving(true);
-    try {
-      const finalMap = {};
-      (data.paymentMethods || []).forEach((m) => {
-        const v = pmDraft[m];
-        finalMap[m] = v || data?.paymentMethodAccounts?.[m] || accountForMethod(m);
-      });
-      await api.put("/settings", { paymentMethodAccounts: finalMap });
-      setPmDraft({});
-      showToast("Payment method → account mapping saved.", "success");
-      await loadStatement();
-    } catch (error) {
-      showToast(error.response?.data?.message || "Failed to save mapping.");
-    } finally {
-      setPmSaving(false);
-    }
-  };
-
-  const setPm = (method, value) => setPmDraft((p) => ({ ...p, [method]: value }));
-
   const openPrint = () => {
     if (!data) return;
     setPrintOpen(true);
+  };
+
+  // Send no date for today's entries so the server stamps the real current
+  // time (entries stay inside the current audit period no matter timezone).
+  const nextDate = (date) => {
+    if (!date) return undefined;
+    const d = new Date(date);
+    const t = new Date();
+    if (d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate()) {
+      return undefined;
+    }
+    return d.toISOString();
   };
 
   useEffect(() => {
@@ -161,7 +139,6 @@ export default function SchoolStatement() {
         <td>${esc(p.receiptNo || "—")}</td>
         <td>${esc(p.studentName || p.studentId || "—")}</td>
         <td>${esc(p.paymentMethod || "—")}</td>
-        <td>${esc(accountForMethod(p.paymentMethod))}</td>
         <td class="num">${fmt(p.paidAmount)}</td>
       </tr>`);
 
@@ -238,7 +215,7 @@ export default function SchoolStatement() {
 <tbody>${accBody}<tr class="tot"><td>Total</td><td class="num">${fmt(totals.opening)}</td><td class="num">${fmt(totals.income)}</td><td class="num">${fmt(totals.expense)}</td><td class="num">${fmt(totals.transferIn)}</td><td class="num">${fmt(totals.transferOut)}</td><td class="num">${fmt(totals.charges)}</td><td class="num">${fmt(totals.inHand)}</td></tr></tbody></table>
 
 <h2>Payments Received (recent ${(data.recentPayments || []).length})</h2>
-<table><thead><tr><th>Date</th><th>Receipt</th><th>Student</th><th>Method</th><th>Account</th><th class="num">Amount</th></tr></thead><tbody>${payBody}</tbody></table>
+<table><thead><tr><th>Date</th><th>Receipt</th><th>Student</th><th>Method</th><th class="num">Amount</th></tr></thead><tbody>${payBody}</tbody></table>
 
 <h2>Expenses (recent ${(data.recentExpenses || []).length})</h2>
 <table><thead><tr><th>Date</th><th>Category</th><th>Details</th><th>Account</th><th class="num">Amount</th></tr></thead><tbody>${expenseBody}</tbody></table>
@@ -263,7 +240,7 @@ export default function SchoolStatement() {
         amount: Number(expenseForm.amount),
         category: expenseForm.category,
         description: expenseForm.note,
-        date: expenseForm.date ? new Date(expenseForm.date).toISOString() : undefined,
+        date: nextDate(expenseForm.date),
       });
       showToast(res.data.message || "Expense recorded.", "success");
       applyPayload(res.data);
@@ -309,7 +286,7 @@ export default function SchoolStatement() {
         charge: Number(transferForm.charge || 0),
         chargeAccount: Number(transferForm.charge || 0) > 0 ? transferForm.chargeAccount : transferForm.fromAccount,
         note: transferForm.note,
-        date: transferForm.date ? new Date(transferForm.date).toISOString() : undefined,
+        date: nextDate(transferForm.date),
       });
       showToast(res.data.message || "Fund moved.", "success");
       applyPayload(res.data);
@@ -510,11 +487,12 @@ export default function SchoolStatement() {
 
             {/* OVERVIEW */}
             {tab === "overview" && (
+              <>
               <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="px-5 py-4 border-b border-slate-100">
                   <h2 className="text-base font-bold text-slate-800">Statement Breakdown</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Income is assigned to Cash / bKash / Bank from the Payment Method mapping set in System Settings (manage on the "Payment Methods" tab).
+                    Income is collected per payment method — each method is its own income account (Cash, bKash, Bank, ...). Fund balances move via expenses, transfers and charges.
                   </p>
                 </div>
                 <div className="overflow-x-auto">
@@ -558,6 +536,43 @@ export default function SchoolStatement() {
                   </table>
                 </div>
               </section>
+
+              <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100">
+                  <h2 className="text-base font-bold text-slate-800">Income by Payment Method</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Taken from the payment methods in System Settings. Methods named Cash / bKash / Bank feed the matching fund balance.
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
+                        <th className="px-5 py-3 font-semibold">Payment Method</th>
+                        <th className="px-5 py-3 font-semibold text-right">Collected</th>
+                        <th className="px-5 py-3 font-semibold text-right">Credits Fund</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(data?.incomeBreakdown || []).length === 0 ? (
+                        <tr><td colSpan="3" className="px-5 py-8 text-center text-slate-300 text-sm font-medium">No income collected in this audit period</td></tr>
+                      ) : (data?.incomeBreakdown || []).map((row) => (
+                        <tr key={row.method} className="hover:bg-slate-50/60 transition">
+                          <td className="px-5 py-3 font-semibold text-slate-700">{row.method}</td>
+                          <td className="px-5 py-3 text-right font-bold text-emerald-600">{fmt(row.amount)}</td>
+                          <td className="px-5 py-3 text-right text-slate-500">{row.amount > 0 ? (row.fundCredit > 0 ? row.method : "— (enters via transfer)") : "—"}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="px-5 py-3 text-slate-800">Total Collected (all methods)</td>
+                        <td className="px-5 py-3 text-right text-emerald-600">{fmt(totals.incomeAllMethods)}</td>
+                        <td className="px-5 py-3 text-right text-slate-500">{fmt(totals.income)} into Cash / bKash / Bank</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              </>
             )}
 
             {/* PAYMENTS */}
@@ -566,7 +581,7 @@ export default function SchoolStatement() {
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                   <div>
                     <h2 className="text-base font-bold text-slate-800">Payments Received</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">Collected via Collect Payment — each method feeds its assigned account</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Collected via Collect Payment — the payment method is the income account</p>
                   </div>
                   <button onClick={loadStatement} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition">↻ Refresh</button>
                 </div>
@@ -578,22 +593,18 @@ export default function SchoolStatement() {
                         <th className="px-4 py-3 font-semibold">Receipt</th>
                         <th className="px-4 py-3 font-semibold">Student</th>
                         <th className="px-4 py-3 font-semibold">Method</th>
-                        <th className="px-4 py-3 font-semibold">Account</th>
                         <th className="px-5 py-3 font-semibold text-right">Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(data?.recentPayments || []).length === 0 ? (
-                        <tr><td colSpan="6" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No payments collected yet</td></tr>
+                        <tr><td colSpan="5" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No payments collected yet</td></tr>
                       ) : (data?.recentPayments || []).map((p) => (
                         <tr key={p._id} className="hover:bg-slate-50/60 transition">
                           <td className="px-5 py-3 whitespace-nowrap text-slate-500">{fmtDate(p.receiveDate)}</td>
                           <td className="px-4 py-3 font-mono text-[12px] font-semibold text-slate-600">{p.receiptNo || "—"}</td>
                           <td className="px-4 py-3 text-slate-700">{p.studentName || p.studentId}</td>
                           <td className="px-4 py-3"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{p.paymentMethod || "Cash"}</span></td>
-                          <td className="px-4 py-3">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${accountColor[accountForMethod(p.paymentMethod)]?.bg || "bg-slate-100"} ${accountColor[accountForMethod(p.paymentMethod)]?.text || "text-slate-600"}`}>{accountForMethod(p.paymentMethod)}</span>
-                          </td>
                           <td className="px-5 py-3 text-right font-bold text-emerald-600">{fmt(p.paidAmount)}</td>
                         </tr>
                       ))}
@@ -792,62 +803,6 @@ export default function SchoolStatement() {
                   </div>
                 </section>
               </div>
-            )}
-
-            {/* PAYMENT METHODS */}
-            {tab === "methods" && (
-              <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-800">Payment Method → Account</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {isAdmin
-                        ? "Each method in System Settings feeds one fund account. Savings update the statement income buckets."
-                        : "Managed by an admin in System Settings (Payment Methods)."}
-                    </p>
-                  </div>
-                  {isAdmin && (
-                    <button onClick={savePaymentMethodAccounts} disabled={pmSaving || Object.keys(pmDraft).length === 0}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition disabled:opacity-50">
-                      {pmSaving ? "Saving..." : "Save Mapping"}
-                    </button>
-                  )}
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
-                        <th className="px-5 py-3 font-semibold">Payment Method</th>
-                        <th className="px-4 py-3 font-semibold">Income Account</th>
-                        <th className="px-4 py-3 font-semibold">Default</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {(data?.paymentMethods || []).length === 0 ? (
-                        <tr><td colSpan="3" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No payment methods configured</td></tr>
-                      ) : (data?.paymentMethods || []).map((m) => {
-                        const effective = pmDraft[m] || data?.paymentMethodAccounts?.[m] || accountForMethod(m);
-                        return (
-                          <tr key={m} className="hover:bg-slate-50/60 transition">
-                            <td className="px-5 py-3 font-semibold text-slate-700">{m}</td>
-                            <td className="px-4 py-3">
-                              {isAdmin ? (
-                                <select value={effective} onChange={(e) => setPm(m, e.target.value)}
-                                  className={`${inputClass} max-w-[200px]`}>
-                                  {ACCOUNTS.map((a) => <option key={a} value={a}>{a}</option>)}
-                                </select>
-                              ) : (
-                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${accountColor[effective]?.bg || "bg-slate-100"} ${accountColor[effective]?.text || "text-slate-600"}`}>{effective}</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-slate-400">{data?.paymentMethodAccounts?.[m] ? "Custom" : "Auto"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
             )}
 
             {/* AUDIT HISTORY */}

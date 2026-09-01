@@ -10,49 +10,27 @@ const KEY_ACCOUNTS = { cash: "Cash", bkash: "bKash", bank: "Bank" };
 
 const csvDate = (d) => new Date(d).toISOString().slice(0, 10);
 
-// Normalize a transaction date. A bare date sent by the client ("2026-09-01")
-// parses as UTC midnight -> 00:00 local in Dhaka. If it is today, use the real
-// current time instead, so a same-day entry recorded after an audit reset
-// (whose period started later today) is NOT wrongly excluded from the period.
+// Normalize a transaction date. A bare date sent by the client ("2026-09-01"
+// or "2026-09-01T00:00:00.000Z") has no meaningful time-of-day. If its calendar
+// date is today, store the real current time so a same-day entry recorded after
+// an audit reset (whose period started later today) is NOT wrongly excluded.
 function parseTxDate(input) {
   const now = new Date();
   if (!input) return now;
   const d = new Date(input);
   if (isNaN(d.getTime())) return now;
+  const s = String(input);
+  const isDateOnly =
+    /^\d{4}-\d{2}-\d{2}$/.test(s) || /T00:00:00(\.\d{3})?(Z|[+-]\d{2}:\d{2})?$/.test(s);
   if (
+    isDateOnly &&
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate() &&
-    d.getHours() === 0 &&
-    d.getMinutes() === 0 &&
-    d.getSeconds() === 0
+    d.getDate() === now.getDate()
   ) {
     return now;
   }
   return d;
-}
-
-// Payment Method -> fund account assignment, defaulting from the payment
-// methods configured in System Settings. Each method maps to Cash / bKash /
-// Bank (editable via the statement page, stored in Settings.paymentMethodAccounts).
-async function getAssignmentMap() {
-  const settings = await Settings.getSettings();
-  const methods = Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [];
-  const stored = settings.paymentMethodAccounts || {};
-  const map = {};
-  methods.forEach((m) => {
-    const k = String(m).toLowerCase().replace(/[\s_-]/g, "");
-    if (stored[m] && ACCOUNT_KEYS[stored[m]]) {
-      map[m] = ACCOUNT_KEYS[stored[m]];
-    } else if (k === "cash") {
-      map[m] = "cash";
-    } else if (k === "bank" || k === "cheque") {
-      map[m] = "bank";
-    } else {
-      map[m] = "bkash";
-    }
-  });
-  return map;
 }
 
 // ============================================
@@ -76,22 +54,54 @@ async function getCurrentPeriod() {
 
 async function computeAccounts(period) {
   const since = new Date(period.periodStart);
-  const assignment = await getAssignmentMap();
-  const accountOf = (method) => assignment[method] || "bkash";
 
-  const [payments, transfers, expenses] = await Promise.all([
+  const [payments, transfers, expenses, settings] = await Promise.all([
     Payment.find({ receiveDate: { $gte: since }, paymentStatus: "Completed", isVoided: { $ne: true } }),
     FundTransfer.find({ date: { $gte: since } }),
     Expense.find({ date: { $gte: since } }),
+    Settings.getSettings(),
   ]);
 
-  const income = { cash: 0, bkash: 0, bank: 0 };
+  // Each payment method IS its own income account. A method that equals a fund
+  // (Cash / bKash / Bank) credits that fund's balance.
+  const byMethod = {};
+  const fundIncome = { cash: 0, bkash: 0, bank: 0 };
+  const extraMethods = [];
   payments.forEach((p) => {
-    income[accountOf(p.paymentMethod)] += Number(p.paidAmount || 0);
+    const m = (p.paymentMethod || "Cash").trim() || "Cash";
+    const amount = Number(p.paidAmount || 0);
+    byMethod[m] = Number(byMethod[m] || 0) + amount;
+    const k = String(m).toLowerCase().replace(/[\s_-]/g, "");
+    if (k === "cash") fundIncome.cash += amount;
+    else if (k === "bkash") fundIncome.bkash += amount;
+    else if (k === "bank") fundIncome.bank += amount;
+    else if (!extraMethods.includes(m)) extraMethods.push(m);
+  });
+
+  // Ordered income breakdown: every configured method (even with 0 so new
+  // methods added day-by-day appear), then any extra methods found in payments.
+  const incomeBreakdown = [];
+  ((Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [])).forEach((m) => {
+    incomeBreakdown.push({ method: m, amount: Number(byMethod[m] || 0) });
+  });
+  extraMethods.forEach((m) => {
+    incomeBreakdown.push({ method: m, amount: byMethod[m] });
+  });
+
+  const byMethodFund = (m) => {
+    const k = String(m).toLowerCase().replace(/[\s_-]/g, "");
+    if (k === "cash") return fundIncome.cash;
+    if (k === "bkash") return fundIncome.bkash;
+    if (k === "bank") return fundIncome.bank;
+    return 0;
+  };
+  incomeBreakdown.forEach((row) => {
+    row.fundCredit = byMethodFund(row.method);
   });
 
   const expenseBy = { cash: 0, bkash: 0, bank: 0 };
   expenses.forEach((e) => {
+    if (!ACCOUNT_KEYS[e.account]) return;
     expenseBy[ACCOUNT_KEYS[e.account]] += Number(e.amount || 0);
   });
 
@@ -99,10 +109,11 @@ async function computeAccounts(period) {
   const transferOut = { cash: 0, bkash: 0, bank: 0 };
   const charges = { cash: 0, bkash: 0, bank: 0 };
   transfers.forEach((t) => {
+    if (!ACCOUNT_KEYS[t.toAccount] || !ACCOUNT_KEYS[t.fromAccount]) return;
     transferIn[ACCOUNT_KEYS[t.toAccount]] += Number(t.amount || 0);
     transferOut[ACCOUNT_KEYS[t.fromAccount]] += Number(t.amount || 0);
     const chg = Number(t.charge || 0);
-    if (chg > 0) {
+    if (chg > 0 && ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]) {
       charges[ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]] += chg;
     }
   });
@@ -111,11 +122,11 @@ async function computeAccounts(period) {
     const k = ACCOUNT_KEYS[acct];
     const opening = Number(period.openingBalances[k] || 0);
     const current =
-      opening + income[k] - expenseBy[k] + transferIn[k] - transferOut[k] - charges[k];
+      opening + fundIncome[k] - expenseBy[k] + transferIn[k] - transferOut[k] - charges[k];
     return {
       key: acct,
       opening,
-      income: income[k],
+      income: fundIncome[k],
       expense: expenseBy[k],
       transferIn: transferIn[k],
       transferOut: transferOut[k],
@@ -124,11 +135,15 @@ async function computeAccounts(period) {
     };
   });
 
+  const incomeTotal = incomeBreakdown.reduce((s, r) => s + Number(r.amount || 0), 0);
+
   return {
     accounts,
+    incomeBreakdown,
     totals: {
       opening: accounts.reduce((s, a) => s + a.opening, 0),
       income: accounts.reduce((s, a) => s + a.income, 0),
+      incomeAllMethods: incomeTotal,
       expense: accounts.reduce((s, a) => s + a.expense, 0),
       transferIn: accounts.reduce((s, a) => s + a.transferIn, 0),
       transferOut: accounts.reduce((s, a) => s + a.transferOut, 0),
@@ -162,9 +177,9 @@ async function buildPayload(period) {
       note: period.note,
     },
     accounts,
+    incomeBreakdown,
     totals,
     paymentMethods: settings.paymentMethods,
-    paymentMethodAccounts: settings.paymentMethodAccounts,
     recentExpenses,
     recentTransfers,
     recentPayments,
@@ -201,9 +216,15 @@ const getStatement = async (req, res) => {
 const exportStatement = async (req, res) => {
   try {
     const currentPeriod = await getCurrentPeriod();
-    const assignment = await getAssignmentMap();
-    const accountOf = (method) => assignment[method] || "bkash";
     const now = new Date();
+
+    const fundKeyOf = (method) => {
+      const k = String(method || "Cash").toLowerCase().replace(/[\s_-]/g, "");
+      if (k === "cash") return "cash";
+      if (k === "bkash") return "bkash";
+      if (k === "bank") return "bank";
+      return null;
+    };
 
     const fromRaw = req.query.from ? new Date(req.query.from) : null;
     const toRaw = req.query.to ? new Date(req.query.to) : now;
@@ -229,16 +250,20 @@ const exportStatement = async (req, res) => {
       bank: Number(activePeriod.openingBalances?.bank || 0),
     };
     payPre.forEach((p) => {
-      balance[accountOf(p.paymentMethod)] += Number(p.paidAmount || 0);
+      const k = fundKeyOf(p.paymentMethod);
+      if (k) balance[k] += Number(p.paidAmount || 0);
     });
     exPre.forEach((e) => {
       balance[ACCOUNT_KEYS[e.account]] -= Number(e.amount || 0);
     });
     trPre.forEach((t) => {
-      balance[ACCOUNT_KEYS[t.fromAccount]] -= Number(t.amount || 0);
-      balance[ACCOUNT_KEYS[t.toAccount]] += Number(t.amount || 0);
+      const out = ACCOUNT_KEYS[t.fromAccount];
+      const inn = ACCOUNT_KEYS[t.toAccount];
+      if (!out || !inn) return;
+      balance[out] -= Number(t.amount || 0);
+      balance[inn] += Number(t.amount || 0);
       const c = Number(t.charge || 0);
-      if (c > 0) balance[ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]] -= c;
+      if (c > 0 && ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]) balance[ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]] -= c;
     });
 
     // Flows inside the requested range.
@@ -271,15 +296,15 @@ const exportStatement = async (req, res) => {
         ts: p.receiveDate,
         sort: 0,
         make: () => {
-          const k = accountOf(p.paymentMethod);
+          const k = fundKeyOf(p.paymentMethod);
           const amt = Number(p.paidAmount || 0);
-          balance[k] += amt;
+          if (k) balance[k] += amt;
           rows.push({
             date: csvDate(p.receiveDate),
             type: "Payment",
             description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${p.paymentMethod}]`,
             from: "Student",
-            to: KEY_ACCOUNTS[k],
+            to: k ? KEY_ACCOUNTS[k] : p.paymentMethod || "Cash",
             amount: amt,
             charge: "",
             balance: total(),
@@ -315,6 +340,7 @@ const exportStatement = async (req, res) => {
         make: () => {
           const out = ACCOUNT_KEYS[t.fromAccount];
           const inn = ACCOUNT_KEYS[t.toAccount];
+          if (!out || !inn) return;
           const amt = Number(t.amount || 0);
           balance[out] -= amt;
           balance[inn] += amt;

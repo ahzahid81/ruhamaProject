@@ -8,6 +8,7 @@ const {
   exportStatement,
   exportStatementJson,
   addExpense,
+  updateExpense,
   deleteExpense,
   addFundTransfer,
   deleteFundTransfer,
@@ -25,6 +26,7 @@ router.get("/export-json", protect, exportStatementJson);
 
 // Expenses
 router.post("/expense", protect, addExpense);
+router.put("/expense/:id", protect, updateExpense);
 router.delete("/expense/:id", protect, deleteExpense);
 
 // Fund transfers

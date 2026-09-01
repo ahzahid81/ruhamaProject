@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import api from "../../services/api";
 
 const categorySuggestions = [
@@ -7,8 +7,50 @@ const categorySuggestions = [
 ];
 
 const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
+const fmtTk = (n) => "৳ " + Number(n || 0).toLocaleString("en-BD");
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
 const fmtTime = (d) => (d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+const itemPeriod = (it) => {
+  if (!it) return "";
+  if (it.applicableType === "Month") return `${MONTHS[(it.month || 1) - 1]}${it.year ? ` ${it.year}` : ""}`;
+  if (it.applicableType === "Exam") return it.examName || "Exam";
+  if (it.applicableType === "Year") return `Year ${it.year || ""}`;
+  if (it.applicableType === "One Time") return it.customTitle || "One-time";
+  return it.customTitle || "";
+};
+
+const numberToWords = (num) => {
+  if (!num) return "Zero";
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const two = (n) => (n < 20 ? ones[n] : tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : ""));
+  const three = (n) => {
+    const h = Math.floor(n / 100), r = n % 100;
+    return (h ? ones[h] + " Hundred" : "") + (h && r ? " and " : "") + (r ? two(r) : "");
+  };
+  let n = Math.floor(Math.abs(num));
+  const crore = Math.floor(n / 10000000); n %= 10000000;
+  const lakh = Math.floor(n / 100000); n %= 100000;
+  const thousand = Math.floor(n / 1000); n %= 1000;
+  const parts = [];
+  if (crore) parts.push(three(crore) + " Crore");
+  if (lakh) parts.push(three(lakh) + " Lakh");
+  if (thousand) parts.push(three(thousand) + " Thousand");
+  if (n) parts.push(three(n));
+  return parts.join(" ") || "Zero";
+};
+
+const amountInWords = (n) => {
+  const num = Number(n || 0);
+  const whole = Math.floor(Math.abs(num));
+  const paisa = Math.round((Math.abs(num) - whole) * 100);
+  let s = `Taka ${numberToWords(whole)}`;
+  if (paisa > 0) s += ` and Paisa ${numberToWords(paisa)}`;
+  return `${s} only`;
+};
 
 const inputClass = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition bg-white";
 const labelClass = "block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5";
@@ -32,6 +74,7 @@ export default function SchoolStatement() {
 
   const [expenseForm, setExpenseForm] = useState({ account: "", amount: "", category: "", note: "", date: "" });
   const [transferForm, setTransferForm] = useState({ fromAccount: "", toAccount: "", amount: "", charge: "", chargeAccount: "", note: "", date: "" });
+  const [expandedPay, setExpandedPay] = useState(null);
   const [dlFrom, setDlFrom] = useState("");
   const [dlTo, setDlTo] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -219,7 +262,7 @@ export default function SchoolStatement() {
       });
       showToast(res.data.message || "Expense recorded.", "success");
       applyPayload(res.data);
-      setExpenseForm({ ...expenseForm, amount: "", category: "", note: "" });
+      setExpenseForm({ ...expenseForm, amount: "", category: "", note: "", date: "" });
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to save expense.");
     } finally {
@@ -238,6 +281,89 @@ export default function SchoolStatement() {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const toggleVoucher = async (id, on) => {
+    setDeletingId(id);
+    try {
+      const res = await api.put(`/statement/expense/${id}`, { hasVoucher: on });
+      showToast(res.data.message || "Voucher updated.", "success");
+      applyPayload(res.data);
+    } catch (error) {
+      showToast(error.response?.data?.message || "Failed to update voucher.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const printVoucher = (x) => {
+    if (!x) return;
+    const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const w = window.open("", "_blank", "width=900,height=780");
+    if (!w) {
+      showToast("Popup blocked. Please allow popups for this site.", "error");
+      return;
+    }
+    w.document.open();
+    w.document.write(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, "Times New Roman", serif; background: #f1f5f9; margin: 0; display: flex; justify-content: center; padding: 28px 20px; color: #1e293b; }
+  .sheet { background: #fff; width: 8.27in; min-height: 11.69in; padding: 0.45in 0.5in; box-shadow: 0 20px 50px rgba(15,23,42,.25); position: relative; }
+  .topband { position: absolute; top: 0; left: 0; right: 0; height: 12px; background: linear-gradient(90deg,#4f46e5,#0e7490,#f59e0b); }
+  .school { text-align: center; border-bottom: 3px double #1e293b; padding-bottom: 14px; }
+  .school h1 { margin: 0; font-size: 26px; letter-spacing: 1px; text-transform: uppercase; }
+  .school .addr { font-size: 11px; color: #475569; margin-top: 3px; letter-spacing: .4px; }
+  .title { text-align: center; margin: 22px 0 4px; }
+  .title h2 { display: inline-block; margin: 0; font-size: 19px; letter-spacing: 3px; padding: 7px 26px; border: 2px solid #1e293b; border-radius: 8px; text-transform: uppercase; }
+  .meta { display: flex; justify-content: space-between; margin: 16px 0 4px; font-size: 13px; }
+  .meta b { font-weight: bold; }
+  .box { border: 1.5px solid #cbd5e1; border-radius: 6px; }
+  .rows { width: 100%; }
+  .rows td { padding: 10px 14px; font-size: 13.5px; vertical-align: top; border-bottom: 1px dashed #e2e8f0; }
+  .rows td.label { width: 34%; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; background: #f8fafc; border-right: 1px dashed #e2e8f0; }
+  .big { font-size: 17px; font-weight: bold; }
+  .words { font-style: italic; color: #334155; line-height: 1.55; }
+  .amount-big { text-align: center; font-size: 24px; font-weight: bold; letter-spacing: .5px; margin: 18px 0 6px; }
+  .sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 60px; text-align: center; font-size: 12px; }
+  .sign .line { border-top: 1.5px solid #334155; margin-bottom: 8px; padding-top: 6px; font-weight: bold; }
+  footer { margin-top: 46px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+  .pbar { position: fixed; top: 0; left: 0; right: 0; background: #111827; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; z-index: 999; }
+  .pbar button { background: #4f46e5; border: 0; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  @media print { body { background: #fff; padding: 0; } .sheet { box-shadow: none; } .pbar { display: none; } }
+</style></head><body>
+<div class="pbar"><span>Expense Voucher preview · ${esc(x.voucherNo || "")}</span><button onclick="window.print()">🖨 Print</button></div>
+<div class="sheet">
+  <div class="topband"></div>
+  <div class="school">
+    <h1>Ruhama United School</h1>
+    <div class="addr">Dhaka, Bangladesh · ${esc(fmtDate(x.date))}</div>
+  </div>
+  <div class="title"><h2>Expense Voucher</h2></div>
+  <div class="meta">
+    <div>Voucher No: <b>${esc(x.voucherNo || "—")}</b></div>
+    <div>Date: <b>${esc(fmtDate(x.date))}</b></div>
+  </div>
+  <div class="box">
+    <table class="rows">
+      <tr><td class="label">Paid From (Account)</td><td class="big">${esc(x.account || "")}</td></tr>
+      <tr><td class="label">Category</td><td class="big">${esc(x.category || "—")}</td></tr>
+      <tr><td class="label">Details / Purpose</td><td>${esc(x.description || "—")}</td></tr>
+      <tr><td class="label">Code</td><td>${esc(x.academicSession ? `Session ${x.academicSession}` : "—")}</td></tr>
+      <tr><td class="label">Amount in Words</td><td class="words">${esc(amountInWords(x.amount))}</td></tr>
+    </table>
+  </div>
+  <div class="amount-big">=${esc(fmtTk(x.amount))}/=</div>
+  <div class="sign">
+    <div><div class="line">Prepared By</div>Office / Accounts</div>
+    <div><div class="line">Approved By</div>Authority Signature</div>
+    <div><div class="line">Received By</div>Payee Signature</div>
+  </div>
+  <footer>This is a computer-generated Expense Voucher issued by the School Office. Subject to the audit records of the School Statement.</footer>
+</div>
+</body></html>`);
+    w.document.close();
   };
 
   const setTr = (field, value) => {
@@ -516,13 +642,13 @@ export default function SchoolStatement() {
               </section>
             )}
 
-            {/* PAYMENTS */}
+            {/* PAYMENTS — student payments with fee-item details */}
             {tab === "payments" && (
               <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                   <div>
-                    <h2 className="text-base font-bold text-slate-800">Payments Received</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">Collected via Collect Payment — the payment method is the income account</p>
+                    <h2 className="text-base font-bold text-slate-800">Student Payments With Details</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Click any row to expand the fee items collected in that payment</p>
                   </div>
                   <button onClick={loadStatement} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition">↻ Refresh</button>
                 </div>
@@ -530,7 +656,8 @@ export default function SchoolStatement() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
-                        <th className="px-5 py-3 font-semibold">Date</th>
+                        <th className="px-4 py-3 font-semibold w-10"></th>
+                        <th className="px-4 py-3 font-semibold">Date</th>
                         <th className="px-4 py-3 font-semibold">Receipt</th>
                         <th className="px-4 py-3 font-semibold">Student</th>
                         <th className="px-4 py-3 font-semibold">Method</th>
@@ -539,16 +666,79 @@ export default function SchoolStatement() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(data?.recentPayments || []).length === 0 ? (
-                        <tr><td colSpan="5" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No payments collected yet</td></tr>
-                      ) : (data?.recentPayments || []).map((p) => (
-                        <tr key={p._id} className="hover:bg-slate-50/60 transition">
-                          <td className="px-5 py-3 whitespace-nowrap text-slate-500">{fmtDate(p.receiveDate)}</td>
-                          <td className="px-4 py-3 font-mono text-[12px] font-semibold text-slate-600">{p.receiptNo || "—"}</td>
-                          <td className="px-4 py-3 text-slate-700">{p.studentName || p.studentId}</td>
-                          <td className="px-4 py-3"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{p.paymentMethod || "Cash"}</span></td>
-                          <td className="px-5 py-3 text-right font-bold text-emerald-600">{fmt(p.paidAmount)}</td>
-                        </tr>
-                      ))}
+                        <tr><td colSpan="6" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No payments collected yet</td></tr>
+                      ) : (data?.recentPayments || []).map((p) => {
+                        const items = p.recentItems || [];
+                        const open = expandedPay === p._id;
+                        const itTot = (k) => items.reduce((s, it) => s + Number(it[k] || 0), 0);
+                        return (
+                          <Fragment key={p._id}>
+                            <tr onClick={() => setExpandedPay(open ? null : p._id)}
+                              className={`cursor-pointer transition ${open ? "bg-indigo-50/40" : "hover:bg-slate-50/60"}`}>
+                              <td className="px-4 py-3 text-slate-400">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                  className={`w-4 h-4 transition-transform ${open ? "rotate-90" : ""}`}>
+                                  <path d="m9 18 6-6-6-6" />
+                                </svg>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-slate-500">{fmtDate(p.receiveDate)}</td>
+                              <td className="px-4 py-3 font-mono text-[12px] font-semibold text-slate-600">{p.receiptNo || "—"}</td>
+                              <td className="px-4 py-3 text-slate-700">
+                                {p.studentName || p.studentId}
+                                {p.className && <span className="ml-2 text-[11px] text-slate-400 font-medium">{p.className}</span>}
+                              </td>
+                              <td className="px-4 py-3"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{p.paymentMethod || "Cash"}</span></td>
+                              <td className="px-5 py-3 text-right font-bold text-emerald-600">{fmt(p.paidAmount)}</td>
+                            </tr>
+                            {open && (
+                              <tr className="bg-slate-50/70">
+                                <td colSpan="6" className="px-5 py-4">
+                                  {items.length === 0 ? (
+                                    <p className="text-xs text-slate-400 py-2">No fee-item breakdown recorded for this payment.</p>
+                                  ) : (
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="text-left text-[10px] text-slate-400 uppercase tracking-wider">
+                                            <th className="pb-2 pr-3 font-semibold">Fee Item</th>
+                                            <th className="pb-2 pr-3 font-semibold">Period</th>
+                                            <th className="pb-2 pr-3 font-semibold text-right">Payable</th>
+                                            <th className="pb-2 pr-3 font-semibold text-right">Discount</th>
+                                            <th className="pb-2 pr-3 font-semibold text-right">Fine</th>
+                                            <th className="pb-2 pr-3 font-semibold text-right">Paid</th>
+                                            <th className="pb-2 font-semibold text-right">Due</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                          {items.map((it) => (
+                                            <tr key={it._id}>
+                                              <td className="py-2 pr-3 text-slate-700 font-medium">{it.feeName}</td>
+                                              <td className="py-2 pr-3 text-slate-500">{itemPeriod(it)}</td>
+                                              <td className="py-2 pr-3 text-right text-slate-600">{fmt(it.payableAmount)}</td>
+                                              <td className="py-2 pr-3 text-right text-rose-500">{it.discount ? `− ${fmt(it.discount)}` : "—"}</td>
+                                              <td className="py-2 pr-3 text-right text-amber-600">{it.fine ? `+ ${fmt(it.fine)}` : "—"}</td>
+                                              <td className="py-2 pr-3 text-right font-bold text-emerald-600">{fmt(it.paidAmount)}</td>
+                                              <td className="py-2 text-right text-slate-500">{it.dueAmount ? fmt(it.dueAmount) : "—"}</td>
+                                            </tr>
+                                          ))}
+                                          <tr className="bg-slate-100/60 font-bold text-slate-700">
+                                            <td className="py-2 pr-3" colSpan="2">Total</td>
+                                            <td className="py-2 pr-3 text-right">{fmt(itTot("payableAmount"))}</td>
+                                            <td className="py-2 pr-3 text-right text-rose-500">− {fmt(itTot("discount"))}</td>
+                                            <td className="py-2 pr-3 text-right text-amber-600">+ {fmt(itTot("fine"))}</td>
+                                            <td className="py-2 pr-3 text-right text-emerald-600">{fmt(itTot("paidAmount"))}</td>
+                                            <td className="py-2 text-right">{itTot("dueAmount") ? fmt(itTot("dueAmount")) : "—"}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -590,6 +780,15 @@ export default function SchoolStatement() {
                       <label className={labelClass}>Date</label>
                       <input type="date" value={expenseForm.date} onChange={(e) => setExp("date", e.target.value)} className={inputClass} />
                     </div>
+                    <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2.5 flex items-start gap-2.5">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 mt-0.5 text-indigo-500 shrink-0">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <path d="M14 2v6h6" /><path d="m16 13-1.7 1.7 1.7 1.7" /><path d="M13 17h4" />
+                      </svg>
+                      <p className="text-[11px] text-indigo-700 leading-snug">
+                        Every expense is issued a <b>numbered supporting voucher</b> automatically (EXV-…). Use the <b>Voucher</b> button on the expense to print it.
+                      </p>
+                    </div>
                     <button type="submit" disabled={saving}
                       className="w-full py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 transition disabled:opacity-50">
                       {saving ? "Saving..." : "Add Expense"}
@@ -628,9 +827,27 @@ export default function SchoolStatement() {
                               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${colorOf(x.account)?.bg || "bg-slate-100"} ${colorOf(x.account)?.text || "text-slate-600"}`}>{x.account}</span>
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-rose-600">− {fmt(x.amount)}</td>
-                            <td className="px-5 py-3 text-right">
+                            <td className="px-5 py-3 text-right whitespace-nowrap">
+                              {x.hasVoucher ? (
+                                <button onClick={() => printVoucher(x)}
+                                  title={`Print ${x.voucherNo}`}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-[11px] font-bold hover:bg-indigo-100 transition">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                                    <path d="M6 9V2h12v7" />
+                                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                                    <rect x="6" y="14" width="12" height="8" rx="1" />
+                                  </svg>
+                                  {x.voucherNo || "Voucher"}
+                                </button>
+                              ) : (
+                                <button onClick={() => toggleVoucher(x._id, true)} disabled={deletingId === x._id}
+                                  title="Attach the numbered voucher"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-dashed border-slate-300 text-slate-400 text-[11px] font-bold hover:text-indigo-600 hover:border-indigo-300 transition mr-1">
+                                  + Voucher
+                                </button>
+                              )}
                               <button onClick={() => removeExpense(x._id)} disabled={deletingId === x._id}
-                                title="Delete" className="p-1.5 text-slate-300 hover:text-rose-600 transition">
+                                title="Delete" className="p-1.5 text-slate-300 hover:text-rose-600 transition align-middle">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                                   <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                                 </svg>
@@ -801,7 +1018,6 @@ export default function SchoolStatement() {
             <form onSubmit={submitReset} className="p-6 space-y-4">
               <div className="grid grid-cols-1 gap-3">
                 {accounts.map((a) => {
-                  const c = colorOf(a.key);
                   return (
                     <div key={a.key}>
                       <label className={labelClass}>Opening {a.key} (BDT)</label>

@@ -34,6 +34,18 @@ const expenseSchema = new mongoose.Schema(
       ref: "Teacher",
       default: null,
     },
+
+    // Supporting voucher: when enabled the expense is given a unique
+    // voucher number and can be printed as a premium Expense Voucher.
+    hasVoucher: {
+      type: Boolean,
+      default: false,
+    },
+    voucherNo: {
+      type: String,
+      default: "",
+      index: true,
+    },
   },
   { timestamps: true }
 );

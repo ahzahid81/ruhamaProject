@@ -2,6 +2,7 @@ const Expense = require("../models/Expense");
 const FundTransfer = require("../models/FundTransfer");
 const StatementPeriod = require("../models/StatementPeriod");
 const Payment = require("../models/Payment");
+const PaymentItem = require("../models/PaymentItem");
 const Settings = require("../models/Settings");
 
 // The statement runs entirely on the payment methods defined in System
@@ -9,6 +10,16 @@ const Settings = require("../models/Settings");
 // transfers, opening/closing balances all use the declared payment methods.
 
 const csvDate = (d) => new Date(d).toISOString().slice(0, 10);
+
+// Expense voucher number: EXV-<year>-000001
+async function generateVoucherNo() {
+  const year = new Date().getFullYear();
+  const prefix = `EXV-${year}`;
+  const last = await Expense.findOne({ voucherNo: { $regex: `^${prefix}` } }).sort({ createdAt: -1 });
+  if (!last || !last.voucherNo) return `${prefix}-000001`;
+  const lastNumber = parseInt(last.voucherNo.split("-")[2]) || 0;
+  return `${prefix}-${(lastNumber + 1).toString().padStart(6, "0")}`;
+}
 
 // Normalize a transaction date. A bare date sent by the client ("2026-09-01"
 // or "2026-09-01T00:00:00.000Z") has no meaningful time-of-day. If its calendar
@@ -146,16 +157,29 @@ async function computeAccounts(period) {
 // client always renders freshly recalculated numbers.
 async function buildPayload(period) {
   const { accounts, totals } = await computeAccounts(period);
-  const [recentExpenses, recentTransfers, recentPayments, history, settings] = await Promise.all([
-    Expense.find().sort({ date: -1, createdAt: -1 }).limit(50),
-    FundTransfer.find().sort({ date: -1, createdAt: -1 }).limit(50),
-    Payment.find({ isVoided: { $ne: true } })
+const recentPayments = await Payment.find({ isVoided: { $ne: true } })
       .sort({ receiveDate: -1, createdAt: -1 })
       .limit(50)
-      .select("studentId studentName receiptNo paymentMethod paidAmount receiveDate"),
-    StatementPeriod.find().sort({ periodStart: -1 }).limit(20),
-    Settings.getSettings(),
-  ]);
+      .select("studentId studentName className receiptNo paymentMethod paidAmount receiveDate transactionId remarks")
+      .lean();
+
+    const payIds = recentPayments.map((p) => p._id);
+    const payItems = await PaymentItem.find({ payment: { $in: payIds } }).lean();
+    const itemsByPay = {};
+    payItems.forEach((it) => {
+      if (!itemsByPay[it.payment]) itemsByPay[it.payment] = [];
+      itemsByPay[it.payment].push(it);
+    });
+    recentPayments.forEach((p) => {
+      p.recentItems = itemsByPay[p._id] || [];
+    });
+
+    const [recentExpenses, recentTransfers, history, settings] = await Promise.all([
+      Expense.find().sort({ date: -1, createdAt: -1 }).limit(50),
+      FundTransfer.find().sort({ date: -1, createdAt: -1 }).limit(50),
+      StatementPeriod.find().sort({ periodStart: -1 }).limit(20),
+      Settings.getSettings(),
+    ]);
 
   return {
     period: {
@@ -425,7 +449,7 @@ const addExpense = async (req, res) => {
     }
 
     const settings = await Settings.getSettings();
-    await Expense.create({
+    const doc = await Expense.create({
       account: String(account).trim(),
       category: String(category || "").trim(),
       description: String(description || "").trim(),
@@ -433,10 +457,41 @@ const addExpense = async (req, res) => {
       date: parseTxDate(date),
       academicSession: settings.currentSession,
       createdBy: req.user?._id || null,
+      // Every expense always gets a numbered supporting voucher.
+      hasVoucher: true,
+      voucherNo: await generateVoucherNo(),
     });
 
     const payload = await buildPayload(await getCurrentPeriod());
-    return res.status(201).json({ success: true, message: "Expense recorded.", ...payload });
+    return res.status(201).json({
+      success: true,
+      message: "Expense recorded with supporting voucher.",
+      voucher: { _id: doc._id, voucherNo: doc.voucherNo, hasVoucher: doc.hasVoucher },
+      ...payload,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Attach a voucher number to an older expense that does not have one yet.
+const updateExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ success: false, message: "Expense not found." });
+    }
+    expense.hasVoucher = true;
+    expense.voucherNo = expense.voucherNo || (await generateVoucherNo());
+    await expense.save();
+
+    const payload = await buildPayload(await getCurrentPeriod());
+    return res.json({
+      success: true,
+      message: `Voucher ${expense.voucherNo} attached.`,
+      ...payload,
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error.message });
@@ -569,6 +624,7 @@ module.exports = {
   exportStatement,
   exportStatementJson,
   addExpense,
+  updateExpense,
   deleteExpense,
   addFundTransfer,
   deleteFundTransfer,

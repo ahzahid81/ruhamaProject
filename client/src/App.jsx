@@ -20,6 +20,7 @@ import Dashboard from "./pages/Dashboard";
 import CreateReport from "./pages/CreateReport";
 
 import ClassReport from "./pages/ClassReport";
+import HifzReport from "./pages/hifz/HifzReport";
 
 import Admin from "./pages/Admin";
 
@@ -142,6 +143,12 @@ function App() {
           <Route
             path="/class-report"
             element={<ClassReport />}
+          />
+
+          {/* Hifz Report */}
+          <Route
+            path="/hifz-report"
+            element={<HifzReport />}
           />
           <Route
             path="/students"

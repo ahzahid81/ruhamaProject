@@ -26,6 +26,7 @@ import {
   UserCheck,
   CalendarDays,
   Image as ImageIcon,
+  Scroll,
 } from "lucide-react";
 
 const navGroups = [
@@ -35,6 +36,7 @@ const navGroups = [
       { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "account-manager"] },
       { name: "Create Report", path: "/create-report", icon: FileText, roles: ["admin", "teacher", "account-manager"] },
       { name: "Class Reports", path: "/class-report", icon: BookOpen, roles: ["admin", "teacher", "account-manager"] },
+      { name: "Hifz Report", path: "/hifz-report", icon: Scroll, roles: ["admin", "teacher"] },
     ],
   },
   {

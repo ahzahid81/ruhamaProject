@@ -198,162 +198,172 @@ const getStatement = async (req, res) => {
 };
 
 // ============================================
-// DATE-WISE CSV EXPORT
+// DATE-WISE EXPORT (shared by CSV + Print)
 // ============================================
+
+// Builds the ordered transaction rows for a date range — the same report
+// structure used by the CSV download and the printable print view.
+async function buildExportData(fromRaw, toRaw) {
+  const currentPeriod = await getCurrentPeriod();
+  const now = new Date();
+
+  const from = fromRaw ? new Date(fromRaw) : null;
+  const to = toRaw ? new Date(toRaw) : now;
+
+  // The audit period that was active on the requested "from" date.
+  const activePeriod = from
+    ? (await StatementPeriod.findOne({ periodStart: { $lte: from } }).sort({ periodStart: -1 })) || currentPeriod
+    : currentPeriod;
+  const pStart = new Date(activePeriod.periodStart);
+  const fromDate = from && from > pStart ? from : pStart;
+  const toDate = to < fromDate ? fromDate : to;
+
+  // Flows before the range (basis for the opening balance).
+  const [payPre, exPre, trPre, settings] = await Promise.all([
+    Payment.find({ receiveDate: { $gte: pStart, $lt: fromDate }, paymentStatus: "Completed", isVoided: { $ne: true } }),
+    Expense.find({ date: { $gte: pStart, $lt: fromDate } }),
+    FundTransfer.find({ date: { $gte: pStart, $lt: fromDate } }),
+    Settings.getSettings(),
+  ]);
+
+  const accNames = resolveAccounts(settings, payPre, exPre, trPre);
+  const balance = {};
+  accNames.forEach((a) => {
+    balance[a] = Number(activePeriod.openingBalances?.[a] || 0);
+  });
+
+  payPre.forEach((p) => {
+    const m = String(p.paymentMethod || "Cash").trim();
+    balance[m] = (balance[m] || 0) + Number(p.paidAmount || 0);
+  });
+  exPre.forEach((e) => {
+    balance[e.account] = (balance[e.account] || 0) - Number(e.amount || 0);
+  });
+  trPre.forEach((t) => {
+    balance[t.fromAccount] = (balance[t.fromAccount] || 0) - Number(t.amount || 0);
+    balance[t.toAccount] = (balance[t.toAccount] || 0) + Number(t.amount || 0);
+    const c = Number(t.charge || 0);
+    if (c > 0) balance[t.chargeAccount || t.fromAccount] = (balance[t.chargeAccount || t.fromAccount] || 0) - c;
+  });
+
+  const opening = { ...balance };
+
+  // Flows inside the requested range.
+  const [payRange, exRange, trRange] = await Promise.all([
+    Payment.find({ receiveDate: { $gte: fromDate, $lte: toDate }, paymentStatus: "Completed", isVoided: { $ne: true } }).sort({ receiveDate: 1 }),
+    Expense.find({ date: { $gte: fromDate, $lte: toDate } }).sort({ date: 1 }),
+    FundTransfer.find({ date: { $gte: fromDate, $lte: toDate } }).sort({ date: 1 }),
+  ]);
+
+  const rows = [];
+  const total = () => Object.values(balance).reduce((s, v) => s + Number(v || 0), 0);
+
+  accNames.forEach((a) => {
+    rows.push({
+      date: csvDate(fromDate),
+      type: "Opening Balance",
+      description: `${a} opening on ${csvDate(pStart)}`,
+      from: a,
+      to: a,
+      amount: Number(balance[a] || 0),
+      charge: "",
+      balance: total(),
+    });
+  });
+
+  const events = [];
+  payRange.forEach((p) => {
+    events.push({
+      ts: p.receiveDate,
+      sort: 0,
+      make: () => {
+        const m = String(p.paymentMethod || "Cash").trim();
+        const amt = Number(p.paidAmount || 0);
+        balance[m] = (balance[m] || 0) + amt;
+        rows.push({
+          date: csvDate(p.receiveDate),
+          type: "Payment",
+          description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${m}]`,
+          from: "Student",
+          to: m,
+          amount: amt,
+          charge: "",
+          balance: total(),
+        });
+      },
+    });
+  });
+  exRange.forEach((e) => {
+    events.push({
+      ts: e.date,
+      sort: 1,
+      make: () => {
+        const amt = Number(e.amount || 0);
+        balance[e.account] = (balance[e.account] || 0) - amt;
+        rows.push({
+          date: csvDate(e.date),
+          type: "Expense",
+          description: `${e.category}${e.description ? ` - ${e.description}` : ""}`,
+          from: e.account,
+          to: "Expense",
+          amount: -amt,
+          charge: "",
+          balance: total(),
+        });
+      },
+    });
+  });
+  trRange.forEach((t) => {
+    events.push({
+      ts: t.date,
+      sort: 2,
+      make: () => {
+        const amt = Number(t.amount || 0);
+        balance[t.fromAccount] = (balance[t.fromAccount] || 0) - amt;
+        balance[t.toAccount] = (balance[t.toAccount] || 0) + amt;
+        rows.push({
+          date: csvDate(t.date),
+          type: "Fund Transfer",
+          description: t.note || "Fund transfer",
+          from: t.fromAccount,
+          to: t.toAccount,
+          amount: "",
+          charge: Number(t.charge || 0),
+          balance: total(),
+        });
+        const c = Number(t.charge || 0);
+        if (c > 0) {
+          const ck = t.chargeAccount || t.fromAccount;
+          balance[ck] = (balance[ck] || 0) - c;
+          rows.push({
+            date: csvDate(t.date),
+            type: "Transfer Charge",
+            description: `${ck} charge on transfer`,
+            from: ck,
+            to: "Charge",
+            amount: -c,
+            charge: "",
+            balance: total(),
+          });
+        }
+      },
+    });
+  });
+
+  events.sort((a, b) => new Date(a.ts) - new Date(b.ts) || a.sort - b.sort);
+  events.forEach((ev) => ev.make());
+
+  accNames.forEach((a) => {
+    rows.push({ date: "", type: "CLOSING", description: `${a} balance`, from: "", to: "", amount: Number(balance[a] || 0), charge: "", balance: "" });
+  });
+  rows.push({ date: "", type: "CLOSING", description: "Total in hand", from: "", to: "", amount: total(), charge: "", balance: "" });
+
+  return { rows, fromDate, toDate, activePeriod, accNames, opening, closing: { ...balance } };
+}
 
 const exportStatement = async (req, res) => {
   try {
-    const currentPeriod = await getCurrentPeriod();
-    const now = new Date();
-
-    const fromRaw = req.query.from ? new Date(req.query.from) : null;
-    const toRaw = req.query.to ? new Date(req.query.to) : now;
-
-    // The audit period that was active on the requested "from" date.
-    const activePeriod = fromRaw
-      ? (await StatementPeriod.findOne({ periodStart: { $lte: fromRaw } }).sort({ periodStart: -1 })) || currentPeriod
-      : currentPeriod;
-    const pStart = new Date(activePeriod.periodStart);
-    const fromDate = fromRaw && fromRaw > pStart ? fromRaw : pStart;
-    const toDate = toRaw < fromDate ? fromDate : toRaw;
-
-    // Flows before the range (basis for the opening balance).
-    const [payPre, exPre, trPre, settings] = await Promise.all([
-      Payment.find({ receiveDate: { $gte: pStart, $lt: fromDate }, paymentStatus: "Completed", isVoided: { $ne: true } }),
-      Expense.find({ date: { $gte: pStart, $lt: fromDate } }),
-      FundTransfer.find({ date: { $gte: pStart, $lt: fromDate } }),
-      Settings.getSettings(),
-    ]);
-
-    const accNames = resolveAccounts(settings, payPre, exPre, trPre);
-    const balance = {};
-    accNames.forEach((a) => {
-      balance[a] = Number(activePeriod.openingBalances?.[a] || 0);
-    });
-
-    payPre.forEach((p) => {
-      const m = String(p.paymentMethod || "Cash").trim();
-      balance[m] = (balance[m] || 0) + Number(p.paidAmount || 0);
-    });
-    exPre.forEach((e) => {
-      balance[e.account] = (balance[e.account] || 0) - Number(e.amount || 0);
-    });
-    trPre.forEach((t) => {
-      balance[t.fromAccount] = (balance[t.fromAccount] || 0) - Number(t.amount || 0);
-      balance[t.toAccount] = (balance[t.toAccount] || 0) + Number(t.amount || 0);
-      const c = Number(t.charge || 0);
-      if (c > 0) balance[t.chargeAccount || t.fromAccount] = (balance[t.chargeAccount || t.fromAccount] || 0) - c;
-    });
-
-    // Flows inside the requested range.
-    const [payRange, exRange, trRange] = await Promise.all([
-      Payment.find({ receiveDate: { $gte: fromDate, $lte: toDate }, paymentStatus: "Completed", isVoided: { $ne: true } }).sort({ receiveDate: 1 }),
-      Expense.find({ date: { $gte: fromDate, $lte: toDate } }).sort({ date: 1 }),
-      FundTransfer.find({ date: { $gte: fromDate, $lte: toDate } }).sort({ date: 1 }),
-    ]);
-
-    const rows = [];
-    const total = () => Object.values(balance).reduce((s, v) => s + Number(v || 0), 0);
-
-    accNames.forEach((a) => {
-      rows.push({
-        date: csvDate(fromDate),
-        type: "Opening Balance",
-        description: `${a} opening on ${csvDate(pStart)}`,
-        from: a,
-        to: a,
-        amount: Number(balance[a] || 0),
-        charge: "",
-        balance: total(),
-      });
-    });
-
-    const events = [];
-    payRange.forEach((p) => {
-      events.push({
-        ts: p.receiveDate,
-        sort: 0,
-        make: () => {
-          const m = String(p.paymentMethod || "Cash").trim();
-          const amt = Number(p.paidAmount || 0);
-          balance[m] = (balance[m] || 0) + amt;
-          rows.push({
-            date: csvDate(p.receiveDate),
-            type: "Payment",
-            description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${m}]`,
-            from: "Student",
-            to: m,
-            amount: amt,
-            charge: "",
-            balance: total(),
-          });
-        },
-      });
-    });
-    exRange.forEach((e) => {
-      events.push({
-        ts: e.date,
-        sort: 1,
-        make: () => {
-          const amt = Number(e.amount || 0);
-          balance[e.account] = (balance[e.account] || 0) - amt;
-          rows.push({
-            date: csvDate(e.date),
-            type: "Expense",
-            description: `${e.category}${e.description ? ` - ${e.description}` : ""}`,
-            from: e.account,
-            to: "Expense",
-            amount: -amt,
-            charge: "",
-            balance: total(),
-          });
-        },
-      });
-    });
-    trRange.forEach((t) => {
-      events.push({
-        ts: t.date,
-        sort: 2,
-        make: () => {
-          const amt = Number(t.amount || 0);
-          balance[t.fromAccount] = (balance[t.fromAccount] || 0) - amt;
-          balance[t.toAccount] = (balance[t.toAccount] || 0) + amt;
-          rows.push({
-            date: csvDate(t.date),
-            type: "Fund Transfer",
-            description: t.note || "Fund transfer",
-            from: t.fromAccount,
-            to: t.toAccount,
-            amount: "",
-            charge: Number(t.charge || 0),
-            balance: total(),
-          });
-          const c = Number(t.charge || 0);
-          if (c > 0) {
-            const ck = t.chargeAccount || t.fromAccount;
-            balance[ck] = (balance[ck] || 0) - c;
-            rows.push({
-              date: csvDate(t.date),
-              type: "Transfer Charge",
-              description: `${ck} charge on transfer`,
-              from: ck,
-              to: "Charge",
-              amount: -c,
-              charge: "",
-              balance: total(),
-            });
-          }
-        },
-      });
-    });
-
-    events.sort((a, b) => new Date(a.ts) - new Date(b.ts) || a.sort - b.sort);
-    events.forEach((ev) => ev.make());
-
-    accNames.forEach((a) => {
-      rows.push({ date: "", type: "CLOSING", description: `${a} balance`, from: "", to: "", amount: Number(balance[a] || 0), charge: "", balance: "" });
-    });
-    rows.push({ date: "", type: "CLOSING", description: "Total in hand", from: "", to: "", amount: total(), charge: "", balance: "" });
+    const { rows, fromDate, toDate } = await buildExportData(req.query.from, req.query.to);
 
     const safe = (v) => {
       const s = String(v ?? "");
@@ -370,6 +380,28 @@ const exportStatement = async (req, res) => {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename=statement-${csvDate(fromDate)}-${csvDate(toDate)}.csv`);
     return res.status(200).send(csv);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Same report as JSON so the "Print Statement" button renders a printable page
+// that exactly matches the CSV.
+const exportStatementJson = async (req, res) => {
+  try {
+    const data = await buildExportData(req.query.from, req.query.to);
+    return res.json({
+      success: true,
+      rows: data.rows,
+      fromDate: data.fromDate,
+      toDate: data.toDate,
+      academicSession: data.activePeriod.academicSession,
+      pStart: data.fromDate,
+      accounts: data.accNames,
+      opening: data.opening,
+      closing: data.closing,
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error.message });
@@ -535,6 +567,7 @@ const resetAccount = async (req, res) => {
 module.exports = {
   getStatement,
   exportStatement,
+  exportStatementJson,
   addExpense,
   deleteExpense,
   addFundTransfer,

@@ -35,7 +35,7 @@ export default function SchoolStatement() {
   const [dlFrom, setDlFrom] = useState("");
   const [dlTo, setDlTo] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetForm, setResetForm] = useState({ note: "" });
   const [resetBalances, setResetBalances] = useState({});
@@ -98,11 +98,6 @@ export default function SchoolStatement() {
     }
   };
 
-  const openPrint = () => {
-    if (!data) return;
-    setPrintOpen(true);
-  };
-
   // Send no date for today's entries so the server stamps the real current
   // time (entries stay inside the current audit period no matter timezone).
   const nextDate = (date) => {
@@ -115,58 +110,32 @@ export default function SchoolStatement() {
     return d.toISOString();
   };
 
-  useEffect(() => {
-    if (!printOpen || !data) return;
-    const accounts = data.accounts || [];
-    const totals = data.totals || {};
-    const rows = (list, mapper) => (list || []).map(mapper).join("") || `<tr><td colspan="100%" class="empty">No entries</td></tr>`;
+  const renderPrintReport = (p) => {
+    if (!p || !p.rows) return;
     const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const body = p.rows
+      .map((r) => {
+        const tot = r.type === "CLOSING" ? " class='tot'" : "";
+        return `<tr${tot}>
+          <td class="muted">${esc(r.date || "")}</td>
+          <td>${esc(r.type)}</td>
+          <td>${esc(r.description)}</td>
+          <td>${esc(r.from || "")}</td>
+          <td>${esc(r.to || "")}</td>
+          <td class="num">${r.amount === "" || r.amount === null || r.amount === undefined ? "" : fmt(Number(r.amount))}</td>
+          <td class="num">${r.charge === "" || r.charge === null || r.charge === undefined ? "" : fmt(Number(r.charge))}</td>
+          <td class="num">${r.balance === "" || r.balance === null || r.balance === undefined ? "" : fmt(Number(r.balance))}</td>
+        </tr>`;
+      })
+      .join("");
 
-    const accBody = rows(accounts, (a) => `
-      <tr>
-        <td>${esc(a.key)}</td>
-        <td class="num">${fmt(a.opening)}</td>
-        <td class="num">${fmt(a.income)}</td>
-        <td class="num">${fmt(a.expense)}</td>
-        <td class="num">${fmt(a.transferIn)}</td>
-        <td class="num">${fmt(a.transferOut)}</td>
-        <td class="num">${fmt(a.charges)}</td>
-        <td class="num strong">${fmt(a.current)}</td>
-      </tr>`);
-
-    const payBody = rows(data.recentPayments, (p) => `
-      <tr>
-        <td class="muted">${esc(fmtDate(p.receiveDate))}</td>
-        <td>${esc(p.receiptNo || "—")}</td>
-        <td>${esc(p.studentName || p.studentId || "—")}</td>
-        <td>${esc(p.paymentMethod || "—")}</td>
-        <td class="num">${fmt(p.paidAmount)}</td>
-      </tr>`);
-
-    const expenseBody = rows(data.recentExpenses, (x) => `
-      <tr>
-        <td class="muted">${esc(fmtDate(x.date))}</td>
-        <td>${esc(x.category || "—")}</td>
-        <td>${esc(x.description || "—")}</td>
-        <td>${esc(x.account)}</td>
-        <td class="num">${fmt(x.amount)}</td>
-      </tr>`);
-
-    const transferBody = rows(data.recentTransfers, (x) => `
-      <tr>
-        <td class="muted">${esc(fmtDate(x.date))}</td>
-        <td>${esc(x.fromAccount)} → ${esc(x.toAccount)}</td>
-        <td>${esc(x.note || "—")}</td>
-        <td class="num">${fmt(x.amount)}</td>
-        <td class="num">${x.charge > 0 ? fmt(x.charge) : "—"}</td>
-      </tr>`);
-
-    const accNames = accounts.map((a) => a.key).join(" · ");
+    const accNames = p.accounts || [];
+    const totalClosing = accNames.reduce((s, a) => s + Number(p.closing?.[a] || 0), 0);
+    const dateLabel = `${esc(fmtDate(p.fromDate))} → ${esc(fmtDate(p.toDate))}`;
 
     const w = window.open("", "_blank", "width=1000,height=750");
     if (!w) {
       showToast("Popup blocked. Please allow popups for this site.", "error");
-      setPrintOpen(false);
       return;
     }
     w.document.open();
@@ -183,14 +152,12 @@ export default function SchoolStatement() {
   th { background: #f1f5f9; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #475569; padding: 6px 8px; border: 1px solid #cbd5e1; }
   td { padding: 5px 8px; border: 1px solid #e2e8f0; vertical-align: top; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .strong { font-weight: bold; }
-  .muted { color: #64748b; }
   .tot td { background: #f8fafc; font-weight: bold; }
-  .empty { text-align: center; color: #94a3b8; padding: 14px; }
-  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 12px; }
+  .muted { color: #64748b; }
+  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
   .meta div { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }
   .meta .l { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
-  .meta .v { font-size: 14px; font-weight: bold; margin-top: 2px; }
+  .meta .v { font-size: 13px; font-weight: bold; margin-top: 2px; }
   .printbar { position: fixed; top: 0; left: 0; right: 0; background: #111827; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; z-index: 999; }
   .printbar button { background: #4f46e5; border: 0; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
   @media print { .printbar { display: none; } body { margin: 10mm; } }
@@ -200,33 +167,41 @@ export default function SchoolStatement() {
   <button onclick="window.print()">🖨 Print</button>
 </div>
 <div class="head">
-  <div><h1>School Financial Statement</h1><div class="sub">${esc(accNames)} — generated on ${esc(fmtDate(new Date()))} ${esc(fmtTime(new Date()))}</div></div>
-  <div class="sub">Audit period active since ${esc(fmtDate(data.period?.periodStart || new Date()))} ${esc(fmtTime(data.period?.periodStart))}${data.period?.academicSession ? ` · Session ${esc(data.period.academicSession)}` : ""}</div>
+  <div><h1>School Financial Statement</h1><div class="sub">${dateLabel}${p.academicSession ? ` · Session ${esc(p.academicSession)}` : ""} — generated on ${esc(fmtDate(new Date()))} ${esc(fmtTime(new Date()))}</div></div>
+  <div class="sub">Running balance: payments (+), expenses (−), transfers move between accounts, charges (−)</div>
 </div>
 
 <div class="meta">
-  ${accounts.map((a) => `<div><div class="l">Opening ${esc(a.key)}</div><div class="v">${fmt(a.opening)}</div></div>`).join("")}
-  ${accounts.map((a) => `<div><div class="l">Current ${esc(a.key)}</div><div class="v">${fmt(a.current)}</div></div>`).join("")}
-  <div><div class="l">Total In Hand</div><div class="v">${fmt(totals.inHand)}</div></div>
+  ${accNames.map((a) => `<div><div class="l">Opening ${esc(a)}</div><div class="v">${fmt(Number(p.opening?.[a] || 0))}</div></div>`).join("")}
+  ${accNames.map((a) => `<div><div class="l">Closing ${esc(a)}</div><div class="v">${fmt(Number(p.closing?.[a] || 0))}</div></div>`).join("")}
+  <div><div class="l">Total In Hand (closing)</div><div class="v">${fmt(totalClosing)}</div></div>
 </div>
 
-<h2>Statement Breakdown</h2>
-<table><thead><tr><th>Account</th><th class="num">Opening</th><th class="num">Income</th><th class="num">Expense</th><th class="num">Transfer In</th><th class="num">Transfer Out</th><th class="num">Charges</th><th class="num">Current</th></tr></thead>
-<tbody>${accBody}<tr class="tot"><td>Total</td><td class="num">${fmt(totals.opening)}</td><td class="num">${fmt(totals.income)}</td><td class="num">${fmt(totals.expense)}</td><td class="num">${fmt(totals.transferIn)}</td><td class="num">${fmt(totals.transferOut)}</td><td class="num">${fmt(totals.charges)}</td><td class="num">${fmt(totals.inHand)}</td></tr></tbody></table>
-
-<h2>Payments Received (recent ${(data.recentPayments || []).length})</h2>
-<table><thead><tr><th>Date</th><th>Receipt</th><th>Student</th><th>Method</th><th class="num">Amount</th></tr></thead><tbody>${payBody}</tbody></table>
-
-<h2>Expenses (recent ${(data.recentExpenses || []).length})</h2>
-<table><thead><tr><th>Date</th><th>Category</th><th>Details</th><th>Account</th><th class="num">Amount</th></tr></thead><tbody>${expenseBody}</tbody></table>
-
-<h2>Fund Transfers (recent ${(data.recentTransfers || []).length})</h2>
-<table><thead><tr><th>Date</th><th>Route</th><th>Note</th><th class="num">Amount</th><th class="num">Charge</th></tr></thead><tbody>${transferBody}</tbody></table>
+<h2>Statement &amp; Transactions (${p.rows.length - accNames.length - 1} + closings)</h2>
+<table>
+<thead><tr><th>Date</th><th>Type</th><th>Description</th><th>From</th><th>To</th><th class="num">Amount</th><th class="num">Charge</th><th class="num">Balance</th></tr></thead>
+<tbody>${body}</tbody>
+</table>
 
 </body></html>`);
     w.document.close();
-    setPrintOpen(false);
-  }, [printOpen, data]);
+  };
+
+  const openPrint = async () => {
+    if (!data || printing) return;
+    setPrinting(true);
+    try {
+      const params = new URLSearchParams();
+      if (dlFrom) params.set("from", dlFrom);
+      if (dlTo) params.set("to", dlTo);
+      const res = await api.get(`/statement/export-json?${params.toString()}`);
+      renderPrintReport(res.data);
+    } catch (error) {
+      showToast(error.response?.data?.message || "Failed to build the print report.");
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const setExp = (field, value) => setExpenseForm((p) => ({ ...p, [field]: value }));
 
@@ -381,14 +356,14 @@ export default function SchoolStatement() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={openPrint} disabled={!data}
+            <button onClick={openPrint} disabled={!data || printing}
               className="px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition flex items-center gap-2 disabled:opacity-50">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                 <path d="M6 9V2h12v7" />
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
                 <rect x="6" y="14" width="12" height="8" rx="1" />
               </svg>
-              Print Statement
+              {printing ? "Preparing..." : "Print Statement"}
             </button>
             {isAdmin && (
               <button onClick={() => setResetOpen(true)}

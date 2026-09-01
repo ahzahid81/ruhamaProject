@@ -6,6 +6,7 @@ const { protect, authorizeRoles } = require("../middlewares/authMiddleware");
 const {
   getStatement,
   exportStatement,
+  exportStatementJson,
   addExpense,
   deleteExpense,
   addFundTransfer,
@@ -18,6 +19,9 @@ router.get("/", protect, getStatement);
 
 // Date-wise CSV download
 router.get("/export", protect, exportStatement);
+
+// Date-wise report as JSON (used by the printable Print Statement)
+router.get("/export-json", protect, exportStatementJson);
 
 // Expenses
 router.post("/expense", protect, addExpense);

@@ -175,7 +175,7 @@ const recentPayments = await Payment.find({ isVoided: { $ne: true } })
     });
 
     const [recentExpenses, recentTransfers, history, settings] = await Promise.all([
-      Expense.find().sort({ date: -1, createdAt: -1 }).limit(50),
+      Expense.find().sort({ date: -1, createdAt: -1 }).limit(50).populate("createdBy", "name"),
       FundTransfer.find().sort({ date: -1, createdAt: -1 }).limit(50),
       StatementPeriod.find().sort({ periodStart: -1 }).limit(20),
       Settings.getSettings(),
@@ -438,7 +438,7 @@ const exportStatementJson = async (req, res) => {
 
 const addExpense = async (req, res) => {
   try {
-    const { account, category, description, amount, date } = req.body;
+    const { account, category, description, amount, date, supportingVoucher } = req.body;
 
     if (!String(account || "").trim()) {
       return res.status(400).json({ success: false, message: "Please select an account." });
@@ -460,13 +460,14 @@ const addExpense = async (req, res) => {
       // Every expense always gets a numbered supporting voucher.
       hasVoucher: true,
       voucherNo: await generateVoucherNo(),
+      supportingVoucher: String(supportingVoucher || "").trim(),
     });
 
     const payload = await buildPayload(await getCurrentPeriod());
     return res.status(201).json({
       success: true,
       message: "Expense recorded with supporting voucher.",
-      voucher: { _id: doc._id, voucherNo: doc.voucherNo, hasVoucher: doc.hasVoucher },
+      voucher: { _id: doc._id, voucherNo: doc.voucherNo, supportingVoucher: doc.supportingVoucher },
       ...payload,
     });
   } catch (error) {
@@ -475,15 +476,17 @@ const addExpense = async (req, res) => {
   }
 };
 
-// Attach a voucher number to an older expense that does not have one yet.
+// Attach a voucher number / update the shop voucher line on an expense.
 const updateExpense = async (req, res) => {
   try {
+    const { supportingVoucher } = req.body;
     const expense = await Expense.findById(req.params.id);
     if (!expense) {
       return res.status(404).json({ success: false, message: "Expense not found." });
     }
     expense.hasVoucher = true;
     expense.voucherNo = expense.voucherNo || (await generateVoucherNo());
+    if (supportingVoucher !== undefined) expense.supportingVoucher = String(supportingVoucher || "").trim();
     await expense.save();
 
     const payload = await buildPayload(await getCurrentPeriod());

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
 import api from "../../services/api";
+import { bdDateLong, bdYear } from "../../utils/bdTime";
+import logo from "../../assets/logo.png";
 
 const categorySuggestions = [
   "Rent", "Electricity", "Water", "Staff Salary", "Stationery",
@@ -72,7 +74,7 @@ export default function SchoolStatement() {
   const [toast, setToast] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [expenseForm, setExpenseForm] = useState({ account: "", amount: "", category: "", note: "", date: "" });
+  const [expenseForm, setExpenseForm] = useState({ account: "", amount: "", category: "", note: "", date: "", supportingVoucher: "", svYes: false });
   const [transferForm, setTransferForm] = useState({ fromAccount: "", toAccount: "", amount: "", charge: "", chargeAccount: "", note: "", date: "" });
   const [expandedPay, setExpandedPay] = useState(null);
   const [dlFrom, setDlFrom] = useState("");
@@ -259,10 +261,11 @@ export default function SchoolStatement() {
         category: expenseForm.category,
         description: expenseForm.note,
         date: nextDate(expenseForm.date),
+        supportingVoucher: expenseForm.svYes ? expenseForm.supportingVoucher : "",
       });
       showToast(res.data.message || "Expense recorded.", "success");
       applyPayload(res.data);
-      setExpenseForm({ ...expenseForm, amount: "", category: "", note: "", date: "" });
+      setExpenseForm({ ...expenseForm, amount: "", category: "", note: "", date: "", supportingVoucher: "", svYes: false });
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to save expense.");
     } finally {
@@ -304,63 +307,84 @@ export default function SchoolStatement() {
       showToast("Popup blocked. Please allow popups for this site.", "error");
       return;
     }
+    const preparedBy = x.createdBy?.name || "Accounts";
     w.document.open();
     w.document.write(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
 <style>
   * { box-sizing: border-box; }
-  body { font-family: Georgia, "Times New Roman", serif; background: #f1f5f9; margin: 0; display: flex; justify-content: center; padding: 28px 20px; color: #1e293b; }
-  .sheet { background: #fff; width: 8.27in; min-height: 11.69in; padding: 0.45in 0.5in; box-shadow: 0 20px 50px rgba(15,23,42,.25); position: relative; }
-  .topband { position: absolute; top: 0; left: 0; right: 0; height: 12px; background: linear-gradient(90deg,#4f46e5,#0e7490,#f59e0b); }
-  .school { text-align: center; border-bottom: 3px double #1e293b; padding-bottom: 14px; }
-  .school h1 { margin: 0; font-size: 26px; letter-spacing: 1px; text-transform: uppercase; }
-  .school .addr { font-size: 11px; color: #475569; margin-top: 3px; letter-spacing: .4px; }
-  .title { text-align: center; margin: 22px 0 4px; }
-  .title h2 { display: inline-block; margin: 0; font-size: 19px; letter-spacing: 3px; padding: 7px 26px; border: 2px solid #1e293b; border-radius: 8px; text-transform: uppercase; }
-  .meta { display: flex; justify-content: space-between; margin: 16px 0 4px; font-size: 13px; }
-  .meta b { font-weight: bold; }
-  .box { border: 1.5px solid #cbd5e1; border-radius: 6px; }
-  .rows { width: 100%; }
-  .rows td { padding: 10px 14px; font-size: 13.5px; vertical-align: top; border-bottom: 1px dashed #e2e8f0; }
-  .rows td.label { width: 34%; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; background: #f8fafc; border-right: 1px dashed #e2e8f0; }
-  .big { font-size: 17px; font-weight: bold; }
-  .words { font-style: italic; color: #334155; line-height: 1.55; }
-  .amount-big { text-align: center; font-size: 24px; font-weight: bold; letter-spacing: .5px; margin: 18px 0 6px; }
-  .sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 60px; text-align: center; font-size: 12px; }
-  .sign .line { border-top: 1.5px solid #334155; margin-bottom: 8px; padding-top: 6px; font-weight: bold; }
-  footer { margin-top: 46px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f1f5f9; margin: 0; display: flex; justify-content: center; padding: 28px 20px; color: #0f172a; font-size: 13px; }
+  .sheet { background: #fff; width: 210mm; min-height: 130mm; box-shadow: 0 20px 50px rgba(15,23,42,.25); overflow: hidden; }
+  .head { background: linear-gradient(90deg,#07153B,#12308F); color: #fff; padding: 18px 28px; display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .head img { width: 64px; height: 64px; background: #fff; border-radius: 14px; padding: 5px; object-fit: contain; }
+  .head h1 { margin: 0; font-size: 24px; font-weight: 900; letter-spacing: .5px; text-transform: uppercase; }
+  .head .motto { color: #fde047; font-weight: 600; margin-top: 2px; }
+  .head .sub { color: rgba(255,255,255,.75); font-size: 11px; margin-top: 2px; }
+  .title { text-align: center; padding: 18px 0 6px; }
+  .title h2 { display: inline-block; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 5px; color: #07153B; text-transform: uppercase; padding: 0 18px; border-bottom: 3px solid #12308F; }
+  .meta { display: flex; justify-content: space-between; align-items: flex-end; margin: 10px 28px 0; }
+  .meta .l { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .6px; }
+  .meta .v { font-weight: 800; color: #07153B; font-size: 14px; }
+  .svtag { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .sv-yes { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  .sv-no { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+  .box { border: 1.5px solid #e2e8f0; border-radius: 12px; margin: 14px 28px; position: relative; overflow: hidden; }
+  .wmark { position: absolute; right: -30px; bottom: -30px; width: 170px; opacity: .05; pointer-events: none; }
+  table.rows { width: 100%; }
+  table.rows td { padding: 9px 14px; vertical-align: top; border-bottom: 1px solid #f1f5f9; }
+  table.rows tr:last-child td { border-bottom: 0; }
+  table.rows td.label { width: 30%; background: #f8fafc; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: .7px; }
+  table.rows td.value { font-weight: 700; color: #0f172a; }
+  .words { font-style: italic; color: #334155; font-weight: 500; }
+  .amount { text-align: right; font-size: 22px; font-weight: 900; color: #047857; padding: 8px 30px 2px; }
+  .sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin: 34px 32px 0; text-align: center; font-size: 11px; color: #475569; }
+  .sign .who { font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+  .sign .line { border-top: 1.5px solid #334155; padding-top: 6px; }
+  footer { margin: 26px 28px 0; border-top: 1px solid #e2e8f0; padding-top: 8px; text-align: center; font-size: 10px; color: #94a3b8; }
   .pbar { position: fixed; top: 0; left: 0; right: 0; background: #111827; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; z-index: 999; }
-  .pbar button { background: #4f46e5; border: 0; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  .pbar button { background: #12308F; border: 0; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
   @media print { body { background: #fff; padding: 0; } .sheet { box-shadow: none; } .pbar { display: none; } }
 </style></head><body>
-<div class="pbar"><span>Expense Voucher preview · ${esc(x.voucherNo || "")}</span><button onclick="window.print()">🖨 Print</button></div>
+<div class="pbar"><span>Expense Voucher · ${esc(x.voucherNo || "")}</span><button onclick="window.print()">Print</button></div>
 <div class="sheet">
-  <div class="topband"></div>
-  <div class="school">
-    <h1>Ruhama United School</h1>
-    <div class="addr">Dhaka, Bangladesh · ${esc(fmtDate(x.date))}</div>
+  <div class="head">
+    <img src="${logo}" alt="School Logo" />
+    <div class="hdr-txt">
+      <h1>Ruhama United School</h1>
+      <p class="motto">Change Yourself, Decorate The World</p>
+      <p class="sub">An English Version School with Tahfizul Quran</p>
+      <p class="sub">Ludhi House-101/102, Road-9, Housing Estate, Amberkhana, Sylhet</p>
+    </div>
   </div>
   <div class="title"><h2>Expense Voucher</h2></div>
   <div class="meta">
-    <div>Voucher No: <b>${esc(x.voucherNo || "—")}</b></div>
-    <div>Date: <b>${esc(fmtDate(x.date))}</b></div>
+    <div>
+      <div class="l">${x.supportingVoucher ? "Supporting Voucher" : "Supporting Voucher"}</div>
+      <div class="svtag ${x.supportingVoucher ? "sv-yes" : "sv-no"}">${x.supportingVoucher ? "Yes — Attached" : "No"}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="l">Voucher No / Date</div>
+      <div class="v">${esc(x.voucherNo || "—")} · ${esc(bdDateLong(x.date))}</div>
+    </div>
   </div>
   <div class="box">
+    <img class="wmark" src="${logo}" alt="" />
     <table class="rows">
-      <tr><td class="label">Paid From (Account)</td><td class="big">${esc(x.account || "")}</td></tr>
-      <tr><td class="label">Category</td><td class="big">${esc(x.category || "—")}</td></tr>
+      <tr><td class="label">Paid From (Account)</td><td class="value">${esc(x.account)}</td></tr>
+      <tr><td class="label">Session</td><td class="value">${esc(x.academicSession || bdYear())}</td></tr>
+      <tr><td class="label">Category</td><td class="value">${esc(x.category || "—")}</td></tr>
       <tr><td class="label">Details / Purpose</td><td>${esc(x.description || "—")}</td></tr>
-      <tr><td class="label">Code</td><td>${esc(x.academicSession ? `Session ${x.academicSession}` : "—")}</td></tr>
+      ${x.supportingVoucher ? `<tr><td class="label">Attached Supporting Voucher</td><td class="value">${esc(x.supportingVoucher)}</td></tr>` : ""}
       <tr><td class="label">Amount in Words</td><td class="words">${esc(amountInWords(x.amount))}</td></tr>
     </table>
   </div>
-  <div class="amount-big">=${esc(fmtTk(x.amount))}/=</div>
+  <div class="amount">=${esc(fmtTk(x.amount))}/=</div>
   <div class="sign">
-    <div><div class="line">Prepared By</div>Office / Accounts</div>
-    <div><div class="line">Approved By</div>Authority Signature</div>
-    <div><div class="line">Received By</div>Payee Signature</div>
+    <div><div class="who">Prepared By</div><div class="line">${esc(preparedBy)}</div></div>
+    <div><div class="who">Received By</div><div class="line"></div></div>
+    <div><div class="who">Authorized Signature</div><div class="line"></div></div>
   </div>
-  <footer>This is a computer-generated Expense Voucher issued by the School Office. Subject to the audit records of the School Statement.</footer>
+  <footer>This is a computer generated voucher and requires no signature if verified from the School Statement.</footer>
 </div>
 </body></html>`);
     w.document.close();
@@ -777,16 +801,35 @@ export default function SchoolStatement() {
                         className={inputClass} placeholder="What was this expense for?" />
                     </div>
                     <div>
-                      <label className={labelClass}>Date</label>
-                      <input type="date" value={expenseForm.date} onChange={(e) => setExp("date", e.target.value)} className={inputClass} />
-                    </div>
-                    <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2.5 flex items-start gap-2.5">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 mt-0.5 text-indigo-500 shrink-0">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <path d="M14 2v6h6" /><path d="m16 13-1.7 1.7 1.7 1.7" /><path d="M13 17h4" />
-                      </svg>
-                      <p className="text-[11px] text-indigo-700 leading-snug">
-                        Every expense is issued a <b>numbered supporting voucher</b> automatically (EXV-…). Use the <b>Voucher</b> button on the expense to print it.
+                      <label className={labelClass}>Supporting Voucher</label>
+                      <div className="flex gap-3">
+                        {["Yes", "No"].map((opt) => {
+                          const on = opt === "Yes";
+                          return (
+                            <label key={opt}
+                              onClick={() => setExp("svYes", on)}
+                              className={`flex-1 flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold cursor-pointer transition ${
+                                expenseForm.svYes === on
+                                  ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                                  : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                              }`}>
+                              <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${expenseForm.svYes === on ? "border-indigo-600" : "border-slate-300"}`}>
+                                {expenseForm.svYes === on && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                              </span>
+                              {opt}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {expenseForm.svYes && (
+                        <div className="mt-2">
+                          <input type="text" value={expenseForm.supportingVoucher}
+                            onChange={(e) => setExp("supportingVoucher", e.target.value)}
+                            className={inputClass} placeholder="Attached supporting voucher no / details, e.g. Shop Invoice #12345" />
+                        </div>
+                      )}
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        Having bought this from a shop, mention its voucher here (Yes) so it is added with your system voucher on print.
                       </p>
                     </div>
                     <button type="submit" disabled={saving}
@@ -822,7 +865,14 @@ export default function SchoolStatement() {
                             <td className="px-4 py-3">
                               {x.category ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{x.category}</span> : "—"}
                             </td>
-                            <td className="px-4 py-3 text-slate-600 max-w-[260px] truncate">{x.description || "—"}</td>
+                            <td className="px-4 py-3 text-slate-600 max-w-[300px]">
+                              {x.description || "—"}
+                              {x.supportingVoucher && (
+                                <span className="block mt-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-0.5 w-fit">
+                                  Attached: {x.supportingVoucher}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${colorOf(x.account)?.bg || "bg-slate-100"} ${colorOf(x.account)?.text || "text-slate-600"}`}>{x.account}</span>
                             </td>

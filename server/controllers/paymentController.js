@@ -8,6 +8,7 @@ const StudentLedger = require("../models/StudentLedger");
 const ClassFeeSetting = require("../models/ClassFeeSetting");
 const StudentFeeOverride = require("../models/StudentFeeOverride");
 const StudentFeeAssignment = require("../models/StudentFeeAssignment");
+const StudentFeeDiscount = require("../models/StudentFeeDiscount");
 const ExamName = require("../models/ExamName");
 
 const { createLedgerEntry } = require("./studentLedgerController");
@@ -128,6 +129,15 @@ const collectPayment = async (req, res) => {
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ success: false, message: "No fee item selected." });
+    }
+
+    if (paymentMethod && paymentMethod !== "Cash" && !transactionId?.toString().trim()) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: `Transaction ID is required for ${paymentMethod} payments.`,
+      });
     }
 
     // ===============================
@@ -841,6 +851,7 @@ const getStudentDueItems = async (req, res) => {
       overrides,
       assignments,
       paidItems,
+      discounts,
     ] = await Promise.all([
       FeeCategory.find({ isActive: true }).sort({ sortOrder: 1 }),
       ClassFeeSetting.find({
@@ -862,6 +873,11 @@ const getStudentDueItems = async (req, res) => {
         student: student._id,
         paymentStatus: { $in: ["Paid", "Partial"] },
       }),
+      StudentFeeDiscount.find({
+        student: student._id,
+        academicSession: session,
+        discountAmount: { $gt: 0 },
+      }),
     ]);
 
     // Build sets for fully-paid and partial items.
@@ -873,6 +889,22 @@ const getStudentDueItems = async (req, res) => {
     const examNameKey = (name, exam, y) => `N_${String(name).trim().toLowerCase()}_Exam_${exam}_${y}`;
     const otherKey = (cid, type, y) => `${cid}_${type}_${y || ""}`;
     const otherNameKey = (name, type, y) => `N_${String(name).trim().toLowerCase()}_${type}_${y || ""}`;
+
+    // Discounts are keyed by fee instance so they apply only to the matching
+    // due fee (monthly, per-exam or one-time/yearly item).
+    const discountMap = {};
+    discounts.forEach((d) => {
+      const dk = `${d.feeCategory ? d.feeCategory.toString() : ""}::${d.applicableType}::${d.month || ""}::${d.year || ""}::${d.examName || ""}`;
+      discountMap[dk] = d;
+    });
+
+    const applyDiscount = (categoryId, type, m, y, exam, grossDue) => {
+      if (grossDue <= 0) return { discount: 0, net: 0, discountId: null, discountReason: "" };
+      const d = discountMap[`${categoryId}::${type}::${m || ""}::${y || ""}::${exam || ""}`];
+      if (!d) return { discount: 0, net: grossDue, discountId: null, discountReason: "" };
+      const discount = Math.min(Number(d.discountAmount || 0), grossDue);
+      return { discount, net: Math.max(0, grossDue - discount), discountId: d._id ? d._id.toString() : null, discountReason: d.reason || "" };
+    };
 
     const fullyPaidSet = new Set();
     const fullyPaidByName = new Set();
@@ -954,24 +986,35 @@ const getStudentDueItems = async (req, res) => {
         for (let m = 1; m <= maxMonth; m++) {
           const isPaid = fullyPaidSet.has(monthKey(catId, m, sessionYear)) || fullyPaidByName.has(monthNameKey(cat.name, m, sessionYear));
           const partial = partialMap[monthKey(catId, m, sessionYear)] ?? partialByName[monthNameKey(cat.name, m, sessionYear)] ?? 0;
-          const due = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+          const grossDue = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+          const { discount, net, discountId, discountReason } = applyDiscount(catId, "Month", m, sessionYear, "", grossDue);
+          const paidAmount = isPaid ? effectiveAmount - grossDue : (partial > 0 ? effectiveAmount - partial : 0);
+          const waived = !isPaid && net <= 0;
 
           months.push({
             month: m,
             year: sessionYear,
-            status: isPaid ? "Paid" : partial > 0 ? "Partial" : "Due",
+            status: isPaid ? "Paid" : waived ? "Waived" : partial > 0 ? "Partial" : "Due",
             amount: effectiveAmount,
-            dueAmount: due,
+            paidAmount,
+            dueAmount: net,
+            discount,
+            discountId,
+            discountReason,
+            waived,
           });
 
-          if (!isPaid) {
+          if (!isPaid && net > 0) {
             dueItems.push({
               feeCategory: catId,
               feeName: cat.name,
               applicableType: "Month",
               month: m,
               year: sessionYear,
-              amount: due,
+              amount: net,
+              discount,
+              discountId,
+              discountReason,
               dueIndex: dueItems.length,
             });
             dueMonths.push(m);
@@ -986,7 +1029,7 @@ const getStudentDueItems = async (req, res) => {
           amount: effectiveAmount,
           months: months.map((mm) => ({
             ...mm,
-            dueIndex: mm.status === "Paid" ? -1 : dueItems.length - dueMonths.length + dueMonths.indexOf(mm.month),
+            dueIndex: mm.status === "Paid" || mm.waived ? -1 : dueItems.length - dueMonths.length + dueMonths.indexOf(mm.month),
           })),
         });
       } else if (frequency === "Per Exam") {
@@ -996,23 +1039,35 @@ const getStudentDueItems = async (req, res) => {
           const fNameKey = examNameKey(cat.name, exam, sessionYear);
           const isPaid = fullyPaidSet.has(fedCatKey) || fullyPaidByName.has(fNameKey);
           const partial = partialMap[fedCatKey] ?? partialByName[fNameKey] ?? 0;
-          const due = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+          const grossDue = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+          const { discount, net, discountId, discountReason } = applyDiscount(catId, "Exam", null, sessionYear, exam, grossDue);
+          const paidAmount = isPaid ? effectiveAmount - grossDue : (partial > 0 ? effectiveAmount - partial : 0);
+          const waived = !isPaid && net <= 0;
+
           exams.push({
             examName: exam,
             year: sessionYear,
-            status: isPaid ? "Paid" : partial > 0 ? "Partial" : "Due",
+            status: isPaid ? "Paid" : waived ? "Waived" : partial > 0 ? "Partial" : "Due",
             amount: effectiveAmount,
-            dueAmount: due,
-            dueIndex: isPaid ? -1 : dueItems.length,
+            paidAmount,
+            dueAmount: net,
+            discount,
+            discountId,
+            discountReason,
+            waived,
+            dueIndex: isPaid || waived ? -1 : dueItems.length,
           });
-          if (!isPaid) {
+          if (!isPaid && net > 0) {
             dueItems.push({
               feeCategory: catId,
               feeName: `${cat.name} (${exam})`,
               applicableType: "Exam",
               examName: exam,
               year: sessionYear,
-              amount: due,
+              amount: net,
+              discount,
+              discountId,
+              discountReason,
               dueIndex: dueItems.length,
             });
           }
@@ -1029,16 +1084,22 @@ const getStudentDueItems = async (req, res) => {
         const type = frequency === "Yearly" ? "Year" : (frequency === "One Time" ? "One Time" : "Custom");
         const isPaid = fullyPaidSet.has(otherKey(catId, type, sessionYear)) || fullyPaidByName.has(otherNameKey(cat.name, type, sessionYear));
         const partial = partialMap[otherKey(catId, type, sessionYear)] ?? partialByName[otherNameKey(cat.name, type, sessionYear)] ?? 0;
-        const due = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
-        const status = isPaid ? "Paid" : partial > 0 ? "Partial" : "Due";
+        const grossDue = isPaid ? 0 : partial > 0 ? partial : effectiveAmount;
+        const { discount, net, discountId, discountReason } = applyDiscount(catId, type, null, sessionYear, "", grossDue);
+        const paidAmount = isPaid ? effectiveAmount - grossDue : (partial > 0 ? effectiveAmount - partial : 0);
+        const status = isPaid ? "Paid" : net <= 0 ? "Waived" : partial > 0 ? "Partial" : "Due";
+        const waived = !isPaid && net <= 0;
 
-        if (!isPaid) {
+        if (!isPaid && net > 0) {
           dueItems.push({
             feeCategory: catId,
             feeName: cat.name,
             applicableType: type,
             year: sessionYear,
-            amount: due,
+            amount: net,
+            discount,
+            discountId,
+            discountReason,
             dueIndex: dueItems.length,
           });
         }
@@ -1049,10 +1110,16 @@ const getStudentDueItems = async (req, res) => {
           applicableType: type,
           frequency,
           amount: effectiveAmount,
+          paidAmount,
           period: type === "One Time" ? "One Time" : String(sessionYear),
+          year: sessionYear,
           status,
-          dueAmount: due,
-          dueIndex: isPaid ? -1 : dueItems.length - 1,
+          dueAmount: net,
+          discount,
+          discountId,
+          discountReason,
+          waived,
+          dueIndex: isPaid || waived ? -1 : dueItems.length - 1,
         });
       }
     }

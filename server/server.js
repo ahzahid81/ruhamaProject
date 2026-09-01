@@ -25,6 +25,7 @@ const eventRoutes = require("./routes/eventRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
 const examNameRoutes = require("./routes/examNameRoutes");
 const hifzReportRoutes = require("./routes/hifzReportRoutes");
+const discountRoutes = require("./routes/discountRoutes");
 
 
 dotenv.config();
@@ -75,6 +76,8 @@ app.use("/api/gallery", galleryRoutes);
 app.use("/api/exam-names", examNameRoutes);
 
 app.use("/api/hifz", hifzReportRoutes);
+
+app.use("/api/discounts", discountRoutes);
 
 app.get("/", (req, res) => {
   res.send("API Running");

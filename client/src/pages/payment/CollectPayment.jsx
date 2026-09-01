@@ -44,7 +44,6 @@ export default function CollectPayment() {
   const [dueItems, setDueItems] = useState([]);
   const [feeLedger, setFeeLedger] = useState([]);
   const [feeStructure, setFeeStructure] = useState([]);
-  const [dueSummary, setDueSummary] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
@@ -53,11 +52,7 @@ export default function CollectPayment() {
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentMethodsList, setPaymentMethodsList] = useState(["Cash", "bKash", "Nagad", "Rocket", "Bank", "Cheque", "Card", "Online", "Other"]);
   const [transactionId, setTransactionId] = useState("");
-  const [referenceNo, setReferenceNo] = useState("");
-  const [remarks, setRemarks] = useState("");
-  const [discount, setDiscount] = useState(0);
   const [fine, setFine] = useState(0);
-  const [payingAmount, setPayingAmount] = useState("");
 
   const [selectedItems, setSelectedItems] = useState([]);
 
@@ -80,12 +75,9 @@ export default function CollectPayment() {
     setDueItems([]);
     setFeeLedger([]);
     setFeeStructure([]);
-    setDueSummary(null);
     setPaymentHistory([]);
     setSelectedItems([]);
-    setDiscount(0);
     setFine(0);
-    setPayingAmount("");
   }, [studentIdRoute]);
 
   useEffect(() => {
@@ -98,9 +90,8 @@ export default function CollectPayment() {
   const loadAllStudentData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const [dueRes, summaryRes, historyRes] = await Promise.allSettled([
+      const [dueRes, historyRes] = await Promise.allSettled([
         api.get(`/payments/due-items/${student._id}`),
-        api.get(`/ledger/due-summary/${student._id}`),
         api.get(`/payments/history/${student._id}`),
       ]);
 
@@ -108,15 +99,6 @@ export default function CollectPayment() {
         setDueItems(dueRes.value.data.dueItems || []);
         setFeeLedger(dueRes.value.data.feeLedger || []);
         setFeeStructure(dueRes.value.data.feeStructure || []);
-      }
-      if (summaryRes.status === "fulfilled") {
-        const sd = summaryRes.value.data || {};
-        setDueSummary({
-          openingBalance: sd.summary?.openingBalance ?? 0,
-          totalPaid: sd.summary?.totalPaid ?? 0,
-          totalDue: sd.summary?.totalDue ?? 0,
-          balance: sd.summary?.currentBalance ?? 0,
-        });
       }
       if (historyRes.status === "fulfilled") {
         const hd = historyRes.value.data;
@@ -152,8 +134,6 @@ export default function CollectPayment() {
     );
   };
 
-  // ---- Grouped fee ledger helpers (removed; flat table uses dueIndex directly) ----
-
   const selectedFees = useMemo(() => {
     return dueItems.filter((_, i) => selectedItems.includes(i));
   }, [dueItems, selectedItems]);
@@ -163,8 +143,8 @@ export default function CollectPayment() {
   }, [selectedFees]);
 
   const total = useMemo(() => {
-    return subtotal + Number(fine || 0) - Number(discount || 0);
-  }, [subtotal, fine, discount]);
+    return subtotal + Number(fine || 0);
+  }, [subtotal, fine]);
 
   // Flatten the fee ledger into professional line items (every fee, every month)
   // Ordered: paid one-time fees on top, then new (unpaid) one-time fees,
@@ -181,8 +161,10 @@ export default function CollectPayment() {
             frequency: "Monthly",
             period: `${months[m.month - 1]} ${m.year}`,
             amount: Number(m.amount || 0),
-            paid: Number(m.amount || 0) - Number(m.dueAmount || 0),
+            paid: Number(m.paidAmount ?? 0),
             due: Number(m.dueAmount || 0),
+            discount: Number(m.discount || 0),
+            waived: Boolean(m.waived),
             status: m.status,
             dueIndex: m.dueIndex,
             sortKind: "month",
@@ -198,8 +180,10 @@ export default function CollectPayment() {
             frequency: "Per Exam",
             period: e.examName,
             amount: Number(e.amount || 0),
-            paid: Number(e.amount || 0) - Number(e.dueAmount || 0),
+            paid: Number(e.paidAmount ?? 0),
             due: Number(e.dueAmount || 0),
+            discount: Number(e.discount || 0),
+            waived: Boolean(e.waived),
             status: e.status,
             dueIndex: e.dueIndex,
             sortKind: "onetime",
@@ -214,8 +198,10 @@ export default function CollectPayment() {
           frequency: group.frequency || group.applicableType,
           period: group.period || "One Time",
           amount: Number(group.amount || 0),
-          paid: Number(group.amount || 0) - Number(group.dueAmount || 0),
+          paid: Number(group.paidAmount ?? 0),
           due: Number(group.dueAmount || 0),
+          discount: Number(group.discount || 0),
+          waived: Boolean(group.waived),
           status: group.status,
           dueIndex: group.dueIndex,
           sortKind: "onetime",
@@ -249,12 +235,9 @@ export default function CollectPayment() {
     setStudent(studentData);
     setDueItems([]);
     setFeeLedger([]);
-    setDueSummary(null);
     setPaymentHistory([]);
     setSelectedItems([]);
-    setDiscount(0);
     setFine(0);
-    setPayingAmount("");
   };
 
   const showToast = (text, type = "error") => {
@@ -265,9 +248,11 @@ export default function CollectPayment() {
   const submitPayment = async () => {
     if (!student) return showToast("Select a student first.");
     if (selectedFees.length === 0) return showToast("Select at least one fee item.");
+    if (paymentMethod !== "Cash" && !transactionId.trim())
+      return showToast("Transaction ID is required for " + paymentMethod + " payments.");
     setLoading(true);
     try {
-      const paidAmount = payingAmount ? Number(payingAmount) : total;
+      const paidAmount = total;
       let remaining = paidAmount;
       const items = selectedFees.map((fee) => {
         const payable = Number(fee.amount);
@@ -292,18 +277,15 @@ export default function CollectPayment() {
         receivedBy: JSON.parse(localStorage.getItem("teacher"))?._id,
         paymentMethod,
         transactionId,
-        referenceNo,
-        remarks,
-        totalDiscount: Number(discount),
         totalFine: Number(fine),
         paidAmount,
         items,
       };
       const res = await api.post("/payments/collect", payload);
       navigate(`/payment/receipt/${res.data.paymentId}`, {
-        state: { receipt: { ...res.data, paymentMethod, transactionId, referenceNo }, student },
+        state: { receipt: { ...res.data, paymentMethod, transactionId }, student },
       });
-      setDiscount(0); setFine(0); setTransactionId(""); setReferenceNo(""); setRemarks(""); setPayingAmount("");
+      setFine(0); setTransactionId("");
       loadAllStudentData();
     } catch (error) {
       showToast(error.response?.data?.message || "Payment failed");
@@ -314,12 +296,12 @@ export default function CollectPayment() {
 
   const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
 
-  const inputClass = "w-full border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 transition bg-white";
-  const labelClass = "block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5";
+  const inputClass = "w-full border border-slate-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 transition bg-white";
+  const labelClass = "block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5";
   const selectClass = inputClass;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       {toast && (
         <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg font-semibold text-sm ${
           toast.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -329,26 +311,35 @@ export default function CollectPayment() {
       )}
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Collect Payment</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Student fee collection & receipt management</p>
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-200">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M21 12V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <path d="M3.27 6.96 12 12.01l8.73-5.05" />
+                <path d="M12 22.08V12" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800 leading-tight">Collect Payment</h1>
+              <p className="text-xs text-slate-400">Student fee collection & receipt management</p>
+            </div>
           </div>
           {isDedicated && (
             <button onClick={() => navigate("/collect-payment")}
-              className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition">
+              className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-200 transition flex items-center gap-1.5">
               ← All Students
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
         {/* Student Search (only in browse mode) */}
         {!isDedicated && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <label className={labelClass}>Select Student</label>
             <StudentPicker
               onSelect={handleStudentSelect}
@@ -356,301 +347,318 @@ export default function CollectPayment() {
               selectedId={student?._id}
               title="Search or browse students by class"
             />
-          </div>
+          </section>
         )}
 
         {/* Loading State */}
         {loadingData && (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <section className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
             <div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-sm text-gray-400">Loading student data...</p>
-          </div>
+            <p className="text-sm text-slate-400">Loading student data...</p>
+          </section>
         )}
 
         {/* Student Profile + Fee Structure */}
         {student && !loadingData && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="p-5 flex items-start gap-5">
+          <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="p-5 flex items-start gap-4">
               {student.photo ? (
-                <img src={student.photo} alt="" className="w-16 h-16 rounded-xl object-cover border border-gray-100" />
+                <img src={student.photo} alt="" className="w-14 h-14 rounded-2xl object-cover border border-slate-100 ring-1 ring-slate-100" />
               ) : (
-                <div className="w-16 h-16 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-2xl">👤</div>
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-2xl">👤</div>
               )}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h2 className="text-xl font-bold text-slate-800">{student.name}</h2>
-                  <span className="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{student.studentId}</span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${student.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>{student.status}</span>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-lg font-bold text-slate-900 truncate">{student.name}</h2>
+                  <span className="text-[11px] font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{student.studentId}</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${student.status === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>{student.status}</span>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-gray-500">
-                  <span>{student.className}{student.section ? " • " + student.section : ""}</span>
-                  {student.fatherMobile && <span>📞 {student.fatherMobile}</span>}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[13px] text-slate-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-slate-400"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    {student.className}{student.section ? " • " + student.section : ""}
+                  </span>
+                  {student.fatherMobile && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-slate-400"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                      {student.fatherMobile}
+                    </span>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-3">
                   <Link to={`/students/${student._id}`}
-                    className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition border border-indigo-100"
+                    className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg hover:bg-indigo-100 transition border border-indigo-100"
                   >View Profile</Link>
-                  <Link to={`/students/${student._id}/ledger`}
-                    className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition border border-blue-100"
-                  >View Ledger</Link>
-                  <Link to={`/students/${student._id}/fee-override`}
-                    className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100 transition border border-amber-100"
-                  >Fee Override</Link>
-                  <Link to={`/students/${student._id}/fees`}
-                    className="text-xs font-semibold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-lg hover:bg-orange-100 transition border border-orange-100"
-                  >Optional Fees</Link>
                 </div>
               </div>
-              <button onClick={() => { setStudent(null); setDueItems([]); setFeeLedger([]); setSelectedItems([]); setDueSummary(null); setPaymentHistory([]); }}
-                className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-semibold hover:bg-gray-200 transition flex-shrink-0"
+              <button onClick={() => { setStudent(null); setDueItems([]); setFeeLedger([]); setSelectedItems([]); setPaymentHistory([]); }}
+                className="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg text-xs font-semibold hover:bg-slate-200 transition flex-shrink-0"
               >Change</button>
             </div>
 
             {/* Fee Structure Tags */}
             {feeStructure.length > 0 && (
-              <div className="px-5 pb-4 flex flex-wrap gap-1.5">
+              <div className="px-5 pb-4 pt-1 flex flex-wrap gap-1.5">
                 {feeStructure.map((fs, i) => (
-                  <span key={i} className="text-xs bg-gray-50 text-gray-600 px-2.5 py-1 rounded-lg border border-gray-100">
+                  <span key={i} className="text-xs bg-slate-50 text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200">
                     {fs.feeCategory?.name || fs.feeName} — <b className="text-emerald-600">{fmt(fs.effectiveAmount || fs.amount)}</b>
-                    <span className="text-gray-400 ml-1">({fs.frequency})</span>
+                    <span className="text-slate-400 ml-1">({fs.frequency})</span>
                   </span>
                 ))}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* Due Summary */}
-        {dueSummary && !loadingData && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: "Opening Balance", value: dueSummary.openingBalance, bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-600", textBold: "text-blue-800" },
-              { label: "Total Paid", value: dueSummary.totalPaid, bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-600", textBold: "text-emerald-800" },
-              { label: "Total Due", value: dueSummary.totalDue, bg: "bg-red-50", border: "border-red-200", text: "text-red-600", textBold: "text-red-800" },
-              { label: "Balance", value: dueSummary.balance, bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-600", textBold: "text-purple-800" },
-            ].map(({ label, value, bg, border, text, textBold }) => (
-              <div key={label} className={`rounded-xl p-4 border ${border} ${bg}`}>
-                <p className={`text-xs font-semibold uppercase tracking-wider ${text}`}>{label}</p>
-                <p className={`text-xl font-bold mt-1 ${textBold}`}>{fmt(value)}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Due Fees */}
+        {/* Main two-column layout */}
         {student && !loadingData && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-slate-800">Due Fees</h2>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {dueItems.length === 0 ? "All fees settled" : `${dueItems.length} unpaid item${dueItems.length !== 1 ? "s" : ""} due`}
-                </p>
-              </div>
-              <button onClick={loadAllStudentData}
-                className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200 transition"
-              >↻ Refresh</button>
-            </div>
-
-            {ledgerRows.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-3xl mb-2">📋</p>
-                <p className="text-gray-400 text-sm font-medium">No fees configured</p>
-                <p className="text-gray-300 text-xs mt-1">No fee categories apply to this student</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {/* Session totals */}
-                <div className="px-5 py-3 bg-slate-50/80 border-b border-gray-100 grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* LEFT: Due fees + recent payments */}
+            <div className="lg:col-span-2 space-y-6 min-w-0">
+              {/* Due Fees */}
+              <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Session Fees</p>
-                    <p className="text-lg font-black text-slate-800 mt-1">{fmt(totals.fees)}</p>
+                    <h2 className="text-base font-bold text-slate-800">Due Fees</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {dueItems.length === 0 ? "All fees settled" : `${dueItems.length} unpaid item${dueItems.length !== 1 ? "s" : ""} due`}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Total Paid</p>
-                    <p className="text-lg font-black text-emerald-700 mt-1">{fmt(totals.paid)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Total Due</p>
-                    <p className="text-lg font-black text-red-600 mt-1">{fmt(totals.due)}</p>
-                  </div>
+                  <button onClick={loadAllStudentData}
+                    className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition flex items-center gap-1.5"
+                  >↻ Refresh</button>
                 </div>
 
-                {/* Line items — every fee, every month; paid rows have no selection */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
-                        <th className="px-5 py-3 w-12">
-                          <input type="checkbox" checked={allUnpaidSelected} onChange={toggleSelectAll}
-                            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                        </th>
-                        <th className="px-4 py-3 font-semibold">Fee</th>
-                        <th className="px-4 py-3 font-semibold">Period</th>
-                        <th className="px-4 py-3 font-semibold text-right">Amount</th>
-                        <th className="px-4 py-3 font-semibold text-right">Paid</th>
-                        <th className="px-4 py-3 font-semibold text-right">Due</th>
-                        <th className="px-5 py-3 font-semibold text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {ledgerRows.map((row) => {
-                        const isPaid = row.status === "Paid";
-                        const on = !isPaid && row.dueIndex >= 0 && selectedItems.includes(row.dueIndex);
-                        return (
-                          <tr key={row.key} className={`transition ${on ? "bg-emerald-50/40" : "hover:bg-gray-50/50"}`}>
-                            <td className="px-5 py-3">
-                              {isPaid ? (
-                                <span title="Paid" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 text-xs font-black">✓</span>
-                              ) : (
-                                <input type="checkbox" checked={on} onChange={() => toggleItem(row.dueIndex)}
-                                  className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                />
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <p className={`font-medium ${isPaid ? "text-gray-400" : "text-slate-700"}`}>{row.feeName}</p>
-                              <p className="text-[10px] text-gray-400 uppercase tracking-wide">{row.frequency}</p>
-                            </td>
-                            <td className={`px-4 py-3 whitespace-nowrap ${isPaid ? "text-gray-400" : "text-gray-600"}`}>{row.period}</td>
-                            <td className={`px-4 py-3 text-right ${isPaid ? "text-gray-400" : "text-gray-600"}`}>{fmt(row.amount)}</td>
-                            <td className={`px-4 py-3 text-right ${row.paid > 0 ? "text-emerald-600" : "text-gray-300"}`}>{row.paid > 0 ? fmt(row.paid) : "—"}</td>
-                            <td className={`px-4 py-3 text-right font-semibold ${row.due > 0 ? "text-red-500" : "text-gray-300"}`}>{row.due > 0 ? fmt(row.due) : "—"}</td>
+                {ledgerRows.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-3">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-slate-300"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
+                    </div>
+                    <p className="text-slate-400 text-sm font-medium">No fees configured</p>
+                    <p className="text-slate-300 text-xs mt-1">No fee categories apply to this student</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {/* Session totals */}
+                    <div className="px-5 py-3 bg-slate-50/80 border-b border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Session Fees</p>
+                        <p className="text-lg font-black text-slate-800 mt-1">{fmt(totals.fees)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Paid</p>
+                        <p className="text-lg font-black text-emerald-700 mt-1">{fmt(totals.paid)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Due</p>
+                        <p className="text-lg font-black text-rose-600 mt-1">{fmt(totals.due)}</p>
+                      </div>
+                    </div>
+
+                    {/* Line items — every fee, every month; paid rows have no selection */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
+                            <th className="px-5 py-3 w-12">
+                              <input type="checkbox" checked={allUnpaidSelected} onChange={toggleSelectAll}
+                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                              />
+                            </th>
+                            <th className="px-4 py-3 font-semibold">Fee</th>
+                            <th className="px-4 py-3 font-semibold">Period</th>
+                            <th className="px-4 py-3 font-semibold text-right">Amount</th>
+                            <th className="px-4 py-3 font-semibold text-right">Paid</th>
+                            <th className="px-4 py-3 font-semibold text-right">Due</th>
+                            <th className="px-5 py-3 font-semibold text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {ledgerRows.map((row) => {
+                            const isPaid = row.status === "Paid";
+                            const isWaived = row.waived;
+                            const on = !isPaid && !isWaived && row.dueIndex >= 0 && selectedItems.includes(row.dueIndex);
+                            return (
+                              <tr key={row.key} className={`transition ${on ? "bg-emerald-50/50" : "hover:bg-slate-50/60"}`}>
+                                <td className="px-5 py-3">
+                                  {isPaid ? (
+                                    <span title="Paid" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 text-xs font-black">✓</span>
+                                  ) : isWaived ? (
+                                    <span title="Waived" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-violet-100 text-violet-600 text-xs font-black">−</span>
+                                  ) : (
+                                    <input type="checkbox" checked={on} onChange={() => toggleItem(row.dueIndex)}
+                                      className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className={`font-medium ${isPaid || isWaived ? "text-slate-400" : "text-slate-700"}`}>{row.feeName}</p>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wide">{row.frequency}</p>
+                                </td>
+                                <td className={`px-4 py-3 whitespace-nowrap ${isPaid || isWaived ? "text-slate-400" : "text-slate-600"}`}>{row.period}</td>
+                                <td className={`px-4 py-3 text-right ${isPaid || isWaived ? "text-slate-400" : "text-slate-600"}`}>{fmt(row.amount)}</td>
+                                <td className={`px-4 py-3 text-right ${row.paid > 0 ? "text-emerald-600" : "text-slate-300"}`}>{row.paid > 0 ? fmt(row.paid) : "—"}</td>
+                                <td className={`px-4 py-3 text-right font-semibold ${row.due > 0 ? "text-rose-500" : "text-slate-300"}`}>{row.due > 0 ? fmt(row.due) : "—"}</td>
+                                <td className="px-5 py-3 text-right">
+                                  {isPaid ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">✓ Paid</span>
+                                  ) : isWaived ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-violet-100 text-violet-600">Waived</span>
+                                  ) : row.status === "Partial" ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">Partial</span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-600">Due</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-sm">
+                      <span className="text-slate-500">
+                        {selectedItems.length} of {dueItems.length} unpaid item{dueItems.length !== 1 ? "s" : ""} selected
+                      </span>
+                      <span className="font-bold text-slate-800">
+                        Subtotal: <span className="text-emerald-700">{fmt(subtotal)}</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Recent Payments */}
+              {paymentHistory.length > 0 && (
+                <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 className="text-base font-bold text-slate-800">Recent Payments</h2>
+                    <Link to={`/students/${student._id}/ledger`} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
+                      View Full Ledger →
+                    </Link>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
+                          <th className="px-5 py-3 font-semibold">Date</th>
+                          <th className="px-5 py-3 font-semibold">Receipt</th>
+                          <th className="px-5 py-3 font-semibold">Method</th>
+                          <th className="px-5 py-3 font-semibold text-right">Amount</th>
+                          <th className="px-5 py-3 font-semibold text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {paymentHistory.map((p) => (
+                          <tr key={p._id} className="hover:bg-slate-50/60 transition">
+                            <td className="px-5 py-3 text-slate-500 text-xs">{bdDate(p.createdAt || p.date)}</td>
+                            <td className="px-5 py-3 font-mono text-xs font-semibold text-indigo-600">{p.receiptNo || "—"}</td>
+                            <td className="px-5 py-3 text-xs text-slate-500">{p.paymentMethod || "—"}</td>
+                            <td className="px-5 py-3 text-right font-semibold text-emerald-700">{fmt(p.totalAmount || p.paidAmount || p.amount)}</td>
                             <td className="px-5 py-3 text-right">
-                              {isPaid ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">✓ Paid</span>
-                              ) : row.status === "Partial" ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">Partial</span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600">Due</span>
-                              )}
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${
+                                p.status === "Paid" || p.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-500"
+                              }`}>{p.status || p.paymentStatus || "Paid"}</span>
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+            </div>
+
+            {/* RIGHT: Checkout summary */}
+            <aside className="lg:sticky lg:top-24">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800">Payment Summary</h2>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Confirm details & collect</p>
+                  </div>
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                    {selectedItems.length} {selectedItems.length === 1 ? "item" : "items"}
+                  </span>
                 </div>
 
-                {/* Footer */}
-                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-sm">
-                  <span className="text-gray-500">
-                    {selectedItems.length} of {dueItems.length} unpaid item{dueItems.length !== 1 ? "s" : ""} selected
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    Subtotal: <span className="text-emerald-700">{fmt(subtotal)}</span>
-                  </span>
+                <div className="p-5 space-y-5">
+                  {/* Breakdown */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">Subtotal</span>
+                      <span className="font-semibold text-slate-700">{fmt(subtotal)}</span>
+                    </div>
+                    {selectedFees.length > 0 && (
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-slate-500 shrink-0">Fine</span>
+                        <input type="number" value={fine} onChange={(e) => setFine(e.target.value)} min="0" step="0.01" placeholder="0"
+                          className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-right text-sm font-semibold text-rose-600 outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-400 transition bg-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-dashed border-slate-200 pt-3.5 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-700">Total</span>
+                    <span className="text-2xl font-black text-emerald-700">{fmt(total)}</span>
+                  </div>
+
+                  {selectedFees.length > 0 ? (
+                    <>
+                      <div>
+                        <label className={labelClass}>Payment Method</label>
+                        <select value={paymentMethod} onChange={(e) => { setPaymentMethod(e.target.value); setTransactionId(""); }} className={selectClass}>
+                          {paymentMethodsList.map((m) => (<option key={m}>{m}</option>))}
+                        </select>
+                      </div>
+
+                      {paymentMethod !== "Cash" && (
+                        <div>
+                          <label className={labelClass}>Transaction ID *</label>
+                          <input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} placeholder={`Required for ${paymentMethod}`} className={inputClass} />
+                        </div>
+                      )}
+
+                      <button onClick={submitPayment} disabled={loading}
+                        className="w-full px-8 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50 shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
+                      >
+                        {loading ? (
+                          <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> Processing...</>
+                        ) : (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                            Receive Payment
+                          </>
+                        )}
+                      </button>
+
+                      <p className="text-[11px] text-slate-400 text-center">
+                        {paymentMethod !== "Cash"
+                          ? `Transaction ID required for ${paymentMethod} payments`
+                          : "Cash payment — no transaction ID needed"}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 mx-auto text-slate-300 mb-2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <path d="m9 9 6 6" /><path d="m15 9-6 6" />
+                      </svg>
+                      <p className="text-sm font-medium text-slate-500">Select fee items to collect</p>
+                      <p className="text-xs text-slate-400 mt-1">Tick the fee rows on the left to build a payment</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </aside>
           </div>
         )}
-
-        {/* Payment Entry */}
-        {student && selectedFees.length > 0 && !loadingData && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-base font-bold text-slate-800 mb-5">Payment Entry</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-5">
-              <div>
-                <label className={labelClass}>Subtotal</label>
-                <p className="text-lg font-bold text-slate-700 mt-1">{fmt(subtotal)}</p>
-              </div>
-              <div>
-                <label className={labelClass}>Discount</label>
-                <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} min="0" step="0.01" placeholder="0" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Fine</label>
-                <input type="number" value={fine} onChange={(e) => setFine(e.target.value)} min="0" step="0.01" placeholder="0" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Paying Amount</label>
-                <input type="number" value={payingAmount} onChange={(e) => setPayingAmount(e.target.value)} min="0" step="0.01" placeholder={String(total)} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Net Total</label>
-                <p className="text-xl font-black text-emerald-700 mt-1">{fmt(payingAmount || total)}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-5">
-              <div>
-                <label className={labelClass}>Payment Method</label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={selectClass}>
-                  {paymentMethodsList.map((m) => (<option key={m}>{m}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Transaction ID</label>
-                <input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} placeholder="Optional" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Reference No</label>
-                <input type="text" value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="Optional" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Remarks</label>
-                <input type="text" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" className={inputClass} />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-              <div>
-                <p className="text-xs text-gray-400">Amount to collect</p>
-                <p className="text-2xl font-black text-emerald-700">{fmt(payingAmount || total)}</p>
-              </div>
-              <button onClick={submitPayment} disabled={loading}
-                className="px-8 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50 shadow-lg shadow-emerald-200 flex items-center gap-2"
-              >
-                {loading ? (
-                  <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> Processing...</>
-                ) : "Receive Payment"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Payment History */}
-        {student && paymentHistory.length > 0 && !loadingData && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-800">Recent Payments</h2>
-              <Link to={`/students/${student._id}/ledger`} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
-                View Full Ledger →
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="px-5 py-3 font-semibold">Date</th>
-                    <th className="px-5 py-3 font-semibold">Receipt</th>
-                    <th className="px-5 py-3 font-semibold">Method</th>
-                    <th className="px-5 py-3 font-semibold text-right">Amount</th>
-                    <th className="px-5 py-3 font-semibold text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {paymentHistory.map((p) => (
-                    <tr key={p._id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-5 py-3 text-gray-500 text-xs">{bdDate(p.createdAt || p.date)}</td>
-                      <td className="px-5 py-3 font-mono text-xs font-semibold text-indigo-600">{p.receiptNo || "—"}</td>
-                      <td className="px-5 py-3 text-xs text-gray-500">{p.paymentMethod || "—"}</td>
-                      <td className="px-5 py-3 text-right font-semibold text-emerald-700">{fmt(p.totalAmount || p.paidAmount || p.amount)}</td>
-                      <td className="px-5 py-3 text-right">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${
-                          p.status === "Paid" || p.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-600" : "bg-gray-50 text-gray-500"
-                        }`}>{p.status || p.paymentStatus || "Paid"}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
-);
+  );
 };

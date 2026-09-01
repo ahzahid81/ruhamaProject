@@ -43,6 +43,7 @@ import ExamResults from "./pages/exam/ExamResults";
 import ReportCard from "./pages/exam/ReportCard";
 import ResultSheet from "./pages/exam/ResultSheet";
 import CollectPayment from "./pages/payment/CollectPayment";
+import DiscountManagement from "./pages/payment/DiscountManagement";
 import FeeSettings from "./pages/admin/FeeSettings";
 import StudentWiseFees from "./pages/admin/StudentWiseFees";
 import SystemSettings from "./pages/admin/SystemSettings";
@@ -268,6 +269,20 @@ function App() {
             path="/collect-payment/:studentId"
 
             element={<CollectPayment></CollectPayment>}
+
+          />
+          <Route
+
+            path="/discounts"
+
+            element={<DiscountManagement></DiscountManagement>}
+
+          />
+          <Route
+
+            path="/discounts/:studentId"
+
+            element={<DiscountManagement></DiscountManagement>}
 
           />
           {/* Admin */}

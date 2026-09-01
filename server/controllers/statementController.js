@@ -4,9 +4,9 @@ const StatementPeriod = require("../models/StatementPeriod");
 const Payment = require("../models/Payment");
 const Settings = require("../models/Settings");
 
-const ACCOUNTS = ["Cash", "bKash", "Bank"];
-const ACCOUNT_KEYS = { Cash: "cash", bKash: "bkash", Bank: "bank" };
-const KEY_ACCOUNTS = { cash: "Cash", bkash: "bKash", bank: "Bank" };
+// The statement runs entirely on the payment methods defined in System
+// Settings. There is NO hardcoded account list — income, expenses, fund
+// transfers, opening/closing balances all use the declared payment methods.
 
 const csvDate = (d) => new Date(d).toISOString().slice(0, 10);
 
@@ -33,6 +33,26 @@ function parseTxDate(input) {
   return d;
 }
 
+// Ordered account list: every configured payment method first, then any other
+// account names found on actual records (so nothing is silently dropped).
+function resolveAccounts(settings, payments, expenses, transfers) {
+  const seen = [];
+  const add = (m) => {
+    const name = String(m || "").trim();
+    if (name && !seen.includes(name)) seen.push(name);
+  };
+  (Array.isArray(settings.paymentMethods) ? settings.paymentMethods : []).forEach(add);
+  (payments || []).forEach((r) => add(r.paymentMethod || "Cash"));
+  (expenses || []).forEach((r) => add(r.account));
+  (transfers || []).forEach((r) => {
+    add(r.fromAccount);
+    add(r.toAccount);
+    if (Number(r.charge || 0) > 0) add(r.chargeAccount || r.fromAccount);
+  });
+  if (!seen.length) seen.push("Cash");
+  return seen;
+}
+
 // ============================================
 // PERIOD HELPERS
 // ============================================
@@ -44,8 +64,8 @@ async function getCurrentPeriod() {
     period = await StatementPeriod.create({
       periodStart: new Date(0),
       academicSession: settings.currentSession,
-      openingBalances: { cash: 0, bkash: 0, bank: 0 },
-      closingBalances: { cash: 0, bkash: 0, bank: 0 },
+      openingBalances: {},
+      closingBalances: {},
       note: "Initial period",
     });
   }
@@ -54,6 +74,7 @@ async function getCurrentPeriod() {
 
 async function computeAccounts(period) {
   const since = new Date(period.periodStart);
+  const n = (v) => Number(v || 0);
 
   const [payments, transfers, expenses, settings] = await Promise.all([
     Payment.find({ receiveDate: { $gte: since }, paymentStatus: "Completed", isVoided: { $ne: true } }),
@@ -62,93 +83,61 @@ async function computeAccounts(period) {
     Settings.getSettings(),
   ]);
 
-  // Each payment method IS its own income account. A method that equals a fund
-  // (Cash / bKash / Bank) credits that fund's balance.
-  const byMethod = {};
-  const fundIncome = { cash: 0, bkash: 0, bank: 0 };
-  const extraMethods = [];
+  const accNames = resolveAccounts(settings, payments, expenses, transfers);
+  const income = {};
+  const expenseBy = {};
+  const transferIn = {};
+  const transferOut = {};
+  const charges = {};
+  accNames.forEach((acc) => {
+    income[acc] = 0;
+    expenseBy[acc] = 0;
+    transferIn[acc] = 0;
+    transferOut[acc] = 0;
+    charges[acc] = 0;
+  });
+
   payments.forEach((p) => {
-    const m = (p.paymentMethod || "Cash").trim() || "Cash";
-    const amount = Number(p.paidAmount || 0);
-    byMethod[m] = Number(byMethod[m] || 0) + amount;
-    const k = String(m).toLowerCase().replace(/[\s_-]/g, "");
-    if (k === "cash") fundIncome.cash += amount;
-    else if (k === "bkash") fundIncome.bkash += amount;
-    else if (k === "bank") fundIncome.bank += amount;
-    else if (!extraMethods.includes(m)) extraMethods.push(m);
+    income[String(p.paymentMethod || "Cash").trim()] += n(p.paidAmount);
   });
-
-  // Ordered income breakdown: every configured method (even with 0 so new
-  // methods added day-by-day appear), then any extra methods found in payments.
-  const incomeBreakdown = [];
-  ((Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [])).forEach((m) => {
-    incomeBreakdown.push({ method: m, amount: Number(byMethod[m] || 0) });
-  });
-  extraMethods.forEach((m) => {
-    incomeBreakdown.push({ method: m, amount: byMethod[m] });
-  });
-
-  const byMethodFund = (m) => {
-    const k = String(m).toLowerCase().replace(/[\s_-]/g, "");
-    if (k === "cash") return fundIncome.cash;
-    if (k === "bkash") return fundIncome.bkash;
-    if (k === "bank") return fundIncome.bank;
-    return 0;
-  };
-  incomeBreakdown.forEach((row) => {
-    row.fundCredit = byMethodFund(row.method);
-  });
-
-  const expenseBy = { cash: 0, bkash: 0, bank: 0 };
   expenses.forEach((e) => {
-    if (!ACCOUNT_KEYS[e.account]) return;
-    expenseBy[ACCOUNT_KEYS[e.account]] += Number(e.amount || 0);
+    if (accNames.includes(e.account)) expenseBy[e.account] += n(e.amount);
   });
-
-  const transferIn = { cash: 0, bkash: 0, bank: 0 };
-  const transferOut = { cash: 0, bkash: 0, bank: 0 };
-  const charges = { cash: 0, bkash: 0, bank: 0 };
   transfers.forEach((t) => {
-    if (!ACCOUNT_KEYS[t.toAccount] || !ACCOUNT_KEYS[t.fromAccount]) return;
-    transferIn[ACCOUNT_KEYS[t.toAccount]] += Number(t.amount || 0);
-    transferOut[ACCOUNT_KEYS[t.fromAccount]] += Number(t.amount || 0);
-    const chg = Number(t.charge || 0);
-    if (chg > 0 && ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]) {
-      charges[ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]] += chg;
-    }
+    if (accNames.includes(t.fromAccount)) transferOut[t.fromAccount] += n(t.amount);
+    if (accNames.includes(t.toAccount)) transferIn[t.toAccount] += n(t.amount);
+    const c = n(t.charge);
+    if (c > 0) charges[t.chargeAccount || t.fromAccount] += c;
   });
 
-  const accounts = ACCOUNTS.map((acct) => {
-    const k = ACCOUNT_KEYS[acct];
-    const opening = Number(period.openingBalances[k] || 0);
+  const accounts = accNames.map((acc) => {
+    const opening = n(period.openingBalances?.[acc]);
     const current =
-      opening + fundIncome[k] - expenseBy[k] + transferIn[k] - transferOut[k] - charges[k];
+      opening + income[acc] - expenseBy[acc] + transferIn[acc] - transferOut[acc] - charges[acc];
     return {
-      key: acct,
+      key: acc,
       opening,
-      income: fundIncome[k],
-      expense: expenseBy[k],
-      transferIn: transferIn[k],
-      transferOut: transferOut[k],
-      charges: charges[k],
+      income: income[acc],
+      expense: expenseBy[acc],
+      transferIn: transferIn[acc],
+      transferOut: transferOut[acc],
+      charges: charges[acc],
       current,
     };
   });
 
-  const incomeTotal = incomeBreakdown.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const sum = (pick) => accounts.reduce((s, a) => s + a[pick], 0);
 
   return {
     accounts,
-    incomeBreakdown,
     totals: {
-      opening: accounts.reduce((s, a) => s + a.opening, 0),
-      income: accounts.reduce((s, a) => s + a.income, 0),
-      incomeAllMethods: incomeTotal,
-      expense: accounts.reduce((s, a) => s + a.expense, 0),
-      transferIn: accounts.reduce((s, a) => s + a.transferIn, 0),
-      transferOut: accounts.reduce((s, a) => s + a.transferOut, 0),
-      charges: accounts.reduce((s, a) => s + a.charges, 0),
-      inHand: accounts.reduce((s, a) => s + a.current, 0),
+      opening: sum("opening"),
+      income: sum("income"),
+      expense: sum("expense"),
+      transferIn: sum("transferIn"),
+      transferOut: sum("transferOut"),
+      charges: sum("charges"),
+      inHand: sum("current"),
     },
   };
 }
@@ -156,7 +145,7 @@ async function computeAccounts(period) {
 // Full statement payload returned by GET and every mutation, so the
 // client always renders freshly recalculated numbers.
 async function buildPayload(period) {
-  const { accounts, incomeBreakdown, totals } = await computeAccounts(period);
+  const { accounts, totals } = await computeAccounts(period);
   const [recentExpenses, recentTransfers, recentPayments, history, settings] = await Promise.all([
     Expense.find().sort({ date: -1, createdAt: -1 }).limit(50),
     FundTransfer.find().sort({ date: -1, createdAt: -1 }).limit(50),
@@ -177,7 +166,6 @@ async function buildPayload(period) {
       note: period.note,
     },
     accounts,
-    incomeBreakdown,
     totals,
     paymentMethods: settings.paymentMethods,
     recentExpenses,
@@ -218,14 +206,6 @@ const exportStatement = async (req, res) => {
     const currentPeriod = await getCurrentPeriod();
     const now = new Date();
 
-    const fundKeyOf = (method) => {
-      const k = String(method || "Cash").toLowerCase().replace(/[\s_-]/g, "");
-      if (k === "cash") return "cash";
-      if (k === "bkash") return "bkash";
-      if (k === "bank") return "bank";
-      return null;
-    };
-
     const fromRaw = req.query.from ? new Date(req.query.from) : null;
     const toRaw = req.query.to ? new Date(req.query.to) : now;
 
@@ -238,32 +218,31 @@ const exportStatement = async (req, res) => {
     const toDate = toRaw < fromDate ? fromDate : toRaw;
 
     // Flows before the range (basis for the opening balance).
-    const [payPre, exPre, trPre] = await Promise.all([
+    const [payPre, exPre, trPre, settings] = await Promise.all([
       Payment.find({ receiveDate: { $gte: pStart, $lt: fromDate }, paymentStatus: "Completed", isVoided: { $ne: true } }),
       Expense.find({ date: { $gte: pStart, $lt: fromDate } }),
       FundTransfer.find({ date: { $gte: pStart, $lt: fromDate } }),
+      Settings.getSettings(),
     ]);
 
-    const balance = {
-      cash: Number(activePeriod.openingBalances?.cash || 0),
-      bkash: Number(activePeriod.openingBalances?.bkash || 0),
-      bank: Number(activePeriod.openingBalances?.bank || 0),
-    };
+    const accNames = resolveAccounts(settings, payPre, exPre, trPre);
+    const balance = {};
+    accNames.forEach((a) => {
+      balance[a] = Number(activePeriod.openingBalances?.[a] || 0);
+    });
+
     payPre.forEach((p) => {
-      const k = fundKeyOf(p.paymentMethod);
-      if (k) balance[k] += Number(p.paidAmount || 0);
+      const m = String(p.paymentMethod || "Cash").trim();
+      balance[m] = (balance[m] || 0) + Number(p.paidAmount || 0);
     });
     exPre.forEach((e) => {
-      balance[ACCOUNT_KEYS[e.account]] -= Number(e.amount || 0);
+      balance[e.account] = (balance[e.account] || 0) - Number(e.amount || 0);
     });
     trPre.forEach((t) => {
-      const out = ACCOUNT_KEYS[t.fromAccount];
-      const inn = ACCOUNT_KEYS[t.toAccount];
-      if (!out || !inn) return;
-      balance[out] -= Number(t.amount || 0);
-      balance[inn] += Number(t.amount || 0);
+      balance[t.fromAccount] = (balance[t.fromAccount] || 0) - Number(t.amount || 0);
+      balance[t.toAccount] = (balance[t.toAccount] || 0) + Number(t.amount || 0);
       const c = Number(t.charge || 0);
-      if (c > 0 && ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]) balance[ACCOUNT_KEYS[t.chargeAccount || t.fromAccount]] -= c;
+      if (c > 0) balance[t.chargeAccount || t.fromAccount] = (balance[t.chargeAccount || t.fromAccount] || 0) - c;
     });
 
     // Flows inside the requested range.
@@ -274,17 +253,16 @@ const exportStatement = async (req, res) => {
     ]);
 
     const rows = [];
-    const total = () => balance.cash + balance.bkash + balance.bank;
+    const total = () => Object.values(balance).reduce((s, v) => s + Number(v || 0), 0);
 
-    ACCOUNTS.forEach((acct) => {
-      const k = ACCOUNT_KEYS[acct];
+    accNames.forEach((a) => {
       rows.push({
         date: csvDate(fromDate),
         type: "Opening Balance",
-        description: `${acct} opening on ${csvDate(pStart)}`,
-        from: acct,
-        to: acct,
-        amount: balance[k],
+        description: `${a} opening on ${csvDate(pStart)}`,
+        from: a,
+        to: a,
+        amount: Number(balance[a] || 0),
         charge: "",
         balance: total(),
       });
@@ -296,15 +274,15 @@ const exportStatement = async (req, res) => {
         ts: p.receiveDate,
         sort: 0,
         make: () => {
-          const k = fundKeyOf(p.paymentMethod);
+          const m = String(p.paymentMethod || "Cash").trim();
           const amt = Number(p.paidAmount || 0);
-          if (k) balance[k] += amt;
+          balance[m] = (balance[m] || 0) + amt;
           rows.push({
             date: csvDate(p.receiveDate),
             type: "Payment",
-            description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${p.paymentMethod}]`,
+            description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${m}]`,
             from: "Student",
-            to: k ? KEY_ACCOUNTS[k] : p.paymentMethod || "Cash",
+            to: m,
             amount: amt,
             charge: "",
             balance: total(),
@@ -317,9 +295,8 @@ const exportStatement = async (req, res) => {
         ts: e.date,
         sort: 1,
         make: () => {
-          const k = ACCOUNT_KEYS[e.account];
           const amt = Number(e.amount || 0);
-          balance[k] -= amt;
+          balance[e.account] = (balance[e.account] || 0) - amt;
           rows.push({
             date: csvDate(e.date),
             type: "Expense",
@@ -338,12 +315,9 @@ const exportStatement = async (req, res) => {
         ts: t.date,
         sort: 2,
         make: () => {
-          const out = ACCOUNT_KEYS[t.fromAccount];
-          const inn = ACCOUNT_KEYS[t.toAccount];
-          if (!out || !inn) return;
           const amt = Number(t.amount || 0);
-          balance[out] -= amt;
-          balance[inn] += amt;
+          balance[t.fromAccount] = (balance[t.fromAccount] || 0) - amt;
+          balance[t.toAccount] = (balance[t.toAccount] || 0) + amt;
           rows.push({
             date: csvDate(t.date),
             type: "Fund Transfer",
@@ -356,13 +330,13 @@ const exportStatement = async (req, res) => {
           });
           const c = Number(t.charge || 0);
           if (c > 0) {
-            const ck = ACCOUNT_KEYS[t.chargeAccount || t.fromAccount];
-            balance[ck] -= c;
+            const ck = t.chargeAccount || t.fromAccount;
+            balance[ck] = (balance[ck] || 0) - c;
             rows.push({
               date: csvDate(t.date),
               type: "Transfer Charge",
-              description: `${t.chargeAccount || t.fromAccount} charge on transfer`,
-              from: t.chargeAccount || t.fromAccount,
+              description: `${ck} charge on transfer`,
+              from: ck,
               to: "Charge",
               amount: -c,
               charge: "",
@@ -376,12 +350,10 @@ const exportStatement = async (req, res) => {
     events.sort((a, b) => new Date(a.ts) - new Date(b.ts) || a.sort - b.sort);
     events.forEach((ev) => ev.make());
 
-    rows.push(
-      { date: "", type: "CLOSING", description: "Cash balance", from: "", to: "", amount: balance.cash, charge: "", balance: "" },
-      { date: "", type: "CLOSING", description: "bKash balance", from: "", to: "", amount: balance.bkash, charge: "", balance: "" },
-      { date: "", type: "CLOSING", description: "Bank balance", from: "", to: "", amount: balance.bank, charge: "", balance: "" },
-      { date: "", type: "CLOSING", description: "Total in hand", from: "", to: "", amount: total(), charge: "", balance: "" }
-    );
+    accNames.forEach((a) => {
+      rows.push({ date: "", type: "CLOSING", description: `${a} balance`, from: "", to: "", amount: Number(balance[a] || 0), charge: "", balance: "" });
+    });
+    rows.push({ date: "", type: "CLOSING", description: "Total in hand", from: "", to: "", amount: total(), charge: "", balance: "" });
 
     const safe = (v) => {
       const s = String(v ?? "");
@@ -412,8 +384,8 @@ const addExpense = async (req, res) => {
   try {
     const { account, category, description, amount, date } = req.body;
 
-    if (!ACCOUNTS.includes(account)) {
-      return res.status(400).json({ success: false, message: "Please select a valid account." });
+    if (!String(account || "").trim()) {
+      return res.status(400).json({ success: false, message: "Please select an account." });
     }
     const amt = Number(amount || 0);
     if (!(amt > 0)) {
@@ -422,7 +394,7 @@ const addExpense = async (req, res) => {
 
     const settings = await Settings.getSettings();
     await Expense.create({
-      account,
+      account: String(account).trim(),
       category: String(category || "").trim(),
       description: String(description || "").trim(),
       amount: amt,
@@ -459,8 +431,8 @@ const addFundTransfer = async (req, res) => {
   try {
     const { fromAccount, toAccount, amount, charge, chargeAccount, note, date } = req.body;
 
-    if (!ACCOUNTS.includes(fromAccount) || !ACCOUNTS.includes(toAccount)) {
-      return res.status(400).json({ success: false, message: "Please select a valid account." });
+    if (!String(fromAccount || "").trim() || !String(toAccount || "").trim()) {
+      return res.status(400).json({ success: false, message: "Please select source and destination accounts." });
     }
     if (fromAccount === toAccount) {
       return res.status(400).json({ success: false, message: "Source and destination accounts must be different." });
@@ -473,15 +445,12 @@ const addFundTransfer = async (req, res) => {
     if (chg < 0) {
       return res.status(400).json({ success: false, message: "Charge cannot be negative." });
     }
-    const chgAcct = chargeAccount || fromAccount;
-    if (!ACCOUNTS.includes(chgAcct)) {
-      return res.status(400).json({ success: false, message: "Invalid charge account." });
-    }
+    const chgAcct = String(chargeAccount || fromAccount).trim() || fromAccount;
 
     const settings = await Settings.getSettings();
     await FundTransfer.create({
-      fromAccount,
-      toAccount,
+      fromAccount: String(fromAccount).trim(),
+      toAccount: String(toAccount).trim(),
       amount: amt,
       charge: chg,
       chargeAccount: chgAcct,
@@ -518,34 +487,33 @@ const deleteFundTransfer = async (req, res) => {
 const resetAccount = async (req, res) => {
   try {
     const { openingBalances, note } = req.body;
-    const required = ["cash", "bkash", "bank"];
     const values = openingBalances || {};
-
-    for (const key of required) {
-      const v = Number(values[key]);
-      if (values[key] === undefined || values[key] === null || values[key] === "" || !(v >= 0)) {
-        return res.status(400).json({
-          success: false,
-          message: `Please enter a valid opening balance for ${KEY_ACCOUNTS[key]}.`,
-        });
-      }
-    }
+    const settings = await Settings.getSettings();
 
     const currentPeriod = await getCurrentPeriod();
     const { accounts } = await computeAccounts(currentPeriod);
 
-    const closing = {};
-    accounts.forEach((a) => { closing[ACCOUNT_KEYS[a.key]] = a.current; });
+    // Opening balance is required for every configured payment method.
+    const accNames = accounts.map((a) => a.key);
+    if (!accNames.length) accNames.push("Cash");
 
-    const settings = await Settings.getSettings();
+    for (const name of accNames) {
+      const v = values[name];
+      if (v === undefined || v === null || v === "" || !(Number(v) >= 0)) {
+        return res.status(400).json({
+          success: false,
+          message: `Please enter a valid opening balance for ${name}.`,
+        });
+      }
+    }
+
+    const closing = {};
+    accounts.forEach((a) => { closing[a.key] = a.current; });
+
     await StatementPeriod.create({
       periodStart: new Date(),
       academicSession: settings.currentSession,
-      openingBalances: {
-        cash: Number(values.cash),
-        bkash: Number(values.bkash),
-        bank: Number(values.bank),
-      },
+      openingBalances: Object.fromEntries(accNames.map((name) => [name, Number(values[name])])),
       closingBalances: closing,
       note: String(note || "").trim(),
       resetBy: req.user?._id || null,

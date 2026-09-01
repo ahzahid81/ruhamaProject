@@ -12,14 +12,12 @@ const statementPeriodSchema = new mongoose.Schema(
       default: "",
     },
     openingBalances: {
-      cash: { type: Number, default: 0 },
-      bkash: { type: Number, default: 0 },
-      bank: { type: Number, default: 0 },
+      type: Object,
+      default: {},
     },
     closingBalances: {
-      cash: { type: Number, default: 0 },
-      bkash: { type: Number, default: 0 },
-      bank: { type: Number, default: 0 },
+      type: Object,
+      default: {},
     },
     note: {
       type: String,

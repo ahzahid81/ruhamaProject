@@ -1,18 +1,14 @@
 const mongoose = require("mongoose");
 
-const ACCOUNTS = ["Cash", "bKash", "Bank"];
-
 const fundTransferSchema = new mongoose.Schema(
   {
     fromAccount: {
       type: String,
-      enum: ACCOUNTS,
       required: true,
       index: true,
     },
     toAccount: {
       type: String,
-      enum: ACCOUNTS,
       required: true,
     },
     amount: {
@@ -26,7 +22,6 @@ const fundTransferSchema = new mongoose.Schema(
     },
     chargeAccount: {
       type: String,
-      enum: ACCOUNTS,
     },
     note: {
       type: String,

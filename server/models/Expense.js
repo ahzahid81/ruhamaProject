@@ -1,12 +1,9 @@
 const mongoose = require("mongoose");
 
-const ACCOUNTS = ["Cash", "bKash", "Bank"];
-
 const expenseSchema = new mongoose.Schema(
   {
     account: {
       type: String,
-      enum: ACCOUNTS,
       required: true,
       index: true,
     },

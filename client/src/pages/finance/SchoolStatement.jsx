@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../../services/api";
 
-const ACCOUNTS = ["Cash", "bKash", "Bank"];
-
 const categorySuggestions = [
   "Rent", "Electricity", "Water", "Staff Salary", "Stationery",
   "Building Repair", "Transport", "Food", "Medical", "Gifts", "Development", "Other",
@@ -32,14 +30,17 @@ export default function SchoolStatement() {
   const [toast, setToast] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [expenseForm, setExpenseForm] = useState({ account: "Cash", amount: "", category: "", note: "", date: "" });
-  const [transferForm, setTransferForm] = useState({ fromAccount: "Cash", toAccount: "bKash", amount: "", charge: "", chargeAccount: "Cash", note: "", date: "" });
+  const [expenseForm, setExpenseForm] = useState({ account: "", amount: "", category: "", note: "", date: "" });
+  const [transferForm, setTransferForm] = useState({ fromAccount: "", toAccount: "", amount: "", charge: "", chargeAccount: "", note: "", date: "" });
   const [dlFrom, setDlFrom] = useState("");
   const [dlTo, setDlTo] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
-  const [resetForm, setResetForm] = useState({ cash: "", bkash: "", bank: "", note: "" });
+  const [resetForm, setResetForm] = useState({ note: "" });
+  const [resetBalances, setResetBalances] = useState({});
+
+  const accountList = (data?.accounts || []).map((a) => a.key);
 
   useEffect(() => {
     try {
@@ -160,8 +161,7 @@ export default function SchoolStatement() {
         <td class="num">${x.charge > 0 ? fmt(x.charge) : "—"}</td>
       </tr>`);
 
-    const period = data.period || {};
-    const openingNames = { cash: "Cash", bkash: "bKash", bank: "Bank" };
+    const accNames = accounts.map((a) => a.key).join(" · ");
 
     const w = window.open("", "_blank", "width=1000,height=750");
     if (!w) {
@@ -200,12 +200,12 @@ export default function SchoolStatement() {
   <button onclick="window.print()">🖨 Print</button>
 </div>
 <div class="head">
-  <div><h1>School Financial Statement</h1><div class="sub">Cash · bKash · Bank — generated on ${esc(fmtDate(new Date()))} ${esc(fmtTime(new Date()))}</div></div>
-  <div class="sub">Audit period active since ${esc(fmtDate(period.periodStart))} ${esc(fmtTime(period.periodStart))}${period.academicSession ? ` · Session ${esc(period.academicSession)}` : ""}</div>
+  <div><h1>School Financial Statement</h1><div class="sub">${esc(accNames)} — generated on ${esc(fmtDate(new Date()))} ${esc(fmtTime(new Date()))}</div></div>
+  <div class="sub">Audit period active since ${esc(fmtDate(data.period?.periodStart || new Date()))} ${esc(fmtTime(data.period?.periodStart))}${data.period?.academicSession ? ` · Session ${esc(data.period.academicSession)}` : ""}</div>
 </div>
 
 <div class="meta">
-  ${Object.keys(openingNames).map((k) => `<div><div class="l">Opening ${openingNames[k]}</div><div class="v">${fmt(period.openingBalances?.[k])}</div></div>`).join("")}
+  ${accounts.map((a) => `<div><div class="l">Opening ${esc(a.key)}</div><div class="v">${fmt(a.opening)}</div></div>`).join("")}
   ${accounts.map((a) => `<div><div class="l">Current ${esc(a.key)}</div><div class="v">${fmt(a.current)}</div></div>`).join("")}
   <div><div class="l">Total In Hand</div><div class="v">${fmt(totals.inHand)}</div></div>
 </div>
@@ -236,7 +236,7 @@ export default function SchoolStatement() {
     setSaving(true);
     try {
       const res = await api.post("/statement/expense", {
-        account: expenseForm.account,
+        account: expenseForm.account || accountList[0],
         amount: Number(expenseForm.amount),
         category: expenseForm.category,
         description: expenseForm.note,
@@ -280,11 +280,11 @@ export default function SchoolStatement() {
     setSaving(true);
     try {
       const res = await api.post("/statement/fund-transfer", {
-        fromAccount: transferForm.fromAccount,
-        toAccount: transferForm.toAccount,
+        fromAccount: transferForm.fromAccount || accountList[0],
+        toAccount: transferForm.toAccount || accountList[1] || accountList[0],
         amount: Number(transferForm.amount),
         charge: Number(transferForm.charge || 0),
-        chargeAccount: Number(transferForm.charge || 0) > 0 ? transferForm.chargeAccount : transferForm.fromAccount,
+        chargeAccount: (Number(transferForm.charge || 0) > 0 ? transferForm.chargeAccount : transferForm.fromAccount) || accountList[0],
         note: transferForm.note,
         date: nextDate(transferForm.date),
       });
@@ -313,23 +313,24 @@ export default function SchoolStatement() {
 
   const submitReset = async (e) => {
     e.preventDefault();
-    if ([resetForm.cash, resetForm.bkash, resetForm.bank].some((v) => Number(v) < 0 || v === "")) {
-      return showToast("Enter valid opening Cash, bKash and Bank amounts.");
+    const names = (data?.accounts || []).map((a) => a.key);
+    for (const name of names) {
+      const v = resetBalances[name];
+      if (v === undefined || v === null || v === "" || !(Number(v) >= 0)) {
+        return showToast(`Enter a valid opening balance for ${name}.`);
+      }
     }
     setSaving(true);
     try {
       const res = await api.post("/statement/reset", {
-        openingBalances: {
-          cash: Number(resetForm.cash),
-          bkash: Number(resetForm.bkash),
-          bank: Number(resetForm.bank),
-        },
+        openingBalances: Object.fromEntries(names.map((n) => [n, Number(resetBalances[n])])),
         note: resetForm.note,
       });
       showToast(res.data.message || "Account reset.", "success");
       applyPayload(res.data);
       setResetOpen(false);
-      setResetForm({ cash: "", bkash: "", bank: "", note: "" });
+      setResetForm({ note: "" });
+      setResetBalances({});
     } catch (error) {
       showToast(error.response?.data?.message || "Failed to reset account.");
     } finally {
@@ -341,11 +342,15 @@ export default function SchoolStatement() {
   const totals = data?.totals || {};
   const period = data?.period || null;
 
-  const accountColor = {
-    Cash: { dot: "bg-emerald-500", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", line: "from-emerald-500 to-teal-600" },
-    bKash: { dot: "bg-pink-500", bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", line: "from-pink-500 to-rose-600" },
-    Bank: { dot: "bg-sky-500", bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-700", line: "from-sky-500 to-indigo-600" },
-  };
+  const CHIP = [
+    { dot: "bg-emerald-500", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", line: "from-emerald-500 to-teal-600" },
+    { dot: "bg-pink-500", bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", line: "from-pink-500 to-rose-600" },
+    { dot: "bg-sky-500", bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-700", line: "from-sky-500 to-indigo-600" },
+    { dot: "bg-amber-500", bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", line: "from-amber-500 to-orange-600" },
+    { dot: "bg-violet-500", bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", line: "from-violet-500 to-purple-600" },
+    { dot: "bg-teal-500", bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700", line: "from-teal-500 to-cyan-600" },
+  ];
+  const colorOf = (name) => CHIP[((accounts.map((a) => a.key).indexOf(name) % CHIP.length) + CHIP.length) % CHIP.length];
 
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
@@ -372,7 +377,7 @@ export default function SchoolStatement() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-800 leading-tight">School Statement</h1>
-              <p className="text-xs text-slate-400">Cash · bKash · Bank funds, expenses & audit periods</p>
+              <p className="text-xs text-slate-400">Payment-method accounts, expenses, transfers & audit periods</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -407,7 +412,7 @@ export default function SchoolStatement() {
             {/* KPI cards */}
             <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {accounts.map((a) => {
-                const c = accountColor[a.key] || accountColor.Cash;
+                const c = colorOf(a.key);
                 return (
                   <div key={a.key} className={`rounded-2xl p-5 border ${c.border} ${c.bg} shadow-sm relative overflow-hidden`}>
                     <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${c.line}`} />
@@ -424,7 +429,7 @@ export default function SchoolStatement() {
                 <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-500 to-slate-700" />
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total In Hand</p>
                 <p className="text-2xl font-black text-white mt-2">{fmt(totals.inHand)}</p>
-                <p className="text-[11px] text-slate-500 mt-1">Cash + bKash + Bank</p>
+                <p className="text-[11px] text-slate-500 mt-1">Sum of all payment methods</p>
               </div>
             </section>
 
@@ -440,10 +445,9 @@ export default function SchoolStatement() {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-                  {ACCOUNTS.map((a) => {
-                    const k = a === "bKash" ? "bkash" : a.toLowerCase();
-                    const v = period.openingBalances?.[k];
-                    return <span key={a} className="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg">Opening {a} · {fmt(v)}</span>;
+                  {accounts.map((a) => {
+                    const v = period.openingBalances?.[a.key];
+                    return <span key={a.key} className="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg">Opening {a.key} · {fmt(v)}</span>;
                   })}
                 </div>
               </section>
@@ -487,12 +491,11 @@ export default function SchoolStatement() {
 
             {/* OVERVIEW */}
             {tab === "overview" && (
-              <>
               <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="px-5 py-4 border-b border-slate-100">
                   <h2 className="text-base font-bold text-slate-800">Statement Breakdown</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Income is collected per payment method — each method is its own income account (Cash, bKash, Bank, ...). Fund balances move via expenses, transfers and charges.
+                    Every payment method saved in System Settings is its own account — income, expenses and transfers are tracked per method.
                   </p>
                 </div>
                 <div className="overflow-x-auto">
@@ -536,43 +539,6 @@ export default function SchoolStatement() {
                   </table>
                 </div>
               </section>
-
-              <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <h2 className="text-base font-bold text-slate-800">Income by Payment Method</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Taken from the payment methods in System Settings. Methods named Cash / bKash / Bank feed the matching fund balance.
-                  </p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
-                        <th className="px-5 py-3 font-semibold">Payment Method</th>
-                        <th className="px-5 py-3 font-semibold text-right">Collected</th>
-                        <th className="px-5 py-3 font-semibold text-right">Credits Fund</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {(data?.incomeBreakdown || []).length === 0 ? (
-                        <tr><td colSpan="3" className="px-5 py-8 text-center text-slate-300 text-sm font-medium">No income collected in this audit period</td></tr>
-                      ) : (data?.incomeBreakdown || []).map((row) => (
-                        <tr key={row.method} className="hover:bg-slate-50/60 transition">
-                          <td className="px-5 py-3 font-semibold text-slate-700">{row.method}</td>
-                          <td className="px-5 py-3 text-right font-bold text-emerald-600">{fmt(row.amount)}</td>
-                          <td className="px-5 py-3 text-right text-slate-500">{row.amount > 0 ? (row.fundCredit > 0 ? row.method : "— (enters via transfer)") : "—"}</td>
-                        </tr>
-                      ))}
-                      <tr className="bg-slate-50 font-bold">
-                        <td className="px-5 py-3 text-slate-800">Total Collected (all methods)</td>
-                        <td className="px-5 py-3 text-right text-emerald-600">{fmt(totals.incomeAllMethods)}</td>
-                        <td className="px-5 py-3 text-right text-slate-500">{fmt(totals.income)} into Cash / bKash / Bank</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-              </>
             )}
 
             {/* PAYMENTS */}
@@ -619,12 +585,12 @@ export default function SchoolStatement() {
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-fit">
                   <h2 className="text-base font-bold text-slate-800 mb-1">Record Expense</h2>
-                  <p className="text-xs text-slate-400 mb-4">Money paid out from a fund account</p>
+                  <p className="text-xs text-slate-400 mb-4">Money paid out of a payment-method account</p>
                   <form onSubmit={submitExpense} className="space-y-3.5">
                     <div>
                       <label className={labelClass}>Pay From</label>
-                      <select value={expenseForm.account} onChange={(e) => setExp("account", e.target.value)} className={inputClass}>
-                        {ACCOUNTS.map((a) => <option key={a} value={a}>{a}</option>)}
+                      <select value={expenseForm.account || accountList[0] || ""} onChange={(e) => setExp("account", e.target.value)} className={inputClass}>
+                        {accountList.map((a) => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </div>
                     <div>
@@ -684,7 +650,7 @@ export default function SchoolStatement() {
                             </td>
                             <td className="px-4 py-3 text-slate-600 max-w-[260px] truncate">{x.description || "—"}</td>
                             <td className="px-4 py-3">
-                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${accountColor[x.account]?.bg || "bg-slate-100"} ${accountColor[x.account]?.text || "text-slate-600"}`}>{x.account}</span>
+                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${colorOf(x.account)?.bg || "bg-slate-100"} ${colorOf(x.account)?.text || "text-slate-600"}`}>{x.account}</span>
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-rose-600">− {fmt(x.amount)}</td>
                             <td className="px-5 py-3 text-right">
@@ -713,14 +679,14 @@ export default function SchoolStatement() {
                   <form onSubmit={submitTransfer} className="space-y-3.5">
                     <div>
                       <label className={labelClass}>From</label>
-                      <select value={transferForm.fromAccount} onChange={(e) => setTr("fromAccount", e.target.value)} className={inputClass}>
-                        {ACCOUNTS.map((a) => <option key={a} value={a}>{a}</option>)}
+                      <select value={transferForm.fromAccount || accountList[0] || ""} onChange={(e) => setTr("fromAccount", e.target.value)} className={inputClass}>
+                        {accountList.map((a) => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className={labelClass}>To</label>
-                      <select value={transferForm.toAccount} onChange={(e) => setTr("toAccount", e.target.value)} className={inputClass}>
-                        {ACCOUNTS.map((a) => <option key={a} value={a}>{a}</option>)}
+                      <select value={transferForm.toAccount || accountList[0] || ""} onChange={(e) => setTr("toAccount", e.target.value)} className={inputClass}>
+                        {accountList.map((a) => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </div>
                     <div>
@@ -736,8 +702,8 @@ export default function SchoolStatement() {
                     {Number(transferForm.charge) > 0 && (
                       <div>
                         <label className={labelClass}>Charge Deducted From</label>
-                        <select value={transferForm.chargeAccount} onChange={(e) => setTr("chargeAccount", e.target.value)} className={inputClass}>
-                          {ACCOUNTS.map((a) => <option key={a} value={a}>{a}</option>)}
+                        <select value={transferForm.chargeAccount || transferForm.fromAccount || accountList[0] || ""} onChange={(e) => setTr("chargeAccount", e.target.value)} className={inputClass}>
+                          {accountList.map((a) => <option key={a} value={a}>{a}</option>)}
                         </select>
                       </div>
                     )}
@@ -781,9 +747,9 @@ export default function SchoolStatement() {
                           <tr key={x._id} className="hover:bg-slate-50/60 transition">
                             <td className="px-5 py-3 whitespace-nowrap text-slate-500">{fmtDate(x.date)}</td>
                             <td className="px-4 py-3">
-                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${accountColor[x.fromAccount]?.bg || "bg-slate-100"} ${accountColor[x.fromAccount]?.text || "text-slate-600"}`}>{x.fromAccount}</span>
+                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${colorOf(x.fromAccount)?.bg || "bg-slate-100"} ${colorOf(x.fromAccount)?.text || "text-slate-600"}`}>{x.fromAccount}</span>
                               <span className="mx-1.5 text-slate-400">→</span>
-                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${accountColor[x.toAccount]?.bg || "bg-slate-100"} ${accountColor[x.toAccount]?.text || "text-slate-600"}`}>{x.toAccount}</span>
+                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${colorOf(x.toAccount)?.bg || "bg-slate-100"} ${colorOf(x.toAccount)?.text || "text-slate-600"}`}>{x.toAccount}</span>
                             </td>
                             <td className="px-4 py-3 text-slate-600 max-w-[240px] truncate">{x.note || "—"}</td>
                             <td className="px-4 py-3 text-right font-bold text-slate-700">{fmt(x.amount)}</td>
@@ -818,22 +784,25 @@ export default function SchoolStatement() {
                       <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
                         <th className="px-5 py-3 font-semibold">Reset At</th>
                         <th className="px-4 py-3 font-semibold">Session</th>
-                        <th className="px-4 py-3 font-semibold text-right">Closed Cash</th>
-                        <th className="px-4 py-3 font-semibold text-right">Closed bKash</th>
-                        <th className="px-4 py-3 font-semibold text-right">Closed Bank</th>
+                        <th className="px-4 py-3 font-semibold text-right">Closed Balances</th>
                         <th className="px-4 py-3 font-semibold">Note</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(data?.history || []).length === 0 ? (
-                        <tr><td colSpan="6" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No audits closed yet</td></tr>
+                        <tr><td colSpan="4" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No audits closed yet</td></tr>
                       ) : (data?.history || []).map((h) => (
                         <tr key={h._id} className="hover:bg-slate-50/60 transition">
                           <td className="px-5 py-3 whitespace-nowrap text-slate-600">{fmtDate(h.periodStart)} {new Date(h.periodStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
                           <td className="px-4 py-3 text-slate-500">{h.academicSession || "—"}</td>
-                          <td className="px-4 py-3 text-right text-slate-600">{fmt(h.closingBalances?.cash)}</td>
-                          <td className="px-4 py-3 text-right text-slate-600">{fmt(h.closingBalances?.bkash)}</td>
-                          <td className="px-4 py-3 text-right text-slate-600">{fmt(h.closingBalances?.bank)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex flex-wrap justify-end gap-1.5">
+                              {Object.entries(h.closingBalances || {}).map(([k, v]) => (
+                                <span key={k} className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">{k}: {fmt(v)}</span>
+                              ))}
+                              {Object.keys(h.closingBalances || {}).length === 0 ? <span className="text-slate-300">—</span> : null}
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-slate-500 max-w-[240px] truncate">{h.note || "—"}</td>
                         </tr>
                       ))}
@@ -856,18 +825,17 @@ export default function SchoolStatement() {
             </div>
             <form onSubmit={submitReset} className="p-6 space-y-4">
               <div className="grid grid-cols-1 gap-3">
-                {[
-                  { key: "cash", label: "Opening Cash (BDT)", color: "border-emerald-200 focus:ring-emerald-500/40" },
-                  { key: "bkash", label: "Opening bKash (BDT)", color: "border-pink-200 focus:ring-pink-500/40" },
-                  { key: "bank", label: "Opening Bank (BDT)", color: "border-sky-200 focus:ring-sky-500/40" },
-                ].map((f) => (
-                  <div key={f.key}>
-                    <label className={labelClass}>{f.label}</label>
-                    <input type="number" min="0" step="0.01" placeholder="0.00" value={resetForm[f.key]}
-                      onChange={(e) => setResetForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                      className={`${inputClass} ${f.color}`} />
-                  </div>
-                ))}
+                {accounts.map((a) => {
+                  const c = colorOf(a.key);
+                  return (
+                    <div key={a.key}>
+                      <label className={labelClass}>Opening {a.key} (BDT)</label>
+                      <input type="number" min="0" step="0.01" placeholder="0.00" value={resetBalances[a.key] ?? ""}
+                        onChange={(e) => setResetBalances((p) => ({ ...p, [a.key]: e.target.value }))}
+                        className={inputClass} />
+                    </div>
+                  );
+                })}
               </div>
               <div>
                 <label className={labelClass}>Note</label>

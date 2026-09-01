@@ -11,6 +11,23 @@ const Settings = require("../models/Settings");
 
 const csvDate = (d) => new Date(d).toISOString().slice(0, 10);
 
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// Human label for a fee item, e.g. "Tuition Fee (September 2026)".
+function feeItemLabel(it) {
+  let period = "";
+  if (it.applicableType === "Month" && it.month) {
+    period = `${MONTH_NAMES[(it.month || 1) - 1]}${it.year ? ` ${it.year}` : ""}`;
+  } else if (it.applicableType === "Exam" && it.examName) {
+    period = it.examName;
+  } else if (it.applicableType === "Year" && it.year) {
+    period = `Year ${it.year}`;
+  } else if ((it.applicableType === "One Time" || it.applicableType === "Custom") && it.customTitle) {
+    period = it.customTitle;
+  }
+  return period ? `${it.feeName} (${period})` : it.feeName;
+}
+
 // Expense voucher number: EXV-<year>-000001
 async function generateVoucherNo() {
   const year = new Date().getFullYear();
@@ -278,6 +295,12 @@ async function buildExportData(fromRaw, toRaw) {
     Expense.find({ date: { $gte: fromDate, $lte: toDate } }).sort({ date: 1 }),
     FundTransfer.find({ date: { $gte: fromDate, $lte: toDate } }).sort({ date: 1 }),
   ]);
+  const rangeItems = await PaymentItem.find({ payment: { $in: payRange.map((p) => p._id) } }).lean();
+  const itemsByPay = {};
+  rangeItems.forEach((it) => {
+    if (!itemsByPay[it.payment]) itemsByPay[it.payment] = [];
+    itemsByPay[it.payment].push(it);
+  });
 
   const rows = [];
   const total = () => Object.values(balance).reduce((s, v) => s + Number(v || 0), 0);
@@ -304,10 +327,14 @@ async function buildExportData(fromRaw, toRaw) {
         const m = String(p.paymentMethod || "Cash").trim();
         const amt = Number(p.paidAmount || 0);
         balance[m] = (balance[m] || 0) + amt;
+        const items = itemsByPay[p._id] || [];
+        const detail = items.length
+          ? ` — ${items.map((it) => feeItemLabel(it)).join(", ")}`
+          : "";
         rows.push({
           date: csvDate(p.receiveDate),
           type: "Payment",
-          description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${m}]`,
+          description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${m}]${detail}`,
           from: "Student",
           to: m,
           amount: amt,

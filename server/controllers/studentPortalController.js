@@ -8,6 +8,7 @@ const ClassFeeSetting = require("../models/ClassFeeSetting");
 const StudentFeeOverride = require("../models/StudentFeeOverride");
 const StudentFeeAssignment = require("../models/StudentFeeAssignment");
 const Report = require("../models/Report");
+const HifzReport = require("../models/HifzReport");
 
 // ============================================
 // STUDENT DASHBOARD
@@ -49,6 +50,7 @@ const getDashboard = async (req, res) => {
         className: student.className,
         section: student.section,
         photo: student.photo,
+        studentType: student.studentType || "Regular",
       },
       attendance: {
         totalDays,
@@ -255,10 +257,48 @@ const getDailyDiary = async (req, res) => {
   }
 };
 
+// ============================================
+// STUDENT HIFZ PROGRESS (own reports only)
+// ============================================
+
+const getHifzProgress = async (req, res) => {
+  try {
+    const student = req.student;
+    const { month, year } = req.query;
+
+    const filter = { student: student._id };
+    if (month && year) {
+      const startDate = new Date(Number(year), Number(month) - 1, 1);
+      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+      filter.date = { $gte: startDate, $lte: endDate };
+    }
+
+    const reports = await HifzReport.find(filter)
+      .populate("teacherId", "name")
+      .sort({ date: -1 });
+
+    const totalDays = reports.length;
+    const hasAny = (l) => (l?.juz || l?.page || l?.verse) ? true : false;
+    const filledDays = reports.filter(
+      (r) => hasAny(r.lesson) || hasAny(r.sevenLessons) || hasAny(r.memorizationReview)
+    ).length;
+
+    return res.status(200).json({
+      success: true,
+      marks: totalDays,
+      filledDays,
+      reports,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getDashboard,
   getAttendance,
   getResults,
   getPaymentInfo,
   getDailyDiary,
+  getHifzProgress,
 };

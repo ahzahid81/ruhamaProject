@@ -1,13 +1,15 @@
 const express = require("express");
 const router = express.Router();
 
-const { protect } = require("../middlewares/authMiddleware");
+const { protect, authorizeRoles } = require("../middlewares/authMiddleware");
 
 const {
   saveHifzReport,
   getHifzReport,
   getHifzStudentHistory,
   getHifzClassList,
+  getHifzProgress,
+  getAllHifzReports,
   deleteHifzReport,
 } = require("../controllers/hifzReportController");
 
@@ -19,6 +21,12 @@ router.get("/", protect, getHifzReport);
 
 // Get a class + date sheet (all students)
 router.get("/class", protect, getHifzClassList);
+
+// All students' hifz progress (staff + admin)
+router.get("/progress", protect, getHifzProgress);
+
+// Admin-only full list for CRUD management
+router.get("/all", protect, authorizeRoles("admin"), getAllHifzReports);
 
 // Get a student's history
 router.get("/student/:studentId", protect, getHifzStudentHistory);

@@ -5,7 +5,7 @@ import logo from "../../assets/logo.png";
 import { bdDate, bdWeekday, bdMonth, bdYear } from "../../utils/bdTime";
 import {
   LayoutDashboard, User, CheckSquare, BarChart3, Wallet,
-  BookOpen, LogOut, Menu, X, Eye,
+  BookOpen, LogOut, Menu, X, Eye, GraduationCap,
 } from "lucide-react";
 
 const tabs = [
@@ -17,10 +17,13 @@ const tabs = [
   { id: "diary", label: "Daily Diary", icon: BookOpen },
 ];
 
+const hifzTab = { id: "hifz", label: "Hifz Progress", icon: GraduationCap };
+
 export default function StudentPortal() {
   const [student, setStudent] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isHifzStudent, setIsHifzStudent] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,8 +33,25 @@ export default function StudentPortal() {
       navigate("/student-login");
       return;
     }
-    setStudent(JSON.parse(stored));
+    const parsed = JSON.parse(stored);
+    setStudent(parsed);
+    setIsHifzStudent(parsed.studentType === "Hifzul Quran");
+
+    api
+      .get("/student-portal/dashboard", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        const type = res.data?.student?.studentType;
+        if (type) {
+          setIsHifzStudent(type === "Hifzul Quran");
+          setStudent((prev) => (prev ? { ...prev, studentType: type } : prev));
+        }
+      })
+      .catch(() => { /* silent */ });
   }, [navigate]);
+
+  const activeTabs = isHifzStudent ? [...tabs, hifzTab] : tabs;
 
   const handleLogout = () => {
     localStorage.removeItem("studentToken");
@@ -54,7 +74,7 @@ export default function StudentPortal() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-        {tabs.map(({ id, label, icon: Icon }) => (
+        {activeTabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
@@ -104,7 +124,7 @@ export default function StudentPortal() {
                 <Menu className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">{tabs.find((t) => t.id === activeTab)?.label || "Dashboard"}</h1>
+                <h1 className="text-lg font-bold text-gray-900">{activeTabs.find((t) => t.id === activeTab)?.label || "Dashboard"}</h1>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -128,6 +148,7 @@ export default function StudentPortal() {
           {activeTab === "results" && <Results student={student} />}
           {activeTab === "payments" && <Payments student={student} fmt={fmt} />}
           {activeTab === "diary" && <Diary student={student} />}
+          {activeTab === "hifz" && isHifzStudent && <HifzPortal student={student} />}
         </main>
       </div>
 
@@ -577,6 +598,111 @@ function Payments({ student, fmt }) {
             </table>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ============ HIFZ PROGRESS (own reports) ============
+function HifzPortal() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [month, setMonth] = useState(bdMonth());
+  const [year, setYear] = useState(bdYear());
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/student-portal/hifz?month=${month}&year=${year}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
+        });
+        setData(res.data);
+      } catch { /* silent */ } finally { setLoading(false); }
+    };
+    load();
+  }, [month, year]);
+
+  const cls = (l) => {
+    const parts = [];
+    if (l?.juz) parts.push(`Juz ${l.juz}`);
+    if (l?.page) parts.push(`P.${l.page}`);
+    if (l?.verse) parts.push(`V.${l.verse}`);
+    return parts.join(", ") || "—";
+  };
+
+  if (loading) return <div className="text-center py-20"><div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>;
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center gap-4">
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
+            {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+          </select>
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
+            {[2024, 2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {data && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="rounded-xl p-4 border border-emerald-200 bg-emerald-50">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Marked Days</p>
+            <p className="text-2xl font-bold text-emerald-800 mt-1">{data.marks}</p>
+          </div>
+          <div className="rounded-xl p-4 border border-teal-200 bg-teal-50">
+            <p className="text-xs font-semibold uppercase tracking-wider text-teal-600">Days with Lesson</p>
+            <p className="text-2xl font-bold text-teal-800 mt-1">{data.filledDays}</p>
+          </div>
+          <div className="rounded-xl p-4 border border-indigo-200 bg-indigo-50">
+            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Teacher Marks</p>
+            <p className="text-2xl font-bold text-indigo-800 mt-1">{data.reports?.length || 0}</p>
+          </div>
+        </div>
+      )}
+
+      {data?.reports?.length ? (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h3 className="text-base font-bold text-slate-800">My Hifz Progress</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3 font-semibold">Date</th>
+                  <th className="px-5 py-3 font-semibold">Lesson</th>
+                  <th className="px-5 py-3 font-semibold">Seven Lessons</th>
+                  <th className="px-5 py-3 font-semibold">Memorization Review</th>
+                  <th className="px-5 py-3 font-semibold">Remarks</th>
+                  <th className="px-5 py-3 font-semibold">Teacher</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {data.reports.map((r) => (
+                  <tr key={r._id} className="hover:bg-gray-50/50 transition">
+                    <td className="px-5 py-3 text-gray-700 whitespace-nowrap text-xs">{bdDate(r.date)}</td>
+                    <td className="px-5 py-3 text-xs text-slate-700">{cls(r.lesson)}</td>
+                    <td className="px-5 py-3 text-xs text-slate-700">{cls(r.sevenLessons)}</td>
+                    <td className="px-5 py-3 text-xs text-slate-700">{cls(r.memorizationReview)}</td>
+                    <td className="px-5 py-3 text-xs text-gray-500 max-w-[160px] truncate">{r.remarks || "—"}</td>
+                    <td className="px-5 py-3 text-xs text-gray-500">{r.teacherId?.name || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        !loading && (
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-400 text-sm font-medium">No hifz progress recorded for this month</p>
+          </div>
+        )
       )}
     </div>
   );

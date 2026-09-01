@@ -21,6 +21,7 @@ import CreateReport from "./pages/CreateReport";
 
 import ClassReport from "./pages/ClassReport";
 import HifzReport from "./pages/hifz/HifzReport";
+import HifzProgress from "./pages/hifz/HifzProgress";
 
 import Admin from "./pages/Admin";
 
@@ -149,6 +150,12 @@ function App() {
           <Route
             path="/hifz-report"
             element={<HifzReport />}
+          />
+
+          {/* Hifz Progress */}
+          <Route
+            path="/hifz-progress"
+            element={<HifzProgress />}
           />
           <Route
             path="/students"

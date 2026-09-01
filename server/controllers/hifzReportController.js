@@ -201,10 +201,152 @@ const deleteHifzReport = async (req, res) => {
   }
 };
 
+// ============================================
+// [STAFF] GET ALL STUDENTS' HIFZ PROGRESS
+// Summarizes each student's hifz journey in a class.
+// ============================================
+const getHifzProgress = async (req, res) => {
+  try {
+    const { className, section, month, year } = req.query;
+
+    if (!className) {
+      return res.status(400).json({ success: false, message: "className is required." });
+    }
+
+    const studentFilter = { className, status: { $ne: "Inactive" } };
+    if (section) studentFilter.section = section;
+
+    const students = await Student.find(studentFilter)
+      .select("_id studentId name photo section studentType")
+      .lean();
+
+    const studentIds = students.map((s) => s._id);
+
+    const reportFilter = { student: { $in: studentIds } };
+
+    // Optional month scope for "progress this month"
+    if (month && year) {
+      const startDate = new Date(Number(year), Number(month) - 1, 1);
+      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+      reportFilter.date = { $gte: startDate, $lte: endDate };
+    }
+
+    const reports = await HifzReport.find(reportFilter)
+      .populate("teacherId", "name")
+      .sort({ date: 1 })
+      .lean();
+
+    const grouped = {};
+    reports.forEach((r) => {
+      const sid = r.student?.toString?.() || r.studentId;
+      if (!grouped[sid]) grouped[sid] = [];
+      grouped[sid].push(r);
+    });
+
+    const rows = students.map((s) => {
+      const list = grouped[s._id.toString()] || [];
+      const latest = list[list.length - 1] || null;
+      const hasAny = (l) => (l?.juz || l?.page || l?.verse) ? true : false;
+      const filled = list.filter(
+        (r) => hasAny(r.lesson) || hasAny(r.sevenLessons) || hasAny(r.memorizationReview)
+      ).length;
+
+      return {
+        student: {
+          _id: s._id,
+          studentId: s.studentId,
+          name: s.name,
+          photo: s.photo,
+          section: s.section,
+          studentType: s.studentType || "Regular",
+        },
+        markedDays: list.length,
+        filledDays: filled,
+        latest,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      className,
+      section: section || "",
+      month: month ? Number(month) : null,
+      year: year ? Number(year) : null,
+      total: rows.length,
+      rows,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================
+// [ADMIN] LIST ALL HIFZ REPORTS (paginated + filters)
+// ============================================
+const getAllHifzReports = async (req, res) => {
+  try {
+    const {
+      className,
+      section,
+      studentSearch,
+      from,
+      to,
+      page = 1,
+      limit = 50,
+    } = req.query;
+
+    const filter = {};
+    if (className) filter.className = className;
+    if (section) filter.section = section;
+
+    if (from || to) {
+      filter.date = {};
+      if (from) {
+        const f = new Date(from);
+        f.setHours(0, 0, 0, 0);
+        filter.date.$gte = f;
+      }
+      if (to) {
+        const t = new Date(to);
+        t.setHours(23, 59, 59, 999);
+        filter.date.$lte = t;
+      }
+    }
+
+    if (studentSearch) {
+      const re = { $regex: String(studentSearch).trim(), $options: "i" };
+      filter.$or = [{ studentName: re }, { studentId: re }];
+    }
+
+    const total = await HifzReport.countDocuments(filter);
+
+    const reports = await HifzReport.find(filter)
+      .populate("student", "name photo")
+      .populate("teacherId", "name")
+      .sort({ date: -1, className: 1, studentName: 1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit));
+
+    return res.status(200).json({
+      success: true,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      reports,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   saveHifzReport,
   getHifzReport,
   getHifzStudentHistory,
   getHifzClassList,
+  getHifzProgress,
+  getAllHifzReports,
   deleteHifzReport,
 };

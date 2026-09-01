@@ -37,6 +37,7 @@ const navGroups = [
       { name: "Create Report", path: "/create-report", icon: FileText, roles: ["admin", "teacher", "account-manager"] },
       { name: "Class Reports", path: "/class-report", icon: BookOpen, roles: ["admin", "teacher", "account-manager"] },
       { name: "Hifz Report", path: "/hifz-report", icon: Scroll, roles: ["admin", "teacher"] },
+      { name: "Hifz Progress", path: "/hifz-progress", icon: UserCheck, roles: ["admin", "teacher"] },
     ],
   },
   {

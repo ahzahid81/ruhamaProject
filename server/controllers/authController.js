@@ -150,6 +150,7 @@ const loginStudent = async (req, res) => {
         section: student.section,
         photo: student.photo,
         session: student.session,
+        studentType: student.studentType || "Regular",
       },
     });
   } catch (error) {

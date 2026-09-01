@@ -10,15 +10,17 @@ const categorySuggestions = [
 
 const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
-const todayInput = () => new Date().toISOString().slice(0, 10);
+const fmtTime = (d) => (d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
 
 const inputClass = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 transition bg-white";
 const labelClass = "block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5";
 
 const tabs = [
   { key: "overview", label: "Overview", icon: "▦" },
+  { key: "payments", label: "Payments", icon: "↗" },
   { key: "expenses", label: "Expenses", icon: "↘" },
   { key: "transfer", label: "Fund Transfer", icon: "⇄" },
+  { key: "methods", label: "Payment Methods", icon: "⚙" },
   { key: "history", label: "Audit History", icon: "⊕" },
 ];
 
@@ -31,11 +33,14 @@ export default function SchoolStatement() {
   const [toast, setToast] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [expenseForm, setExpenseForm] = useState({ account: "Cash", amount: "", category: "", note: "", date: todayInput() });
-  const [transferForm, setTransferForm] = useState({ fromAccount: "Cash", toAccount: "bKash", amount: "", charge: "", chargeAccount: "Cash", note: "", date: todayInput() });
+  const [expenseForm, setExpenseForm] = useState({ account: "Cash", amount: "", category: "", note: "", date: "" });
+  const [transferForm, setTransferForm] = useState({ fromAccount: "Cash", toAccount: "bKash", amount: "", charge: "", chargeAccount: "Cash", note: "", date: "" });
   const [dlFrom, setDlFrom] = useState("");
   const [dlTo, setDlTo] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [pmDraft, setPmDraft] = useState({});
+  const [pmSaving, setPmSaving] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetForm, setResetForm] = useState({ cash: "", bkash: "", bank: "", note: "" });
 
@@ -94,6 +99,157 @@ export default function SchoolStatement() {
       setDownloading(false);
     }
   };
+
+  const accountForMethod = (method) => {
+    const stored = data?.paymentMethodAccounts || {};
+    if (stored[method]) return stored[method];
+    const k = String(method || "").toLowerCase().replace(/[\s_-]/g, "");
+    if (k === "cash") return "Cash";
+    if (k === "bank" || k === "cheque") return "Bank";
+    return "bKash";
+  };
+
+  const savePaymentMethodAccounts = async () => {
+    if (!(data?.paymentMethods || []).length) return;
+    setPmSaving(true);
+    try {
+      const finalMap = {};
+      (data.paymentMethods || []).forEach((m) => {
+        const v = pmDraft[m];
+        finalMap[m] = v || data?.paymentMethodAccounts?.[m] || accountForMethod(m);
+      });
+      await api.put("/settings", { paymentMethodAccounts: finalMap });
+      setPmDraft({});
+      showToast("Payment method → account mapping saved.", "success");
+      await loadStatement();
+    } catch (error) {
+      showToast(error.response?.data?.message || "Failed to save mapping.");
+    } finally {
+      setPmSaving(false);
+    }
+  };
+
+  const setPm = (method, value) => setPmDraft((p) => ({ ...p, [method]: value }));
+
+  const openPrint = () => {
+    if (!data) return;
+    setPrintOpen(true);
+  };
+
+  useEffect(() => {
+    if (!printOpen || !data) return;
+    const accounts = data.accounts || [];
+    const totals = data.totals || {};
+    const rows = (list, mapper) => (list || []).map(mapper).join("") || `<tr><td colspan="100%" class="empty">No entries</td></tr>`;
+    const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const accBody = rows(accounts, (a) => `
+      <tr>
+        <td>${esc(a.key)}</td>
+        <td class="num">${fmt(a.opening)}</td>
+        <td class="num">${fmt(a.income)}</td>
+        <td class="num">${fmt(a.expense)}</td>
+        <td class="num">${fmt(a.transferIn)}</td>
+        <td class="num">${fmt(a.transferOut)}</td>
+        <td class="num">${fmt(a.charges)}</td>
+        <td class="num strong">${fmt(a.current)}</td>
+      </tr>`);
+
+    const payBody = rows(data.recentPayments, (p) => `
+      <tr>
+        <td class="muted">${esc(fmtDate(p.receiveDate))}</td>
+        <td>${esc(p.receiptNo || "—")}</td>
+        <td>${esc(p.studentName || p.studentId || "—")}</td>
+        <td>${esc(p.paymentMethod || "—")}</td>
+        <td>${esc(accountForMethod(p.paymentMethod))}</td>
+        <td class="num">${fmt(p.paidAmount)}</td>
+      </tr>`);
+
+    const expenseBody = rows(data.recentExpenses, (x) => `
+      <tr>
+        <td class="muted">${esc(fmtDate(x.date))}</td>
+        <td>${esc(x.category || "—")}</td>
+        <td>${esc(x.description || "—")}</td>
+        <td>${esc(x.account)}</td>
+        <td class="num">${fmt(x.amount)}</td>
+      </tr>`);
+
+    const transferBody = rows(data.recentTransfers, (x) => `
+      <tr>
+        <td class="muted">${esc(fmtDate(x.date))}</td>
+        <td>${esc(x.fromAccount)} → ${esc(x.toAccount)}</td>
+        <td>${esc(x.note || "—")}</td>
+        <td class="num">${fmt(x.amount)}</td>
+        <td class="num">${x.charge > 0 ? fmt(x.charge) : "—"}</td>
+      </tr>`);
+
+    const period = data.period || {};
+    const openingNames = { cash: "Cash", bkash: "bKash", bank: "Bank" };
+
+    const w = window.open("", "_blank", "width=1000,height=750");
+    if (!w) {
+      showToast("Popup blocked. Please allow popups for this site.", "error");
+      setPrintOpen(false);
+      return;
+    }
+    w.document.open();
+    w.document.write(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; margin: 28px 36px; font-size: 12px; }
+  h1 { margin: 0; font-size: 22px; }
+  .sub { color: #64748b; font-size: 11px; margin-top: 2px; }
+  .head { border-bottom: 3px solid #4f46e5; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #4f46e5; margin: 22px 0 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f1f5f9; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #475569; padding: 6px 8px; border: 1px solid #cbd5e1; }
+  td { padding: 5px 8px; border: 1px solid #e2e8f0; vertical-align: top; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .strong { font-weight: bold; }
+  .muted { color: #64748b; }
+  .tot td { background: #f8fafc; font-weight: bold; }
+  .empty { text-align: center; color: #94a3b8; padding: 14px; }
+  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 12px; }
+  .meta div { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }
+  .meta .l { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+  .meta .v { font-size: 14px; font-weight: bold; margin-top: 2px; }
+  .printbar { position: fixed; top: 0; left: 0; right: 0; background: #111827; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; z-index: 999; }
+  .printbar button { background: #4f46e5; border: 0; color: #fff; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  @media print { .printbar { display: none; } body { margin: 10mm; } }
+</style></head><body>
+<div class="printbar">
+  <span>Statement preview</span>
+  <button onclick="window.print()">🖨 Print</button>
+</div>
+<div class="head">
+  <div><h1>School Financial Statement</h1><div class="sub">Cash · bKash · Bank — generated on ${esc(fmtDate(new Date()))} ${esc(fmtTime(new Date()))}</div></div>
+  <div class="sub">Audit period active since ${esc(fmtDate(period.periodStart))} ${esc(fmtTime(period.periodStart))}${period.academicSession ? ` · Session ${esc(period.academicSession)}` : ""}</div>
+</div>
+
+<div class="meta">
+  ${Object.keys(openingNames).map((k) => `<div><div class="l">Opening ${openingNames[k]}</div><div class="v">${fmt(period.openingBalances?.[k])}</div></div>`).join("")}
+  ${accounts.map((a) => `<div><div class="l">Current ${esc(a.key)}</div><div class="v">${fmt(a.current)}</div></div>`).join("")}
+  <div><div class="l">Total In Hand</div><div class="v">${fmt(totals.inHand)}</div></div>
+</div>
+
+<h2>Statement Breakdown</h2>
+<table><thead><tr><th>Account</th><th class="num">Opening</th><th class="num">Income</th><th class="num">Expense</th><th class="num">Transfer In</th><th class="num">Transfer Out</th><th class="num">Charges</th><th class="num">Current</th></tr></thead>
+<tbody>${accBody}<tr class="tot"><td>Total</td><td class="num">${fmt(totals.opening)}</td><td class="num">${fmt(totals.income)}</td><td class="num">${fmt(totals.expense)}</td><td class="num">${fmt(totals.transferIn)}</td><td class="num">${fmt(totals.transferOut)}</td><td class="num">${fmt(totals.charges)}</td><td class="num">${fmt(totals.inHand)}</td></tr></tbody></table>
+
+<h2>Payments Received (recent ${(data.recentPayments || []).length})</h2>
+<table><thead><tr><th>Date</th><th>Receipt</th><th>Student</th><th>Method</th><th>Account</th><th class="num">Amount</th></tr></thead><tbody>${payBody}</tbody></table>
+
+<h2>Expenses (recent ${(data.recentExpenses || []).length})</h2>
+<table><thead><tr><th>Date</th><th>Category</th><th>Details</th><th>Account</th><th class="num">Amount</th></tr></thead><tbody>${expenseBody}</tbody></table>
+
+<h2>Fund Transfers (recent ${(data.recentTransfers || []).length})</h2>
+<table><thead><tr><th>Date</th><th>Route</th><th>Note</th><th class="num">Amount</th><th class="num">Charge</th></tr></thead><tbody>${transferBody}</tbody></table>
+
+</body></html>`);
+    w.document.close();
+    setPrintOpen(false);
+  }, [printOpen, data]);
 
   const setExp = (field, value) => setExpenseForm((p) => ({ ...p, [field]: value }));
 
@@ -242,12 +398,23 @@ export default function SchoolStatement() {
               <p className="text-xs text-slate-400">Cash · bKash · Bank funds, expenses & audit periods</p>
             </div>
           </div>
-          {isAdmin && (
-            <button onClick={() => setResetOpen(true)}
-              className="px-4 py-2.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-md shadow-red-200 hover:from-rose-600 hover:to-red-700 transition flex items-center gap-2">
-              ↻ Close Audit & Reset
+          <div className="flex items-center gap-2">
+            <button onClick={openPrint} disabled={!data}
+              className="px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition flex items-center gap-2 disabled:opacity-50">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <path d="M6 9V2h12v7" />
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" rx="1" />
+              </svg>
+              Print Statement
             </button>
-          )}
+            {isAdmin && (
+              <button onClick={() => setResetOpen(true)}
+                className="px-4 py-2.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-md shadow-red-200 hover:from-rose-600 hover:to-red-700 transition flex items-center gap-2">
+                ↻ Close Audit & Reset
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -347,7 +514,7 @@ export default function SchoolStatement() {
                 <div className="px-5 py-4 border-b border-slate-100">
                   <h2 className="text-base font-bold text-slate-800">Statement Breakdown</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Income counts completed payments only. bKash bucket also holds Nagad/Rocket/Card/Online received funds.
+                    Income is assigned to Cash / bKash / Bank from the Payment Method mapping set in System Settings (manage on the "Payment Methods" tab).
                   </p>
                 </div>
                 <div className="overflow-x-auto">
@@ -387,6 +554,49 @@ export default function SchoolStatement() {
                         <td className="px-4 py-3 text-right text-rose-500">{fmt(totals.charges)}</td>
                         <td className="px-5 py-3 text-right text-slate-900">{fmt(totals.inHand)}</td>
                       </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {/* PAYMENTS */}
+            {tab === "payments" && (
+              <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-800">Payments Received</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Collected via Collect Payment — each method feeds its assigned account</p>
+                  </div>
+                  <button onClick={loadStatement} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition">↻ Refresh</button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
+                        <th className="px-5 py-3 font-semibold">Date</th>
+                        <th className="px-4 py-3 font-semibold">Receipt</th>
+                        <th className="px-4 py-3 font-semibold">Student</th>
+                        <th className="px-4 py-3 font-semibold">Method</th>
+                        <th className="px-4 py-3 font-semibold">Account</th>
+                        <th className="px-5 py-3 font-semibold text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(data?.recentPayments || []).length === 0 ? (
+                        <tr><td colSpan="6" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No payments collected yet</td></tr>
+                      ) : (data?.recentPayments || []).map((p) => (
+                        <tr key={p._id} className="hover:bg-slate-50/60 transition">
+                          <td className="px-5 py-3 whitespace-nowrap text-slate-500">{fmtDate(p.receiveDate)}</td>
+                          <td className="px-4 py-3 font-mono text-[12px] font-semibold text-slate-600">{p.receiptNo || "—"}</td>
+                          <td className="px-4 py-3 text-slate-700">{p.studentName || p.studentId}</td>
+                          <td className="px-4 py-3"><span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{p.paymentMethod || "Cash"}</span></td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${accountColor[accountForMethod(p.paymentMethod)]?.bg || "bg-slate-100"} ${accountColor[accountForMethod(p.paymentMethod)]?.text || "text-slate-600"}`}>{accountForMethod(p.paymentMethod)}</span>
+                          </td>
+                          <td className="px-5 py-3 text-right font-bold text-emerald-600">{fmt(p.paidAmount)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -582,6 +792,62 @@ export default function SchoolStatement() {
                   </div>
                 </section>
               </div>
+            )}
+
+            {/* PAYMENT METHODS */}
+            {tab === "methods" && (
+              <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-800">Payment Method → Account</h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {isAdmin
+                        ? "Each method in System Settings feeds one fund account. Savings update the statement income buckets."
+                        : "Managed by an admin in System Settings (Payment Methods)."}
+                    </p>
+                  </div>
+                  {isAdmin && (
+                    <button onClick={savePaymentMethodAccounts} disabled={pmSaving || Object.keys(pmDraft).length === 0}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition disabled:opacity-50">
+                      {pmSaving ? "Saving..." : "Save Mapping"}
+                    </button>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wider">
+                        <th className="px-5 py-3 font-semibold">Payment Method</th>
+                        <th className="px-4 py-3 font-semibold">Income Account</th>
+                        <th className="px-4 py-3 font-semibold">Default</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(data?.paymentMethods || []).length === 0 ? (
+                        <tr><td colSpan="3" className="px-5 py-10 text-center text-slate-300 text-sm font-medium">No payment methods configured</td></tr>
+                      ) : (data?.paymentMethods || []).map((m) => {
+                        const effective = pmDraft[m] || data?.paymentMethodAccounts?.[m] || accountForMethod(m);
+                        return (
+                          <tr key={m} className="hover:bg-slate-50/60 transition">
+                            <td className="px-5 py-3 font-semibold text-slate-700">{m}</td>
+                            <td className="px-4 py-3">
+                              {isAdmin ? (
+                                <select value={effective} onChange={(e) => setPm(m, e.target.value)}
+                                  className={`${inputClass} max-w-[200px]`}>
+                                  {ACCOUNTS.map((a) => <option key={a} value={a}>{a}</option>)}
+                                </select>
+                              ) : (
+                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${accountColor[effective]?.bg || "bg-slate-100"} ${accountColor[effective]?.text || "text-slate-600"}`}>{effective}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-400">{data?.paymentMethodAccounts?.[m] ? "Custom" : "Auto"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             )}
 
             {/* AUDIT HISTORY */}

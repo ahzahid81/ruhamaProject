@@ -18,6 +18,7 @@ const settingsSchema = new mongoose.Schema(
     paymentMethods: [String],
     academicSessions: [String],
     currentSession: { type: String, default: "2026" },
+    paymentMethodAccounts: { type: Object, default: {} },
   },
   { timestamps: true }
 );
@@ -57,6 +58,7 @@ const DEFAULT_SETTINGS = {
   ],
   academicSessions: ["2025", "2026", "2027"],
   currentSession: "2026",
+  paymentMethodAccounts: {},
 };
 
 const LEGACY_EXAM_NAMES = [

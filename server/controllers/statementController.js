@@ -10,15 +10,50 @@ const KEY_ACCOUNTS = { cash: "Cash", bkash: "bKash", bank: "Bank" };
 
 const csvDate = (d) => new Date(d).toISOString().slice(0, 10);
 
-// Map a payment method to one of the three tracked fund accounts.
-// Cash -> Cash, Bank/Cheque -> Bank, everything else (bKash, Nagad,
-// Rocket, Card, Online, Other) -> mobile/online money held in bKash.
-const methodToAccountKey = (method) => {
-  const m = String(method || "").toLowerCase().replace(/[\s_-]/g, "");
-  if (m === "cash") return "cash";
-  if (m === "bank" || m === "cheque") return "bank";
-  return "bkash";
-};
+// Normalize a transaction date. A bare date sent by the client ("2026-09-01")
+// parses as UTC midnight -> 00:00 local in Dhaka. If it is today, use the real
+// current time instead, so a same-day entry recorded after an audit reset
+// (whose period started later today) is NOT wrongly excluded from the period.
+function parseTxDate(input) {
+  const now = new Date();
+  if (!input) return now;
+  const d = new Date(input);
+  if (isNaN(d.getTime())) return now;
+  if (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate() &&
+    d.getHours() === 0 &&
+    d.getMinutes() === 0 &&
+    d.getSeconds() === 0
+  ) {
+    return now;
+  }
+  return d;
+}
+
+// Payment Method -> fund account assignment, defaulting from the payment
+// methods configured in System Settings. Each method maps to Cash / bKash /
+// Bank (editable via the statement page, stored in Settings.paymentMethodAccounts).
+async function getAssignmentMap() {
+  const settings = await Settings.getSettings();
+  const methods = Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [];
+  const stored = settings.paymentMethodAccounts || {};
+  const map = {};
+  methods.forEach((m) => {
+    const k = String(m).toLowerCase().replace(/[\s_-]/g, "");
+    if (stored[m] && ACCOUNT_KEYS[stored[m]]) {
+      map[m] = ACCOUNT_KEYS[stored[m]];
+    } else if (k === "cash") {
+      map[m] = "cash";
+    } else if (k === "bank" || k === "cheque") {
+      map[m] = "bank";
+    } else {
+      map[m] = "bkash";
+    }
+  });
+  return map;
+}
 
 // ============================================
 // PERIOD HELPERS
@@ -41,6 +76,8 @@ async function getCurrentPeriod() {
 
 async function computeAccounts(period) {
   const since = new Date(period.periodStart);
+  const assignment = await getAssignmentMap();
+  const accountOf = (method) => assignment[method] || "bkash";
 
   const [payments, transfers, expenses] = await Promise.all([
     Payment.find({ receiveDate: { $gte: since }, paymentStatus: "Completed", isVoided: { $ne: true } }),
@@ -50,7 +87,7 @@ async function computeAccounts(period) {
 
   const income = { cash: 0, bkash: 0, bank: 0 };
   payments.forEach((p) => {
-    income[methodToAccountKey(p.paymentMethod)] += Number(p.paidAmount || 0);
+    income[accountOf(p.paymentMethod)] += Number(p.paidAmount || 0);
   });
 
   const expenseBy = { cash: 0, bkash: 0, bank: 0 };
@@ -105,9 +142,13 @@ async function computeAccounts(period) {
 // client always renders freshly recalculated numbers.
 async function buildPayload(period) {
   const { accounts, totals } = await computeAccounts(period);
-  const [recentExpenses, recentTransfers, history, settings] = await Promise.all([
+  const [recentExpenses, recentTransfers, recentPayments, history, settings] = await Promise.all([
     Expense.find().sort({ date: -1, createdAt: -1 }).limit(50),
     FundTransfer.find().sort({ date: -1, createdAt: -1 }).limit(50),
+    Payment.find({ isVoided: { $ne: true } })
+      .sort({ receiveDate: -1, createdAt: -1 })
+      .limit(50)
+      .select("studentId studentName receiptNo paymentMethod paidAmount receiveDate"),
     StatementPeriod.find().sort({ periodStart: -1 }).limit(20),
     Settings.getSettings(),
   ]);
@@ -122,8 +163,11 @@ async function buildPayload(period) {
     },
     accounts,
     totals,
+    paymentMethods: settings.paymentMethods,
+    paymentMethodAccounts: settings.paymentMethodAccounts,
     recentExpenses,
     recentTransfers,
+    recentPayments,
     history: history.map((h) => ({
       _id: h._id,
       periodStart: h.periodStart,
@@ -157,6 +201,8 @@ const getStatement = async (req, res) => {
 const exportStatement = async (req, res) => {
   try {
     const currentPeriod = await getCurrentPeriod();
+    const assignment = await getAssignmentMap();
+    const accountOf = (method) => assignment[method] || "bkash";
     const now = new Date();
 
     const fromRaw = req.query.from ? new Date(req.query.from) : null;
@@ -183,7 +229,7 @@ const exportStatement = async (req, res) => {
       bank: Number(activePeriod.openingBalances?.bank || 0),
     };
     payPre.forEach((p) => {
-      balance[methodToAccountKey(p.paymentMethod)] += Number(p.paidAmount || 0);
+      balance[accountOf(p.paymentMethod)] += Number(p.paidAmount || 0);
     });
     exPre.forEach((e) => {
       balance[ACCOUNT_KEYS[e.account]] -= Number(e.amount || 0);
@@ -219,20 +265,19 @@ const exportStatement = async (req, res) => {
       });
     });
 
-    // Opening rows don't move the running balance; they just report it.
     const events = [];
     payRange.forEach((p) => {
       events.push({
         ts: p.receiveDate,
         sort: 0,
         make: () => {
-          const k = methodToAccountKey(p.paymentMethod);
+          const k = accountOf(p.paymentMethod);
           const amt = Number(p.paidAmount || 0);
           balance[k] += amt;
           rows.push({
             date: csvDate(p.receiveDate),
             type: "Payment",
-            description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""}`,
+            description: `${p.studentName || p.studentId}${p.receiptNo ? ` (${p.receiptNo})` : ""} [${p.paymentMethod}]`,
             from: "Student",
             to: KEY_ACCOUNTS[k],
             amount: amt,
@@ -355,7 +400,7 @@ const addExpense = async (req, res) => {
       category: String(category || "").trim(),
       description: String(description || "").trim(),
       amount: amt,
-      date: date ? new Date(date) : new Date(),
+      date: parseTxDate(date),
       academicSession: settings.currentSession,
       createdBy: req.user?._id || null,
     });
@@ -415,7 +460,7 @@ const addFundTransfer = async (req, res) => {
       charge: chg,
       chargeAccount: chgAcct,
       note: String(note || "").trim(),
-      date: date ? new Date(date) : new Date(),
+      date: parseTxDate(date),
       academicSession: settings.currentSession,
       createdBy: req.user?._id || null,
     });

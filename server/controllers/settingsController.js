@@ -28,6 +28,7 @@ exports.updateSettings = async (req, res) => {
       "paymentMethods",
       "academicSessions",
       "currentSession",
+      "paymentMethodAccounts",
     ];
     const update = {};
     for (const key of allowed) {
@@ -35,7 +36,19 @@ exports.updateSettings = async (req, res) => {
         update[key] = req.body[key];
       }
     }
+
     const settings = await Settings.getSettings();
+
+    if (update.paymentMethodAccounts) {
+      settings.paymentMethodAccounts = Object.assign(
+        {},
+        settings.paymentMethodAccounts || {},
+        update.paymentMethodAccounts
+      );
+      settings.markModified("paymentMethodAccounts");
+      delete update.paymentMethodAccounts;
+    }
+
     Object.assign(settings, update);
     await settings.save();
     res.json(settings);

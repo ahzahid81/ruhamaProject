@@ -308,10 +308,192 @@ const getAttendanceStats = async (req, res) => {
   }
 };
 
+// ============================================
+// [ADMIN] LIST ALL ATTENDANCE RECORDS
+// ============================================
+
+const listAllAttendance = async (req, res) => {
+  try {
+    const {
+      className,
+      section,
+      status,
+      from,
+      to,
+      academicSession,
+      search,
+      page = 1,
+      limit = 50,
+    } = req.query;
+
+    const filter = {};
+
+    if (className) filter.className = className;
+    if (section) filter.section = section;
+    if (status) filter.status = status;
+    if (academicSession) filter.academicSession = academicSession;
+
+    if (from || to) {
+      filter.date = {};
+      if (from) {
+        const f = new Date(from);
+        f.setHours(0, 0, 0, 0);
+        filter.date.$gte = f;
+      }
+      if (to) {
+        const t = new Date(to);
+        t.setHours(23, 59, 59, 999);
+        filter.date.$lte = t;
+      }
+    }
+
+    if (search) {
+      const re = { $regex: String(search).trim(), $options: "i" };
+      filter.$or = [{ studentId: re }, { className: re }];
+    }
+
+    const total = await Attendance.countDocuments(filter);
+
+    const records = await Attendance.find(filter)
+      .populate("student", "name studentId photo class section")
+      .populate("markedBy", "name")
+      .sort({ date: -1, className: 1, studentId: 1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit));
+
+    return res.status(200).json({
+      success: true,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      records,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================
+// [ADMIN] UPDATE SINGLE ATTENDANCE RECORD
+// ============================================
+
+const updateAttendanceRecord = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, remarks, date } = req.body;
+
+    const record = await Attendance.findById(id);
+    if (!record) {
+      return res.status(404).json({ success: false, message: "Attendance record not found." });
+    }
+
+    if (status) {
+      if (!["Present", "Absent", "Late", "Leave"].includes(status)) {
+        return res.status(400).json({ success: false, message: "Invalid status." });
+      }
+      record.status = status;
+    }
+
+    if (remarks !== undefined) record.remarks = remarks;
+    if (date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+
+      // avoid duplicate (student + date) when changing the date
+      if (d.getTime() !== record.date.getTime()) {
+        const clash = await Attendance.findOne({
+          student: record.student,
+          date: d,
+          _id: { $ne: record._id },
+        });
+        if (clash) {
+          return res.status(400).json({
+            success: false,
+            message: "A record for this student already exists on the selected date.",
+          });
+        }
+        record.date = d;
+      }
+    }
+
+    if (req.user?._id) record.markedBy = req.user._id;
+
+    await record.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance updated successfully.",
+      record,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================
+// [ADMIN] DELETE SINGLE ATTENDANCE RECORD
+// ============================================
+
+const deleteAttendanceRecord = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const record = await Attendance.findByIdAndDelete(id);
+    if (!record) {
+      return res.status(404).json({ success: false, message: "Attendance record not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance record deleted successfully.",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================
+// [ADMIN] DELETE ATTENDANCE BY CLASS + DATE
+// ============================================
+
+const deleteAttendanceByClassDate = async (req, res) => {
+  try {
+    const { className, section, date } = req.body;
+
+    if (!className || !date) {
+      return res.status(400).json({ success: false, message: "className and date are required." });
+    }
+
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+
+    const filter = { className, date: d };
+    if (section) filter.section = section;
+
+    const result = await Attendance.deleteMany(filter);
+
+    return res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} attendance record(s) deleted.`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   markAttendance,
   getAttendanceByClass,
   getAttendanceByStudent,
   getMonthlyReport,
   getAttendanceStats,
+  listAllAttendance,
+  updateAttendanceRecord,
+  deleteAttendanceRecord,
+  deleteAttendanceByClassDate,
 };

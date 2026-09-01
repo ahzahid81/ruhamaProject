@@ -28,6 +28,7 @@ import Teachers from "./pages/Teachers";
 import MainLayout from "./layouts/MainLayout";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import StaffOrStudentRoute from "./components/StaffOrStudentRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import Students from "./pages/admin/Students";
 import EditStudent from "./pages/admin/EditStudent";
@@ -48,6 +49,7 @@ import StudentFeeOverride from "./pages/admin/students/StudentFeeOverride";
 import StudentFeeAssignments from "./pages/admin/students/StudentFeeAssignments";
 import DailyAttendance from "./pages/attendance/DailyAttendance";
 import AttendanceReport from "./pages/attendance/AttendanceReport";
+import AttendanceManagement from "./pages/attendance/AttendanceManagement";
 import PaymentHistory from "./pages/payment/PaymentHistory";
 import FeeCategoryForm from "./pages/admin/FeeCategoryForm";
 import ClassRateForm from "./pages/admin/ClassRateForm";
@@ -100,6 +102,18 @@ function App() {
 
         {/* Student Portal */}
         <Route path="/student-portal" element={<StudentPortal />} />
+
+        {/* Payment Receipt (available to staff and students) */}
+        <Route
+          path="/payment/receipt/:id"
+          element={
+            <StaffOrStudentRoute>
+
+              <PaymentReceipt />
+
+            </StaffOrStudentRoute>
+          }
+        />
 
         {/* Protected Layout */}
         <Route
@@ -401,18 +415,6 @@ function App() {
             }
           />
 
-          {/* Payment Receipt */}
-          <Route
-            path="/payment/receipt/:id"
-            element={
-              <ProtectedRoute>
-
-                <PaymentReceipt />
-
-              </ProtectedRoute>
-            }
-          />
-
           {/* Admission Success */}
           <Route
             path="/student-admission/success"
@@ -488,6 +490,14 @@ function App() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <AttendanceReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/attendance/manage"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AttendanceManagement />
               </ProtectedRoute>
             }
           />

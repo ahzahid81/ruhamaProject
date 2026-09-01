@@ -21,6 +21,7 @@ import {
   BarChart3,
   CheckSquare,
   ClipboardList,
+  Database,
   Receipt,
   UserCheck,
   CalendarDays,
@@ -50,6 +51,7 @@ const navGroups = [
     items: [
       { name: "Daily Attendance", path: "/attendance/daily", icon: CheckSquare, roles: ["admin", "teacher", "account-manager"] },
       { name: "Attendance Report", path: "/attendance/report", icon: ClipboardList, roles: ["admin", "account-manager"] },
+      { name: "Manage Attendance", path: "/attendance/manage", icon: Database, roles: ["admin"] },
     ],
   },
   {

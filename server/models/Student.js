@@ -63,8 +63,6 @@ const studentSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Regular",
-        "Day Care",
-        "Hostel",
         "Hifzul Quran",
       ],
       default: "Regular",

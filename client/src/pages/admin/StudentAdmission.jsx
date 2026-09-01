@@ -201,8 +201,6 @@ const StudentAdmission = () => {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all bg-white"
             >
               <option>Regular</option>
-              <option>Day Care</option>
-              <option>Hostel</option>
               <option>Hifzul Quran</option>
             </select>
           </div>

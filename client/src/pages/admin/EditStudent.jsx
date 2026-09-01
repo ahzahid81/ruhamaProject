@@ -168,6 +168,18 @@ const EditStudent = () => {
             </div>
             <Input label="Section" name="section" value={form.section} onChange={handleChange} />
             <Input label="Session" name="session" value={form.session} onChange={handleChange} />
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Student Type</label>
+              <select
+                name="studentType"
+                value={form.studentType || "Regular"}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50 transition-all bg-white"
+              >
+                <option>Regular</option>
+                <option>Hifzul Quran</option>
+              </select>
+            </div>
           </div>
         </div>
       ),

@@ -59,10 +59,6 @@ const getClassName = async (value = "") => {
 const getStudentType = (value = "") => {
     const type = value.toString().trim().toLowerCase();
 
-    if (type.includes("hostel")) return "Hostel";
-
-    if (type.includes("day")) return "Day Care";
-
     if (type.includes("hifz")) return "Hifzul Quran";
 
     return "Regular";
@@ -939,6 +935,8 @@ const getStudents = async (req, res) => {
 
             search,
 
+            studentType,
+
         } = req.query;
 
         const filter = {};
@@ -951,6 +949,9 @@ const getStudents = async (req, res) => {
 
         if (status)
             filter.status = status;
+
+        if (studentType)
+            filter.studentType = studentType;
 
         if (search) {
 

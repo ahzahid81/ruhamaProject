@@ -31,7 +31,6 @@ export default function HifzProgress() {
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(bdMonth());
   const [selectedYear, setSelectedYear] = useState(bdYear());
-  const [hifzOnly, setHifzOnly] = useState(false);
 
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -173,10 +172,9 @@ export default function HifzProgress() {
   const classes = settings?.classes || [];
   const sections = settings?.sections || [];
   const rows = progress?.rows || [];
-  const visibleRows = hifzOnly ? rows.filter((r) => r.student.studentType === "Hifzul Quran") : rows;
+  const visibleRows = rows;
   const markedDays = rows.reduce((sum, r) => sum + (r.markedDays || 0), 0);
   const filledDays = rows.reduce((sum, r) => sum + (r.filledDays || 0), 0);
-  const hifzCount = rows.filter((r) => r.student.studentType === "Hifzul Quran").length;
 
   if (settingsLoading) {
     return (
@@ -260,20 +258,9 @@ export default function HifzProgress() {
           </div>
 
           <div className="mt-4 flex items-center justify-between flex-wrap gap-3">
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={hifzOnly}
-                onChange={(e) => setHifzOnly(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-              />
-              <GraduationCap className="w-4 h-4 text-gray-400" />
-              Show Hifz students only
-            </label>
             <p className="text-sm text-gray-500">
-              <Users className="inline w-4 h-4 mr-1 text-gray-400" />
-              <b>{visibleRows.length}</b> student{visibleRows.length !== 1 ? "s" : ""} ·{" "}
-              <span className="text-emerald-600 font-semibold">{hifzCount}</span> hifz student{hifzCount !== 1 ? "s" : ""}
+              <GraduationCap className="inline w-4 h-4 mr-1 text-emerald-500" />
+              <b>{visibleRows.length}</b> Hifzul Quran student{visibleRows.length !== 1 ? "s" : ""} in {selectedClass}{selectedSection ? " / " + selectedSection : ""}
             </p>
           </div>
         </div>
@@ -285,7 +272,7 @@ export default function HifzProgress() {
             </div>
             <div>
               <p className="text-2xl font-bold text-slate-800">{rows.length}</p>
-              <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Students in class</p>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Hifz students</p>
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
@@ -333,7 +320,6 @@ export default function HifzProgress() {
                 <thead>
                   <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wider">
                     <th className="px-5 py-3 font-semibold">Student</th>
-                    <th className="px-5 py-3 font-semibold">Type</th>
                     <th className="px-5 py-3 font-semibold text-center">Marked</th>
                     <th className="px-5 py-3 font-semibold text-center">Filled</th>
                     <th className="px-5 py-3 font-semibold">Latest Report</th>
@@ -533,7 +519,6 @@ export default function HifzProgress() {
 
 const ProgressRow = ({ row, expanded, onToggle, onEdit }) => {
   const s = row.student;
-  const isHifz = s.studentType === "Hifzul Quran";
   return (
     <tr className="hover:bg-gray-50/50 transition">
       <td className="px-5 py-3">
@@ -550,17 +535,6 @@ const ProgressRow = ({ row, expanded, onToggle, onEdit }) => {
             <p className="text-xs text-gray-400">{s.studentId}{s.section ? ` • Sec ${s.section}` : ""}</p>
           </div>
         </div>
-      </td>
-      <td className="px-5 py-3">
-        {isHifz ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-semibold">
-            <GraduationCap className="w-3.5 h-3.5" /> Hifzul Quran
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-500 rounded-full text-[11px] font-semibold">
-            <Users className="w-3.5 h-3.5" /> Regular
-          </span>
-        )}
       </td>
       <td className="px-5 py-3 text-center">
         <span className="font-bold text-slate-700">{row.markedDays}</span>

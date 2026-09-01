@@ -79,7 +79,7 @@ export default function HifzReport() {
     setSelectedStudent("");
     setHistory([]);
     try {
-      const params = new URLSearchParams({ className: selectedClass, status: "Active" });
+      const params = new URLSearchParams({ className: selectedClass, status: "Active", studentType: "Hifzul Quran" });
       if (selectedSection) params.append("section", selectedSection);
       const res = await api.get(`/students?${params}`);
       const list = res.data.students || res.data;

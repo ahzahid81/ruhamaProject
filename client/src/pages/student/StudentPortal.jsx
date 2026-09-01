@@ -607,22 +607,19 @@ function Payments({ student, fmt }) {
 function HifzPortal() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [month, setMonth] = useState(bdMonth());
-  const [year, setYear] = useState(bdYear());
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await api.get(`/student-portal/hifz?month=${month}&year=${year}`, {
+        const res = await api.get("/student-portal/hifz", {
           headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
         });
         setData(res.data);
       } catch { /* silent */ } finally { setLoading(false); }
     };
     load();
-  }, [month, year]);
+  }, []);
 
   const cls = (l) => {
     const parts = [];
@@ -636,17 +633,6 @@ function HifzPortal() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center gap-4">
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
-            {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="border border-gray-200 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
-            {[2024, 2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-      </div>
-
       {data && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="rounded-xl p-4 border border-emerald-200 bg-emerald-50">
@@ -700,7 +686,7 @@ function HifzPortal() {
         !loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
             <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-400 text-sm font-medium">No hifz progress recorded for this month</p>
+            <p className="text-gray-400 text-sm font-medium">No hifz progress recorded yet</p>
           </div>
         )
       )}

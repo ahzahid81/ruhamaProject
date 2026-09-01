@@ -213,7 +213,7 @@ const getHifzProgress = async (req, res) => {
       return res.status(400).json({ success: false, message: "className is required." });
     }
 
-    const studentFilter = { className, status: { $ne: "Inactive" } };
+    const studentFilter = { className, status: { $ne: "Inactive" }, studentType: "Hifzul Quran" };
     if (section) studentFilter.section = section;
 
     const students = await Student.find(studentFilter)

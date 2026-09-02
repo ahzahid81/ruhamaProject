@@ -73,6 +73,14 @@ const examSettingSchema = new mongoose.Schema(
 
     admitCardEnd: Date,
 
+    // Admit Card Fee (BDT) — the amount a student must pay to obtain the
+    // admit card for this exam. Configured here in Exam Management, never
+    // hardcoded. 0 means no payment is required for the admit card.
+    admitCardFee: {
+      type: Number,
+      default: 0,
+    },
+
     resultPublishDate: Date,
 
     requiredFees: [requiredFeeSchema],

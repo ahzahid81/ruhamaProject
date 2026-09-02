@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
-import { bdDate, bdWeekday, bdMonth, bdYear } from "../../utils/bdTime";
+import { bdDate, bdWeekday, bdMonth, bdYear, bdDateLong } from "../../utils/bdTime";
 import {
   LayoutDashboard, User, CheckSquare, BarChart3, Wallet,
-  BookOpen, LogOut, Menu, X, Eye, GraduationCap,
+  BookOpen, LogOut, Menu, X, Eye, GraduationCap, Clock, TrendingUp,
 } from "lucide-react";
 
 const tabs = [
@@ -142,7 +142,7 @@ export default function StudentPortal() {
         </header>
 
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-          {activeTab === "dashboard" && <Dashboard student={student} fmt={fmt} />}
+          {activeTab === "dashboard" && <Dashboard student={student} fmt={fmt} setActiveTab={setActiveTab} />}
           {activeTab === "profile" && <Profile student={student} />}
           {activeTab === "attendance" && <Attendance student={student} />}
           {activeTab === "results" && <Results student={student} />}
@@ -169,7 +169,7 @@ export default function StudentPortal() {
 }
 
 // ============ DASHBOARD ============
-function Dashboard({ fmt }) {
+function Dashboard({ fmt, setActiveTab }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -188,47 +188,59 @@ function Dashboard({ fmt }) {
   if (loading) return <div className="text-center py-20"><div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>;
   if (!data) return <div className="text-center py-20 text-gray-400">Unable to load dashboard</div>;
 
+  const stats = [
+    { label: "Attendance", value: `${data.attendance?.percentage || 0}%`, tone: "bg-blue-50 text-blue-600", sub: "Overall" },
+    { label: "Total Paid", value: fmt(data.feeSummary?.totalPaid), tone: "bg-emerald-50 text-emerald-600", sub: "This session" },
+    { label: "Total Due", value: fmt(data.feeSummary?.totalDue), tone: "bg-red-50 text-red-600", sub: "Outstanding" },
+    { label: "Exams Taken", value: `${data.results?.length || 0}`, tone: "bg-purple-50 text-purple-600", sub: "Completed" },
+  ];
+
   return (
     <div className="space-y-5">
       {/* Welcome */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white">
-        <h2 className="text-2xl font-bold">Welcome, {data.student?.name}</h2>
-        <p className="text-emerald-100 mt-1">{data.student?.className}</p>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 md:p-7 text-white">
+        <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-12 w-40 h-40 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold">Welcome, {data.student?.name?.split(" ")[0] || "Student"}</h2>
+            <p className="text-emerald-100 mt-1.5">{data.student?.className}{data.student?.section ? ` • Section ${data.student.section}` : ""} — {data.student?.studentId}</p>
+          </div>
+          <span className="hidden sm:flex items-center gap-2 bg-white/10 rounded-xl px-3.5 py-2 border border-white/10 text-sm font-medium">
+            <Clock className="w-4 h-4" />
+            {bdDateLong(new Date(), { weekday: true })}
+          </span>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl p-4 border border-blue-200 bg-blue-50">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Attendance</p>
-          <p className="text-2xl font-bold text-blue-800 mt-1">{data.attendance?.percentage || 0}%</p>
-        </div>
-        <div className="rounded-xl p-4 border border-emerald-200 bg-emerald-50">
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Total Paid</p>
-          <p className="text-xl font-bold text-emerald-800 mt-1">{fmt(data.feeSummary?.totalPaid)}</p>
-        </div>
-        <div className="rounded-xl p-4 border border-red-200 bg-red-50">
-          <p className="text-xs font-semibold uppercase tracking-wider text-red-600">Total Due</p>
-          <p className="text-xl font-bold text-red-800 mt-1">{fmt(data.feeSummary?.totalDue)}</p>
-        </div>
-        <div className="rounded-xl p-4 border border-purple-200 bg-purple-50">
-          <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">Exams Taken</p>
-          <p className="text-2xl font-bold text-purple-800 mt-1">{data.results?.length || 0}</p>
-        </div>
+        {stats.map((st) => (
+          <div key={st.label} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
+            <div className={`w-11 h-11 rounded-xl ${st.tone} flex items-center justify-center mb-3`}>
+              <TrendingUp className="w-5.5 h-5.5" />
+            </div>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{st.label}</p>
+            <p className="text-xl lg:text-2xl font-bold text-gray-900 mt-0.5 truncate">{st.value}</p>
+            <p className="text-[11px] text-gray-400 mt-1">{st.sub}</p>
+          </div>
+        ))}
       </div>
 
       {/* Recent Results */}
       {data.results?.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="text-base font-bold text-slate-800">Recent Results</h3>
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">Recent Results</h3>
+            <button className="text-xs font-semibold text-emerald-600" onClick={() => setActiveTab("results")}>View all</button>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-50">
             {data.results.map((r, i) => (
               <div key={i} className="px-5 py-3 flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-700">{r.examName}</span>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-500">{r.percentage}%</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                     r.status === "Pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                   }`}>{r.grade}</span>
                 </div>
@@ -240,11 +252,12 @@ function Dashboard({ fmt }) {
 
       {/* Recent Payments */}
       {data.recentPayments?.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="text-base font-bold text-slate-800">Recent Payments</h3>
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">Recent Payments</h3>
+            <button className="text-xs font-semibold text-emerald-600" onClick={() => setActiveTab("payments")}>View all</button>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-50">
             {data.recentPayments.map((p) => (
               <div key={p._id} className="px-5 py-3 flex items-center justify-between">
                 <div>

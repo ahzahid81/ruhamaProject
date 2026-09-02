@@ -30,6 +30,13 @@ export default function OpeningCeremony({ onFinish, autoPlay = true }) {
   const [burst, setBurst] = useState(false);
   const onFinishRef = useRef(onFinish);
 
+  const handleEnter = () => {
+    try {
+      sessionStorage.setItem(SESSION_KEY, "1");
+    } catch { /* ignore */ }
+    if (onFinishRef.current) onFinishRef.current();
+  };
+
   useEffect(() => {
     onFinishRef.current = onFinish;
   }, [onFinish]);
@@ -67,12 +74,15 @@ export default function OpeningCeremony({ onFinish, autoPlay = true }) {
     return () => clearTimeout(t);
   }, [phase, featureIndex, autoPlay]);
 
-  const handleEnter = () => {
-    try {
-      sessionStorage.setItem(SESSION_KEY, "1");
-    } catch { /* ignore */ }
-    if (onFinishRef.current) onFinishRef.current();
-  };
+  // Auto-finish: after the last feature is shown, open the website automatically
+  useEffect(() => {
+    if (phase !== "showcase" || !autoPlay) return;
+    if (featureIndex < FEATURES.length - 1) return;
+    const t = setTimeout(() => {
+      handleEnter();
+    }, 2200);
+    return () => clearTimeout(t);
+  }, [phase, featureIndex, autoPlay]);
 
   return (
     <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#050014] text-white flex flex-col items-center justify-center select-none">

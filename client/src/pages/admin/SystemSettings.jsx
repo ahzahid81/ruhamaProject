@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings, clearSettingsCache } from "../../services/settingsCache";
 import OpeningCeremony from "../../components/OpeningCeremony";
@@ -39,6 +40,8 @@ export default function SystemSettings() {
   const [editExam, setEditExam] = useState(null);
   const [ceremonyPreview, setCeremonyPreview] = useState(false);
   const [savingCeremony, setSavingCeremony] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getSettings()
@@ -171,7 +174,7 @@ export default function SystemSettings() {
     }
   };
 
-  const ceremonyEnabled = !!settings.openingCeremony?.enabled;
+  const ceremonyEnabled = !!settings?.openingCeremony?.enabled;
 
   const toggleCeremony = async () => {
     const next = !ceremonyEnabled;
@@ -186,6 +189,36 @@ export default function SystemSettings() {
     } finally {
       setSavingCeremony(false);
     }
+  };
+
+  const goLive = async () => {
+    if (ceremonyEnabled) return;
+    try {
+      await api.put("/settings/opening-ceremony", { enabled: true });
+      clearSettingsCache();
+    } catch { /* ignore */ }
+  };
+
+  const handleLaunch = async () => {
+    setLaunching(true);
+    try {
+      await goLive();
+      setSettings({
+        ...settings,
+        openingCeremony: { ...(settings?.openingCeremony || {}), enabled: true },
+      });
+      clearSettingsCache();
+      setCeremonyPreview(true);
+    } catch (err) {
+      showMessage(err.response?.data?.message || "Failed to launch", "error");
+    } finally {
+      setLaunching(false);
+    }
+  };
+
+  const handleCeremonyFinish = () => {
+    setCeremonyPreview(false);
+    navigate("/");
   };
 
   if (loading) {
@@ -546,10 +579,11 @@ export default function SystemSettings() {
               </div>
               <div className="flex gap-2 flex-shrink-0">
                 <button
-                  onClick={() => setCeremonyPreview(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-xl text-sm font-bold hover:opacity-90 transition shadow-md"
+                  onClick={handleLaunch}
+                  disabled={launching}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-xl text-sm font-bold hover:opacity-90 transition shadow-md disabled:opacity-60"
                 >
-                  <Rocket className="w-4 h-4" /> Launch
+                  <Rocket className="w-4 h-4" /> {launching ? "Starting…" : "Launch"}
                 </button>
               </div>
             </div>
@@ -564,7 +598,7 @@ export default function SystemSettings() {
 
       {/* Ceremony preview overlay */}
       {ceremonyPreview && (
-        <OpeningCeremony autoPlay onFinish={() => setCeremonyPreview(false)} />
+        <OpeningCeremony autoPlay onFinish={handleCeremonyFinish} />
       )}
     </div>
   );

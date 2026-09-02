@@ -40,6 +40,7 @@ export default function LandingPage() {
   const [showAll, setShowAll] = useState(false);
   const [paused, setPaused] = useState(false);
   const [showCeremony, setShowCeremony] = useState(false);
+  const [siteOpen, setSiteOpen] = useState(null);
 
   useEffect(() => {
     api.get("/public/students").then((res) => setStudents(res.data)).catch(() => {});
@@ -54,20 +55,40 @@ export default function LandingPage() {
       .get("/settings")
       .then((res) => {
         if (cancelled) return;
-        const enabled = !!res.data?.openingCeremony?.enabled;
-        let alreadySeen = false;
-        try {
-          alreadySeen = sessionStorage.getItem("ruhama_opening_ceremony_seen") === "1";
-        } catch { /* ignore */ }
-        if (enabled && !alreadySeen) {
-          setShowCeremony(true);
+        const enabled = res.data?.openingCeremony?.enabled === true;
+        setSiteOpen(enabled);
+        if (enabled) {
+          let alreadySeen = false;
+          try {
+            alreadySeen = sessionStorage.getItem("ruhama_opening_ceremony_seen") === "1";
+          } catch { /* ignore */ }
+          if (!alreadySeen) {
+            setShowCeremony(true);
+          }
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setSiteOpen(true);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  if (siteOpen === null) {
+    return (
+      <div className="fixed inset-0 bg-[#050014] flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <img src={logo} alt="Ruhama" className="w-16 h-16 object-contain" />
+          <span className="text-white/50 text-xs uppercase tracking-[0.3em]">Loading…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (siteOpen === false) {
+    return <UnderMaintenance />;
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -645,6 +666,29 @@ function NamesList({ students }) {
           <p className="px-3 py-2.5 text-sm font-semibold text-gray-800 text-center truncate">{s.name}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ============ UNDER MAINTENANCE ============
+
+function UnderMaintenance() {
+  return (
+    <div className="min-h-screen bg-[#050014] relative overflow-hidden flex flex-col items-center justify-center text-center px-6">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-40 -left-40 w-[34rem] h-[34rem] rounded-full bg-indigo-600/25 blur-[120px]" />
+        <div className="absolute -bottom-40 -right-40 w-[34rem] h-[34rem] rounded-full bg-fuchsia-600/20 blur-[120px]" />
+      </div>
+      <img src={logo} alt="Ruhama United School" className="w-20 h-20 object-contain mb-6" />
+      <h1 className="text-3xl sm:text-4xl font-bold text-white">
+        Under <span className="bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-amber-300 bg-clip-text text-transparent">Maintenance</span>
+      </h1>
+      <p className="mt-4 max-w-md text-white/60 text-sm sm:text-base">
+        We are preparing something wonderful for you. The Ruhama United School website will launch very soon &mdash; please check back shortly.
+      </p>
+      <div className="mt-8 flex items-center gap-2 text-white/40 text-sm">
+        <span className="animate-pulse">&bull;</span> Stay tuned
+      </div>
     </div>
   );
 }

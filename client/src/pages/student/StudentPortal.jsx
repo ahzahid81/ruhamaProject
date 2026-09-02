@@ -169,7 +169,7 @@ export default function StudentPortal() {
 }
 
 // ============ DASHBOARD ============
-function Dashboard({ fmt, setActiveTab }) {
+function Dashboard({ setActiveTab }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -190,8 +190,6 @@ function Dashboard({ fmt, setActiveTab }) {
 
   const stats = [
     { label: "Attendance", value: `${data.attendance?.percentage || 0}%`, tone: "bg-blue-50 text-blue-600", sub: "Overall" },
-    { label: "Total Paid", value: fmt(data.feeSummary?.totalPaid), tone: "bg-emerald-50 text-emerald-600", sub: "This session" },
-    { label: "Total Due", value: fmt(data.feeSummary?.totalDue), tone: "bg-red-50 text-red-600", sub: "Outstanding" },
     { label: "Exams Taken", value: `${data.results?.length || 0}`, tone: "bg-purple-50 text-purple-600", sub: "Completed" },
   ];
 
@@ -216,7 +214,7 @@ function Dashboard({ fmt, setActiveTab }) {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((st) => (
-          <div key={st.label} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
+          <div key={st.label} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow md:max-w-xs">
             <div className={`w-11 h-11 rounded-xl ${st.tone} flex items-center justify-center mb-3`}>
               <TrendingUp className="w-5.5 h-5.5" />
             </div>

@@ -169,7 +169,7 @@ export default function StudentPortal() {
 }
 
 // ============ DASHBOARD ============
-function Dashboard({ setActiveTab }) {
+function Dashboard({ fmt, setActiveTab }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -521,24 +521,6 @@ function Payments({ student, fmt }) {
 
   return (
     <div className="space-y-5">
-      {/* Summary */}
-      {data?.summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl p-5 border border-emerald-200 bg-emerald-50">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Total Paid</p>
-            <p className="text-2xl font-bold text-emerald-800 mt-1">{fmt(data.summary.totalPaid)}</p>
-          </div>
-          <div className="rounded-xl p-5 border border-red-200 bg-red-50">
-            <p className="text-xs font-semibold uppercase tracking-wider text-red-600">Total Due</p>
-            <p className="text-2xl font-bold text-red-800 mt-1">{fmt(data.summary.totalDue)}</p>
-          </div>
-          <div className="rounded-xl p-5 border border-purple-200 bg-purple-50">
-            <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">Balance</p>
-            <p className={`text-2xl font-bold mt-1 ${data.summary.balance >= 0 ? "text-purple-800" : "text-red-800"}`}>{fmt(data.summary.balance)}</p>
-          </div>
-        </div>
-      )}
-
       {/* Fee Structure */}
       {data?.feeBreakdown?.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

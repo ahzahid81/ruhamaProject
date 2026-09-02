@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import api from "../../services/api";
 import { getSettings, clearSettingsCache } from "../../services/settingsCache";
+import OpeningCeremony from "../../components/OpeningCeremony";
+import { Sparkles, Rocket, Eye } from "lucide-react";
 
 const STRING_KEYS = ["sections", "subjects", "paymentMethods", "academicSessions"];
 
@@ -35,6 +37,8 @@ export default function SystemSettings() {
   const [editItem, setEditItem] = useState(null);
   const [newExamName, setNewExamName] = useState("");
   const [editExam, setEditExam] = useState(null);
+  const [ceremonyPreview, setCeremonyPreview] = useState(false);
+  const [savingCeremony, setSavingCeremony] = useState(false);
 
   useEffect(() => {
     getSettings()
@@ -164,6 +168,23 @@ export default function SystemSettings() {
       showMessage("Active session updated");
     } catch (err) {
       showMessage(err.response?.data?.message || "Failed to update session", "error");
+    }
+  };
+
+  const ceremonyEnabled = !!settings.openingCeremony?.enabled;
+
+  const toggleCeremony = async () => {
+    const next = !ceremonyEnabled;
+    setSavingCeremony(true);
+    try {
+      const res = await api.put("/settings/opening-ceremony", { enabled: next });
+      setSettings(res.data);
+      clearSettingsCache();
+      showMessage(next ? "Opening Ceremony is now ON for visitors" : "Opening Ceremony is now OFF");
+    } catch (err) {
+      showMessage(err.response?.data?.message || "Failed to update Opening Ceremony", "error");
+    } finally {
+      setSavingCeremony(false);
     }
   };
 
@@ -471,6 +492,80 @@ export default function SystemSettings() {
           This session is used as the default when creating new students and fee structures.
         </p>
       </div>
+
+      {/* Opening Ceremony */}
+      <div className="bg-white rounded-3xl shadow-lg p-6 mt-6 overflow-hidden">
+        <div className="h-1.5 -mx-6 -mt-6 mb-6 bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-amber-400" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center shadow-md">
+            <Sparkles className="w-5.5 h-5.5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Opening Ceremony</h2>
+            <p className="text-sm text-gray-400">
+              A spectacular full-screen launch experience shown to visitors before the website opens.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4 mb-5">
+          {/* Display ON/OFF */}
+          <div className={`rounded-2xl border p-5 transition-colors ${ceremonyEnabled ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-bold text-slate-800">Display on Website</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {ceremonyEnabled
+                    ? "Visitors will see the opening ceremony when they open the website."
+                    : "The ceremony is hidden. Turn it on to show it to visitors."}
+                </p>
+              </div>
+              <button
+                onClick={toggleCeremony}
+                disabled={savingCeremony}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors flex-shrink-0 ${ceremonyEnabled ? "bg-emerald-500" : "bg-gray-300"}`}
+                aria-pressed={ceremonyEnabled}
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
+                    ceremonyEnabled ? "translate-x-7" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Launch */}
+          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/60 to-fuchsia-50/60 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-bold text-slate-800">Launch Now</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Preview the ceremony — runs the full countdown &amp; grand opening right here.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setCeremonyPreview(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-xl text-sm font-bold hover:opacity-90 transition shadow-md"
+                >
+                  <Rocket className="w-4 h-4" /> Launch
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <Eye className="w-4 h-4" />
+          Visitors see a 5-second countdown, a grand opening reveal of the Ruhama brand, and a showcase of the website&apos;s key features — then enter the site.
+        </div>
+      </div>
+
+      {/* Ceremony preview overlay */}
+      {ceremonyPreview && (
+        <OpeningCeremony autoPlay onFinish={() => setCeremonyPreview(false)} />
+      )}
     </div>
   );
 }

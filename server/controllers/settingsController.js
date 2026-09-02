@@ -171,3 +171,21 @@ exports.updateCurrentSession = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// PUT /api/settings/opening-ceremony
+exports.updateOpeningCeremony = async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ message: "enabled (boolean) is required" });
+    }
+    const settings = await Settings.getSettings();
+    settings.openingCeremony = settings.openingCeremony || {};
+    settings.openingCeremony.enabled = enabled;
+    settings.markModified("openingCeremony");
+    await settings.save();
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

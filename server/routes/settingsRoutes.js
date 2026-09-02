@@ -13,6 +13,7 @@ const {
   updateSettingItem,
   deleteSettingItem,
   updateCurrentSession,
+  updateOpeningCeremony,
 } = require("../controllers/settingsController");
 
 router.get("/", getSettings);
@@ -20,6 +21,8 @@ router.get("/", getSettings);
 router.put("/", protect, authorizeRoles("admin"), updateSettings);
 
 router.put("/current-session", protect, authorizeRoles("admin"), updateCurrentSession);
+
+router.put("/opening-ceremony", protect, authorizeRoles("admin"), updateOpeningCeremony);
 
 router.post("/:key", protect, authorizeRoles("admin"), addSettingItem);
 

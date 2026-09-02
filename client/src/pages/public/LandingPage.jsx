@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { bdYear } from "../../utils/bdTime";
+import OpeningCeremony from "../../components/OpeningCeremony";
 import {
   Users,
   BookOpen,
@@ -38,6 +39,7 @@ export default function LandingPage() {
   const [gallery, setGallery] = useState([]);
   const [showAll, setShowAll] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [showCeremony, setShowCeremony] = useState(false);
 
   useEffect(() => {
     api.get("/public/students").then((res) => setStudents(res.data)).catch(() => {});
@@ -46,8 +48,31 @@ export default function LandingPage() {
     api.get("/gallery?limit=10").then((res) => setGallery(res.data)).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get("/settings")
+      .then((res) => {
+        if (cancelled) return;
+        const enabled = !!res.data?.openingCeremony?.enabled;
+        let alreadySeen = false;
+        try {
+          alreadySeen = sessionStorage.getItem("ruhama_opening_ceremony_seen") === "1";
+        } catch { /* ignore */ }
+        if (enabled && !alreadySeen) {
+          setShowCeremony(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
+      {showCeremony && <OpeningCeremony autoPlay onFinish={() => setShowCeremony(false)} />}
+
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">

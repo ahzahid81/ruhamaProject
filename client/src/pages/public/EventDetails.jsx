@@ -3,7 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { ArrowLeft, CalendarDays, Loader2 } from "lucide-react";
-import { bdYear } from "../../utils/bdTime";
+import { bdYear, bdDateLong } from "../../utils/bdTime";
+import SEO from "../../components/SEO";
+import { SITE_NAME, SITE_URL, absoluteUrl } from "../../seo/config";
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -19,8 +21,85 @@ export default function EventDetails() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const jsonLd = event
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "Event",
+          name: event.title,
+          description:
+            event.description ||
+            `${event.title} — an event at Ruhama United School, Sylhet.`,
+          url: `${SITE_URL}/events/${event._id}`,
+          image: event.thumbnail ? [absoluteUrl(event.thumbnail)] : undefined,
+          startDate: event.createdAt,
+          organizer: {
+            "@type": "Organization",
+            name: SITE_NAME,
+            url: SITE_URL,
+          },
+          eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+          location: {
+            "@type": "Place",
+            name: SITE_NAME,
+            address: {
+              "@type": "PostalAddress",
+              streetAddress:
+                "Ludhi House-101/102, Road-9, Housing Estate, Amberkhana",
+              addressLocality: "Sylhet",
+              addressCountry: "BD",
+            },
+          },
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            {
+              "@type": "ListItem",
+              position: 1,
+              name: "Home",
+              item: SITE_URL,
+            },
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: "Events",
+              item: `${SITE_URL}/events`,
+            },
+            {
+              "@type": "ListItem",
+              position: 3,
+              name: event.title,
+              item: `${SITE_URL}/events/${event._id}`,
+            },
+          ],
+        },
+      ]
+    : undefined;
+
   return (
     <div className="min-h-screen bg-white">
+      <SEO
+        title={event ? event.title : "School Event"}
+        description={
+          error
+            ? "This school event could not be found."
+            : event?.description
+              ? event.description.slice(0, 160)
+              : event
+                ? `${event.title} — an event at Ruhama United School, Sylhet.`
+                : "Explore the latest events and activities at Ruhama United School, Sylhet."
+        }
+        keywords={event ? `${event.title}, Ruhama United School event, school event Sylhet` : undefined}
+        type="article"
+        url={`${SITE_URL}/events/${id}`}
+        image={event?.thumbnail ? absoluteUrl(event.thumbnail) : undefined}
+        imageAlt={event?.title}
+        noindex={!!error}
+        jsonLd={jsonLd}
+      />
+
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-3 min-w-0">
@@ -64,11 +143,17 @@ export default function EventDetails() {
           <article className="mt-8">
             {event.thumbnail && (
               <div className="rounded-3xl overflow-hidden border border-gray-100 shadow-lg shadow-gray-200/60">
-                <img src={event.thumbnail} alt={event.title} className="w-full h-64 sm:h-96 object-cover" />
+                <img src={event.thumbnail} alt={event.title} decoding="async" className="w-full h-64 sm:h-96 object-cover" />
               </div>
             )}
 
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight mt-8">{event.title}</h1>
+
+            {event.createdAt && (
+              <p className="text-sm text-gray-400 mt-2">
+                Published <time dateTime={event.createdAt}>{bdDateLong(event.createdAt)}</time>
+              </p>
+            )}
 
             {event.description ? (
               <p className="text-gray-600 leading-relaxed mt-5 whitespace-pre-line">{event.description}</p>

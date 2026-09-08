@@ -4,6 +4,8 @@ import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { ArrowLeft, ChevronRight, CalendarDays, Loader2 } from "lucide-react";
 import { bdYear } from "../../utils/bdTime";
+import SEO from "../../components/SEO";
+import { SITE_URL, absoluteUrl } from "../../seo/config";
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
@@ -17,8 +19,45 @@ export default function EventsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const jsonLd = events?.length
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Events & Activities | Ruhama United School",
+          url: `${SITE_URL}/events`,
+          isPartOf: { "@id": `${SITE_URL}/#website` },
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "Ruhama United School Events",
+          itemListElement: events.map((event, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: event.title,
+            url: `${SITE_URL}/events/${event._id}`,
+          })),
+        },
+      ]
+    : undefined;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <SEO
+        title="School Events & Activities"
+        description="Every celebration, competition and milestone at Ruhama United School — school events and activities in one place."
+        keywords="Ruhama United School events, school activities Sylhet, Ruhama school events, school celebrations Sylhet"
+        url={`${SITE_URL}/events`}
+        image={
+          events?.length && events[0]?.thumbnail
+            ? absoluteUrl(events[0].thumbnail)
+            : undefined
+        }
+        imageAlt={events?.length ? events[0].title : undefined}
+        jsonLd={jsonLd}
+      />
+
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-3 min-w-0">
@@ -64,17 +103,18 @@ export default function EventsPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {events.map((event) => (
-              <Link
-                key={event._id}
-                to={`/events/${event._id}`}
-                className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col"
-              >
+              <article key={event._id} className="flex flex-col">
+                <Link
+                  to={`/events/${event._id}`}
+                  className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col flex-1"
+                >
                 <div className="aspect-video bg-gray-100 overflow-hidden">
                   {event.thumbnail ? (
                     <img
                       src={event.thumbnail}
                       alt={event.title}
                       loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
@@ -95,7 +135,8 @@ export default function EventsPage() {
                     <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </span>
                 </div>
-              </Link>
+                </Link>
+              </article>
             ))}
           </div>
         )}

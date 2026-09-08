@@ -4,6 +4,8 @@ import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { bdYear } from "../../utils/bdTime";
 import OpeningCeremony from "../../components/OpeningCeremony";
+import SEO from "../../components/SEO";
+import { SITE_URL, absoluteUrl } from "../../seo/config";
 import {
   Users,
   BookOpen,
@@ -75,7 +77,7 @@ export default function LandingPage() {
     };
   }, []);
 
-  if (siteOpen === null) {
+if (siteOpen === null) {
     return (
       <div className="fixed inset-0 bg-[#050014] flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-3">
@@ -87,11 +89,24 @@ export default function LandingPage() {
   }
 
   if (siteOpen === false) {
-    return <UnderMaintenance />;
+    return (
+      <>
+        <SEO noindex title="We Will Be Back Soon" />
+        <UnderMaintenance />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO
+        title="Ruhama United School, Sylhet — English Version School with Tahfizul Quran"
+        description="Ruhama United School in Sylhet is an English version school with Tahfizul Quran. Early Childhood, Primary Education (STD-I to V) and Hifzul Quran programs with modern teaching, experienced faculty and a safe environment."
+        keywords="Ruhama United School, school in Sylhet, Tahfizul Quran Sylhet, English version school Bangladesh, Hifzul Quran school, primary school Sylhet, early childhood education Sylhet, Amberkhana"
+        url={SITE_URL}
+        image={absoluteUrl("/logo.png")}
+        imageAlt="Ruhama United School logo"
+      />
       {showCeremony && <OpeningCeremony autoPlay onFinish={() => setShowCeremony(false)} />}
 
       {/* Header */}
@@ -262,11 +277,12 @@ export default function LandingPage() {
                   className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col"
                 >
                   <div className="aspect-video bg-gray-100 overflow-hidden">
-                    {event.thumbnail ? (
+{event.thumbnail ? (
                       <img
                         src={event.thumbnail}
                         alt={event.title}
                         loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
@@ -609,7 +625,7 @@ function GalleryCarousel({ photos }) {
           {photos.map((p) => (
             <div key={p._id} className="flex-shrink-0 px-3" style={{ width: `${100 / visible}%` }}>
               <div className="aspect-[4/3] bg-gray-100 rounded-2xl border border-gray-100 overflow-hidden">
-                <img src={p.photo} alt={p.altText || "School photo"} loading="lazy" className="w-full h-full object-cover" />
+                <img src={p.photo} alt={p.altText || "Ruhama United School photo"} loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </div>
             </div>
           ))}

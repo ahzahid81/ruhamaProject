@@ -4,6 +4,8 @@ import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { bdYear } from "../../utils/bdTime";
 import { ArrowLeft, ChevronLeft, ChevronRight, Images, Loader2, X } from "lucide-react";
+import SEO from "../../components/SEO";
+import { SITE_URL, absoluteUrl } from "../../seo/config";
 
 export default function AllGallery() {
   const [photos, setPhotos] = useState([]);
@@ -31,8 +33,41 @@ export default function AllGallery() {
 
   const photo = active !== null ? photos[active] : null;
 
+  const jsonLd = photos?.length
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "School Gallery | Ruhama United School",
+          url: `${SITE_URL}/gallery`,
+          isPartOf: { "@id": `${SITE_URL}/#website` },
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "ImageGallery",
+          name: "Ruhama United School Gallery",
+          url: `${SITE_URL}/gallery`,
+          image: photos.map((p) => ({
+            "@type": "ImageObject",
+            url: absoluteUrl(p.photo),
+            caption: p.altText || "Ruhama United School photo",
+          })),
+        },
+      ]
+    : undefined;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <SEO
+        title="School Gallery"
+        description="Every smile, celebration and proud moment — the Ruhama United School photo gallery, captured for the Ruhama family in Sylhet."
+        keywords="Ruhama United School gallery, school photos Sylhet, Ruhama school pictures, school memories Bangladesh"
+        url={`${SITE_URL}/gallery`}
+        image={photos?.length ? absoluteUrl(photos[0].photo) : undefined}
+        imageAlt={photos?.length ? photos[0].altText || "Ruhama United School photo" : undefined}
+        jsonLd={jsonLd}
+      />
+
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-3 min-w-0">
@@ -85,8 +120,9 @@ export default function AllGallery() {
               >
                 <img
                   src={p.photo}
-                  alt={p.altText || "Gallery photo"}
+                  alt={p.altText || "Ruhama United School photo"}
                   loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
@@ -125,7 +161,7 @@ export default function AllGallery() {
           <figure className="max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
             <img
               src={photo.photo}
-              alt={photo.altText || "Gallery photo"}
+              alt={photo.altText || "Ruhama United School photo"}
               className="w-full max-h-[80vh] object-contain rounded-xl"
             />
             {photo.altText && (

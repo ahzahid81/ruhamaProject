@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /student-login
+Disallow: /student-portal
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /payment
+Disallow: /collect-payment
+Disallow: /discounts
+Disallow: /statement
+Disallow: /create-report
+Disallow: /class-report
+Disallow: /hifz-report
+Disallow: /hifz-progress
+Disallow: /students
+Disallow: /student-admission
+Disallow: /teachers
+Disallow: /fees
+Disallow: /exam
+Disallow: /attendance
+Disallow: /payment-history
+
+Sitemap: https://ruhamaunitedschool.com/sitemap.xml

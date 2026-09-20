@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
 import Toast from "../../components/Toast";
-import { bdDate } from "../../utils/bdTime";
 
 const ExamManagement = () => {
   const [exams, setExams] = useState([]);
@@ -38,8 +37,6 @@ const ExamManagement = () => {
       showToast(err?.response?.data?.message || "Failed to delete exam", "error");
     }
   };
-
-  const fmtDate = (d) => (d ? bdDate(d) : "—");
 
   if (loading) {
     return (
@@ -98,7 +95,6 @@ const ExamManagement = () => {
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                     <span className="px-2 py-0.5 bg-gray-100 rounded-lg font-medium">Session {exam.academicSession}</span>
-                    <span>📅 {fmtDate(exam.startDate)} → {fmtDate(exam.endDate)}</span>
                     {exam.requiredFees?.length > 0 && (
                       <span className="text-amber-600 font-medium">{exam.requiredFees.length} required fee{exam.requiredFees.length !== 1 && "s"}</span>
                     )}
@@ -107,6 +103,8 @@ const ExamManagement = () => {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="flex gap-1.5">
+                    <Link to={`/exam/admit-card/print-all?examId=${exam._id}`}
+                      className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition">Print All</Link>
                     <Link to={`/exam/management/${exam._id}/subjects`} state={{ exam }}
                       className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition">Subjects</Link>
                     <Link to={`/exam/management/${exam._id}/edit`} state={{ exam }}

@@ -37,6 +37,7 @@ import EditStudent from "./pages/admin/EditStudent";
 import StudentAdmission from "./pages/admin/StudentAdmission";
 import StudentDetails from "./pages/admin/StudentDetails";
 import AdmitCard from "./pages/exam/AdmitCard";
+import PrintAllAdmitCards from "./pages/exam/PrintAllAdmitCards";
 import ExamManagement from "./pages/exam/ExamManagement";
 import MarksEntry from "./pages/exam/MarksEntry";
 import ExamResults from "./pages/exam/ExamResults";
@@ -198,6 +199,17 @@ function App() {
             path="/exam/admit-card"
 
             element={<AdmitCard />}
+
+          />
+          <Route
+
+            path="/exam/admit-card/print-all"
+
+            element={
+              <ProtectedRoute>
+                <PrintAllAdmitCards />
+              </ProtectedRoute>
+            }
 
           />
           <Route

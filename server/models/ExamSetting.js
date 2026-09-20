@@ -27,6 +27,17 @@ const requiredFeeSchema = new mongoose.Schema(
       default: null,
     },
 
+    // For a "Month" applicable fee this is the START month of the required
+    // range. The end of the range is `month` (inclusive), so a row with
+    // monthFrom: 1 and month: 9 requires every month from January to
+    // September. Defaults to 1 (January) when only `month` is set.
+    monthFrom: {
+      type: Number,
+      min: 1,
+      max: 12,
+      default: null,
+    },
+
     year: {
       type: Number,
       default: null,
@@ -68,10 +79,6 @@ const examSettingSchema = new mongoose.Schema(
     startDate: Date,
 
     endDate: Date,
-
-    admitCardStart: Date,
-
-    admitCardEnd: Date,
 
     // Admit Card Fee (BDT) — the amount a student must pay to obtain the
     // admit card for this exam. Configured here in Exam Management, never

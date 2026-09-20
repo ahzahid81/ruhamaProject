@@ -1,35 +1,55 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
-import { bdDateInput } from "../../utils/bdTime";
 
 const emptyExamForm = {
   examName: "",
   examCode: "",
   academicSession: "2026",
-  startDate: "",
-  endDate: "",
-  admitCardStart: "",
-  admitCardEnd: "",
-  resultPublishDate: "",
   isActive: true,
   remarks: "",
   requiredFees: [],
-};
-
-const emptyFeeRow = {
-  feeCategory: "",
-  applicableType: "Exam",
-  month: "",
-  year: "",
-  customTitle: "",
 };
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+const slugCode = (name) => (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20) || "EXAM";
+
+const rowKey = (r) => {
+  if (r.applicableType === "Month") return `${r.feeCategory}_Month_${r.month}`;
+  return `${r.feeCategory}_${r.applicableType}`;
+};
+
+const flattenRequired = (list) => {
+  const out = [];
+  (list || []).forEach((r) => {
+    const fc = r.feeCategory?._id || r.feeCategory || "";
+    if (r.applicableType === "Month") {
+      const from = Math.max(1, Number(r.monthFrom) || 1);
+      const to = Math.min(12, Number(r.month) || 0);
+      if (!to || from > to) return;
+      for (let m = from; m <= to; m++) {
+        out.push({ feeCategory: fc, applicableType: "Month", month: m, monthFrom: m, year: r.year || "", customTitle: "" });
+      }
+    } else {
+      out.push({
+        feeCategory: fc,
+        applicableType: r.applicableType,
+        month: r.month || null,
+        monthFrom: r.monthFrom || null,
+        year: r.year || "",
+        customTitle: r.customTitle || "",
+      });
+    }
+  });
+  return out;
+};
+
+const fmt = (n) => "BDT " + (Number(n) || 0).toLocaleString("en-BD");
 
 export default function ExamForm() {
   const { id } = useParams();
@@ -46,22 +66,11 @@ export default function ExamForm() {
 
   const mapExam = (exam) => ({
     examName: exam.examName,
-    examCode: exam.examCode,
+    examCode: exam.examCode || slugCode(exam.examName),
     academicSession: exam.academicSession || "2026",
-    startDate: exam.startDate ? bdDateInput(exam.startDate) : "",
-    endDate: exam.endDate ? bdDateInput(exam.endDate) : "",
-    admitCardStart: exam.admitCardStart ? bdDateInput(exam.admitCardStart) : "",
-    admitCardEnd: exam.admitCardEnd ? bdDateInput(exam.admitCardEnd) : "",
-    resultPublishDate: exam.resultPublishDate ? bdDateInput(exam.resultPublishDate) : "",
     isActive: exam.isActive,
     remarks: exam.remarks || "",
-    requiredFees: (exam.requiredFees || []).map((f) => ({
-      feeCategory: f.feeCategory?._id || f.feeCategory || "",
-      applicableType: f.applicableType,
-      month: f.month || "",
-      year: f.year || "",
-      customTitle: f.customTitle || "",
-    })),
+    requiredFees: flattenRequired(exam.requiredFees || []),
   });
 
   useEffect(() => {
@@ -108,14 +117,87 @@ export default function ExamForm() {
   };
 
   const handleChange = (e) => {
+    const name = e.target.name;
     const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-    setForm({ ...form, [e.target.name]: value });
+    if (name === "examName" && !editing) {
+      setForm({ ...form, examName: value, examCode: slugCode(value) });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
-  const updateFeeRow = (index, field, value) => {
-    const rows = [...form.requiredFees];
-    rows[index] = { ...rows[index], [field]: value };
-    setForm({ ...form, requiredFees: rows });
+  const sessionYear = Number(form.academicSession) || new Date().getFullYear();
+
+  const feeRows = useMemo(() => {
+    const rows = [];
+    (categories || [])
+      .filter((c) => c.isActive !== false)
+      .forEach((cat) => {
+        const catId = String(cat._id);
+        const base = { feeCategory: catId, feeName: cat.name, frequency: cat.frequency, defaultAmount: Number(cat.defaultAmount || 0) };
+        if (cat.frequency === "Monthly") {
+          for (let m = 1; m <= 12; m++) {
+            rows.push({
+              ...base,
+              applicableType: "Month",
+              month: m,
+              year: sessionYear,
+              period: `${MONTHS[m - 1]} ${sessionYear}`,
+              key: rowKey({ feeCategory: catId, applicableType: "Month", month: m }),
+            });
+          }
+        } else if (cat.frequency === "Per Exam") {
+          rows.push({
+            ...base, applicableType: "Exam", month: null, year: sessionYear, customTitle: "", period: "Exam",
+            key: rowKey({ feeCategory: catId, applicableType: "Exam" }),
+          });
+        } else if (cat.frequency === "Yearly") {
+          rows.push({
+            ...base, applicableType: "Year", month: null, year: sessionYear, customTitle: "", period: String(sessionYear),
+            key: rowKey({ feeCategory: catId, applicableType: "Year" }),
+          });
+        } else if (cat.frequency === "One Time") {
+          rows.push({
+            ...base, applicableType: "One Time", month: null, year: sessionYear, customTitle: "", period: "One Time",
+            key: rowKey({ feeCategory: catId, applicableType: "One Time" }),
+          });
+        } else {
+          rows.push({
+            ...base, applicableType: "Custom", month: null, year: sessionYear, customTitle: cat.name, period: "Custom",
+            key: rowKey({ feeCategory: catId, applicableType: "Custom" }),
+          });
+        }
+      });
+    return rows;
+  }, [categories, sessionYear]);
+
+  const selectedKeys = useMemo(() => new Set((form.requiredFees || []).map(rowKey)), [form.requiredFees]);
+  const allSelected = feeRows.length > 0 && (form.requiredFees || []).length === feeRows.length;
+
+  const entryFromRow = (row) => ({
+    feeCategory: row.feeCategory,
+    applicableType: row.applicableType,
+    month: row.applicableType === "Month" ? row.month : null,
+    monthFrom: row.applicableType === "Month" ? row.month : null,
+    year: row.year || form.academicSession,
+    customTitle: row.customTitle || "",
+  });
+
+  const toggleFee = (row) => {
+    const key = rowKey(row);
+    const exists = selectedKeys.has(key);
+    const requiredFees = exists
+      ? (form.requiredFees || []).filter((r) => rowKey(r) !== key)
+      : [...(form.requiredFees || []), entryFromRow(row)];
+    setForm({ ...form, requiredFees });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setForm({ ...form, requiredFees: [] });
+    } else {
+      setForm({ ...form, requiredFees: feeRows.map(entryFromRow) });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -174,14 +256,10 @@ export default function ExamForm() {
               <label className="block text-sm font-medium text-gray-600 mb-1">Exam Name *</label>
               <input type="text" name="examName" value={form.examName} onChange={handleChange} required placeholder="e.g. Half Yearly Examination"
                 className={inputClass} />
+              {!editing && form.examCode && (
+                <p className="text-[11px] text-emerald-600 mt-1">Exam code will be <span className="font-semibold">{form.examCode}</span></p>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Exam Code *</label>
-              <input type="text" name="examCode" value={form.examCode} onChange={handleChange} required placeholder="e.g. HY-2026"
-                className={inputClass} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Academic Session *</label>
               <select name="academicSession" value={form.academicSession} onChange={handleChange} required className={inputClass}>
@@ -190,81 +268,6 @@ export default function ExamForm() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Result Publish Date</label>
-              <input type="date" name="resultPublishDate" value={form.resultPublishDate} onChange={handleChange} className={inputClass} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Exam Start Date</label>
-              <input type="date" name="startDate" value={form.startDate} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Exam End Date</label>
-              <input type="date" name="endDate" value={form.endDate} onChange={handleChange} className={inputClass} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Admit Card From</label>
-              <input type="date" name="admitCardStart" value={form.admitCardStart} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Admit Card To</label>
-              <input type="date" name="admitCardEnd" value={form.admitCardEnd} onChange={handleChange} className={inputClass} />
-            </div>
-          </div>
-
-          {/* Required Fees */}
-          <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-gray-700">Required Fees (for Admit Card)</label>
-              <button type="button" onClick={() => setForm({ ...form, requiredFees: [...form.requiredFees, { ...emptyFeeRow, year: form.academicSession }] })}
-                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition">
-                + Add Fee
-              </button>
-            </div>
-            {form.requiredFees.length === 0 ? (
-              <p className="text-xs text-gray-400">No required fees added.</p>
-            ) : (
-              <div className="space-y-2">
-                {form.requiredFees.map((fee, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center bg-white border border-gray-100 rounded-lg p-2">
-                    <select value={fee.feeCategory} onChange={(e) => updateFeeRow(i, "feeCategory", e.target.value)}
-                      className="col-span-4 border border-gray-200 rounded-lg p-2 text-xs outline-none">
-                      <option value="">Select Fee Category</option>
-                      {categories.map((c) => (
-                        <option key={c._id} value={c._id}>{c.name}</option>
-                      ))}
-                    </select>
-                    <select value={fee.applicableType} onChange={(e) => updateFeeRow(i, "applicableType", e.target.value)}
-                      className="col-span-3 border border-gray-200 rounded-lg p-2 text-xs outline-none">
-                      {["Exam", "Month", "Year", "One Time", "Custom"].map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                    {fee.applicableType === "Month" ? (
-                      <select value={fee.month} onChange={(e) => updateFeeRow(i, "month", e.target.value)}
-                        className="col-span-3 border border-gray-200 rounded-lg p-2 text-xs outline-none">
-                        <option value="">Month</option>
-                        {MONTHS.map((m, mi) => (
-                          <option key={m} value={mi + 1}>{m}</option>
-                        ))}
-                      </select>
-                    ) : fee.applicableType === "Custom" ? (
-                      <input type="text" value={fee.customTitle} onChange={(e) => updateFeeRow(i, "customTitle", e.target.value)}
-                        placeholder="Fee Title" className="col-span-3 border border-gray-200 rounded-lg p-2 text-xs outline-none" />
-                    ) : (
-                      <input type="number" value={fee.year} onChange={(e) => updateFeeRow(i, "year", e.target.value)}
-                        placeholder="Year" className="col-span-3 border border-gray-200 rounded-lg p-2 text-xs outline-none" />
-                    )}
-                    <button type="button" onClick={() => setForm({ ...form, requiredFees: form.requiredFees.filter((_, fi) => fi !== i) })}
-                      className="col-span-2 text-xs text-red-600 hover:text-red-800 font-semibold">Remove</button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <div>
@@ -287,6 +290,61 @@ export default function ExamForm() {
               className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition">Cancel</button>
           </div>
         </form>
+      </div>
+
+      {/* Required Fees */}
+      <div className="mt-6 bg-white rounded-2xl border border-gray-200 pt-5 max-w-4xl">
+        <div className="px-6 pb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Required Fees (for Admit Card)</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Tick the fees students must clear before taking this exam — {" "}
+              <span className="font-semibold text-emerald-600">{selectedKeys.size} selected</span>
+              {sessionYear && <span> · Academic session {sessionYear}</span>}
+            </p>
+          </div>
+        </div>
+        {feeRows.length === 0 ? (
+          <div className="px-6 pb-8">
+            <p className="text-sm text-gray-400">No fee categories found. Add fee categories in Collect Payment setup first.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50/80 text-slate-500 border-y border-gray-100">
+                  <th className="px-6 py-3 w-10">
+                    <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                      className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold">Fee</th>
+                  <th className="px-3 py-3 text-left font-semibold">Period</th>
+                  <th className="px-6 py-3 text-right font-semibold">Default Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {feeRows.map((row) => {
+                  const on = selectedKeys.has(row.key);
+                  return (
+                    <tr key={row.key} onClick={() => toggleFee(row)}
+                      className={`cursor-pointer border-b border-gray-50 transition ${on ? "bg-emerald-50/60" : "hover:bg-slate-50/60"}`}>
+                      <td className="px-6 py-2">
+                        <input type="checkbox" checked={on} readOnly
+                          className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <p className="font-medium text-slate-700">{row.feeName}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{row.frequency}</p>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{row.period}</td>
+                      <td className="px-6 py-2 text-right text-slate-600">{row.defaultAmount > 0 ? fmt(row.defaultAmount) : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

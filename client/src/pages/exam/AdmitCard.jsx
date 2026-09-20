@@ -8,6 +8,7 @@ import Toast from "../../components/Toast";
 import StudentPicker from "../../components/StudentPicker";
 import EligibilityCard from "../../components/exam/EligibilityCard";
 import AdmitCardPreview from "../../components/exam/AdmitCardPreview";
+import { buildAdmitCardFeeData } from "../../utils/admitCardFees";
 
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -66,34 +67,10 @@ const AdmitCard = () => {
         academicSession: selectedExam?.academicSession || systemSettings?.currentSession || "",
     };
 
-    const examRequiredFeeIds = useMemo(() => {
-        if (!selectedExam?.requiredFees) return [];
-        return selectedExam.requiredFees.map((r) => ({
-            feeCategory: r.feeCategory?._id || r.feeCategory,
-            applicableType: r.applicableType,
-            month: r.month || null,
-            year: r.year || null,
-            examName: r.applicableType === "Exam" ? exam.examName : "",
-            customTitle: r.customTitle || "",
-        }));
-    }, [selectedExam, exam.examName]);
-
-    const filteredDueItems = useMemo(() => {
-        if (examRequiredFeeIds.length === 0) return [];
-        return dueItems.filter((d) => {
-            return examRequiredFeeIds.some((r) => {
-                if (r.feeCategory && String(d.feeCategory) !== String(r.feeCategory)) return false;
-                if (r.applicableType !== d.applicableType) return false;
-                if (r.applicableType === "Month") {
-                    return Number(d.month) === Number(r.month) && Number(d.year) === Number(r.year);
-                }
-                if (r.applicableType === "Exam") {
-                    return d.examName === r.examName;
-                }
-                return true;
-            });
-        });
-    }, [dueItems, examRequiredFeeIds]);
+    const { filteredDueItems } = useMemo(
+        () => buildAdmitCardFeeData(selectedExam, feeLedger, dueItems),
+        [selectedExam, feeLedger, dueItems]
+    );
 
     const selectedFees = useMemo(() => filteredDueItems.filter((_, i) => selectedItems.includes(i)), [filteredDueItems, selectedItems]);
     const subtotal = useMemo(() => selectedFees.reduce((s, f) => s + Number(f.amount || 0), 0), [selectedFees]);
@@ -307,12 +284,22 @@ const AdmitCard = () => {
                                 </div>
                             </div>
                             <div className="min-w-[220px]">
-                                <label className="block text-sm font-bold text-slate-600 mb-2">Admit Card Window</label>
+                                <label className="block text-sm font-bold text-slate-600 mb-2">Required Fees</label>
                                 <div className="px-4 py-3 rounded-xl bg-slate-50 border border-gray-200 text-sm font-semibold text-slate-600">
-                                    {selectedExam && (selectedExam.admitCardStart || selectedExam.admitCardEnd)
-                                        ? `${selectedExam.admitCardStart ? new Date(selectedExam.admitCardStart).toLocaleDateString("en-GB") : "any"} → ${selectedExam.admitCardEnd ? new Date(selectedExam.admitCardEnd).toLocaleDateString("en-GB") : "any"}`
-                                        : "Not set"}
+                                    {selectedExam?.requiredFees?.length > 0
+                                        ? `${selectedExam.requiredFees.length} fee${selectedExam.requiredFees.length !== 1 ? "s" : ""} configured`
+                                        : "No required fees"}
                                 </div>
+                            </div>
+                            <div className="min-w-[220px]">
+                                <label className="block text-sm font-bold text-slate-600 mb-2">Print All</label>
+                                <button
+                                    onClick={() => navigate(`/exam/admit-card/print-all${selectedExamId ? `?examId=${selectedExamId}` : ""}`)}
+                                    disabled={!selectedExamId}
+                                    className="w-full px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 transition text-sm font-bold text-white"
+                                >
+                                    🖨 Print All Admit Cards
+                                </button>
                             </div>
                         </div>
                     </div>

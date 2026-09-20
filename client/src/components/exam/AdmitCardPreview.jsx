@@ -2,12 +2,13 @@ import logo from "../../assets/logo.png";
 import { QRCodeSVG } from "qrcode.react";
 import Barcode from "react-barcode";
 
-const AdmitCardPreview = ({ student, exam, onPrint }) => {
+const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
     if (!student || !exam) return null;
 
     return (
-        <div className="mt-8">
+        <div className={bulk ? "admit-card-page" : "mt-8"}>
             {/* ACTION BUTTONS */}
+            {!bulk && (
             <div className="no-print print:hidden flex justify-end gap-4 mb-6">
                 <button
                     onClick={onPrint}
@@ -16,6 +17,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                     🖨 Print Admit Card
                 </button>
             </div>
+            )}
 
             {/* ADMIT CARD */}
             <div
@@ -171,7 +173,8 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                 </div>
             </div>
 
-            {/* PRINT STYLE */}
+            {/* PRINT STYLE (single-card mode only — bulk page provides its own) */}
+            {!bulk && (
             <style>
                 {`
                 @page {
@@ -283,6 +286,7 @@ const AdmitCardPreview = ({ student, exam, onPrint }) => {
                 }
                 `}
             </style>
+            )}
         </div>
     );
 };

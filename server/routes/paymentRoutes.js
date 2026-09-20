@@ -17,6 +17,7 @@ const {
     getPaymentReceipt,
     updatePayment,
     checkAdmitCardEligibility,
+    getEligibleStudentsForAdmitCards,
     cancelPayment,
     getFeeCategories,
     createFeeCategory,
@@ -98,6 +99,12 @@ router.get(
 router.get(
     "/due-items/:studentId",
     getStudentDueItems
+);
+
+// Eligible students for print-all admit cards (MUST be before /admit-card/:studentId)
+router.get(
+    "/admit-card/print-all",
+    getEligibleStudentsForAdmitCards
 );
 
 // Admit Card Eligibility

@@ -685,11 +685,151 @@ const cancelPayment = async (req, res) => {
 };
 
 // ============================================
-// CHECK ADMIT CARD ELIGIBILITY
-// Uses the exam defined in Exam Management: the exam name and the required
-// admit card fee come from ExamSetting (never hardcoded). A student is
-// eligible when the time window is open and the admit-card fee item for that
-// exam is paid (0 fee means it is always cleared).
+// EVALUATE ADMIT CARD ELIGIBILITY
+// Uses the exam defined in Exam Management: the required fees (fee category
+// + applicable type) for the admit card come from ExamSetting — never
+// hardcoded. Returns an array of reason strings; an empty array means the
+// student is eligible.
+// ============================================
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const evaluateAdmitCardEligibility = async (exam, student) => {
+  const reasons = [];
+
+  if (!exam.isActive) {
+    reasons.push(`"${exam.examName}" is not active.`);
+  }
+
+  const paidItems = await PaymentItem.find({
+    student: student._id,
+    paymentStatus: "Paid",
+  }).lean();
+
+  // Fee applicability mirrors getStudentDueItems: a fee is required for this
+  // student only if it applies to them (Global/Class Wise with an amount, or
+  // Specific with an assignment/override) for this session.
+  const session = student.session || exam.academicSession || "2026";
+  const [classSettings, overrides, assignments] = await Promise.all([
+    ClassFeeSetting.find({
+      $or: [{ className: student.className }, { className: "All Classes" }],
+      academicSession: session,
+      isActive: true,
+    }),
+    StudentFeeOverride.find({
+      student: student._id,
+      academicSession: session,
+      isActive: { $ne: false },
+    }),
+    StudentFeeAssignment.find({
+      student: student._id,
+      academicSession: session,
+      isActive: { $ne: false },
+    }),
+  ]);
+
+  const classSettingMap = {};
+  classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
+  const overrideMap = {};
+  overrides.forEach((o) => { overrideMap[o.feeCategory.toString()] = o; });
+  const assignmentMap = {};
+  assignments.forEach((a) => { assignmentMap[a.feeCategory.toString()] = a; });
+
+  const feeAppliesToStudent = (catId, cat) => {
+    const override = overrideMap[catId];
+    const assignment = assignmentMap[catId];
+    const classSetting = classSettingMap[catId];
+    if (cat.applicableTo === "Specific" && !assignment && !override) return false;
+    let effective = Number(cat.defaultAmount || 0);
+    if (override) effective = Number(override.amount);
+    else if (assignment && assignment.amount > 0) effective = Number(assignment.amount);
+    else if (classSetting) effective = Number(classSetting.amount);
+    return effective > 0;
+  };
+
+  // The exam's own "Required Fees (for Admit Card)" rows drive eligibility
+  // (fee category + applicable type from Exam Management — no hardcodes).
+  (exam.requiredFees || []).forEach((r) => {
+    const cat = r.feeCategory;
+    const fc = cat ? String(cat._id || "") : "";
+    const label = cat?.name || r.customTitle || r.applicableType || "Fee";
+
+    // Category missing/inactive or not applicable to this student → not required.
+    if (!cat || !fc || cat.isActive === false) return;
+    if (!feeAppliesToStudent(fc, cat)) return;
+
+    const year = Number(r.year) || Number(exam.academicSession) || new Date().getFullYear();
+
+    const pCatMatch = (p, catId) => String(p.feeCategory || "") === catId;
+
+    const monthPaid = (m) =>
+      paidItems.some(
+        (p) =>
+          String(p.feeName || "").toLowerCase() !== "admit card" &&
+          p.applicableType === "Month" &&
+          pCatMatch(p, fc) &&
+          Number(p.month) === m &&
+          Number(p.year) === year
+      );
+
+    // Monthly fees: every month from `monthFrom` (default January) through
+    // `month` (the exam month) must be paid — e.g. Jan → Sep.
+    if (r.applicableType === "Month") {
+      const from = Math.max(1, Number(r.monthFrom) || 1);
+      const to = Math.min(12, Number(r.month) || 0);
+      if (!to || from > to) return;
+      const unpaid = [];
+      for (let m = from; m <= to; m++) {
+        if (!monthPaid(m)) unpaid.push(m);
+      }
+      if (unpaid.length) {
+        if (unpaid.length === 1) {
+          reasons.push(`${label} (${MONTH_NAMES[unpaid[0] - 1]} ${year}) not paid.`);
+        } else {
+          reasons.push(`${label} (${MONTH_NAMES[from - 1]} ${year} – ${MONTH_NAMES[to - 1]} ${year}) not paid.`);
+        }
+      }
+      return;
+    }
+
+    const paid = paidItems.some((p) => {
+      if (String(p.feeName || "").toLowerCase() === "admit card") return false;
+      const pCat = String(p.feeCategory || "");
+      switch (r.applicableType) {
+        case "Exam":
+          return (
+            p.applicableType === "Exam" &&
+            p.examName === exam.examName &&
+            pCat === fc
+          );
+        case "Year":
+          return (
+            p.applicableType === "Year" &&
+            Number(p.year) === year &&
+            pCat === fc
+          );
+        case "One Time":
+          return p.applicableType === "One Time" && pCat === fc;
+        case "Custom":
+          return p.feeName && p.feeName === r.customTitle;
+        default:
+          return false;
+      }
+    });
+
+    if (!paid) {
+      reasons.push(`${label} (${r.applicableType || "Fee"}) not paid.`);
+    }
+  });
+
+  return reasons;
+};
+
+// ============================================
+// CHECK ADMIT CARD ELIGIBILITY (single student)
 // ============================================
 
 const checkAdmitCardEligibility = async (req, res) => {
@@ -705,7 +845,10 @@ const checkAdmitCardEligibility = async (req, res) => {
       });
     }
 
-    const exam = await ExamSetting.findById(examId).populate("requiredFees.feeCategory", "name");
+    const exam = await ExamSetting.findById(examId).populate(
+      "requiredFees.feeCategory",
+      "name applicableTo defaultAmount frequency isActive"
+    );
     if (!exam) {
       return res.status(404).json({
         success: false,
@@ -719,109 +862,19 @@ const checkAdmitCardEligibility = async (req, res) => {
       return res.status(404).json({ success: false, eligible: false, message: "Student not found." });
     }
 
-    const fee = Number(exam.admitCardFee || 0);
-    const now = new Date();
-    const windowOpen =
-      (!exam.admitCardStart || now >= new Date(exam.admitCardStart)) &&
-      (!exam.admitCardEnd || now <= new Date(exam.admitCardEnd).setHours(23, 59, 59, 999));
-
-    const paidItems = await PaymentItem.find({
-      student: student._id,
-      paymentStatus: "Paid",
-    }).lean();
-
-    const paidAdmitCardItem = fee > 0
-      ? paidItems.find(
-          (p) =>
-            p.applicableType === "Exam" &&
-            p.examName === exam.examName &&
-            String(p.feeName || "").toLowerCase() === "admit card"
-        )
-      : null;
-
-    const reasons = [];
-    if (!exam.isActive) {
-      reasons.push(`"${exam.examName}" is not active.`);
-    }
-    if (!windowOpen) {
-      const from = exam.admitCardStart ? new Date(exam.admitCardStart).toLocaleDateString("en-GB") : "any time";
-      const to = exam.admitCardEnd ? new Date(exam.admitCardEnd).toLocaleDateString("en-GB") : "any time";
-      reasons.push(`Admit card window ${from} → ${to} is not open yet.`);
-    }
-
-    const MONTH_NAMES = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
-
-    // The exam's own "Required Fees (for Admit Card)" rows drive eligibility
-    // (fee category + applicable type from Exam Management — no hardcodes).
-    (exam.requiredFees || []).forEach((r) => {
-      const fc = r.feeCategory ? String(r.feeCategory._id || r.feeCategory) : "";
-      const label = r.feeCategory?.name || r.customTitle || r.applicableType || "Fee";
-      const month = Number(r.month) || 0;
-      const year = Number(r.year) || Number(exam.academicSession) || new Date().getFullYear();
-
-      const paid = paidItems.some((p) => {
-        if (String(p.feeName || "").toLowerCase() === "admit card") return false;
-        const pCat = String(p.feeCategory || "");
-        switch (r.applicableType) {
-          case "Month":
-            return (
-              p.applicableType === "Month" &&
-              (!fc || pCat === fc) &&
-              month > 0 &&
-              Number(p.month) === month &&
-              Number(p.year) === year
-            );
-          case "Exam":
-            return (
-              p.applicableType === "Exam" &&
-              p.examName === exam.examName &&
-              (!fc || pCat === fc)
-            );
-          case "Year":
-            return (
-              p.applicableType === "Year" &&
-              Number(p.year) === year &&
-              (!fc || pCat === fc)
-            );
-          case "One Time":
-            return p.applicableType === "One Time" && (!fc || pCat === fc);
-          case "Custom":
-            return p.feeName && p.feeName === r.customTitle;
-          default:
-            return false;
-        }
-      });
-
-      if (!paid) {
-        if (r.applicableType === "Month" && month > 0) {
-          reasons.push(`${label} (${MONTH_NAMES[month - 1]} ${year}) not paid.`);
-        } else {
-          reasons.push(`${label} (${r.applicableType || "Fee"}) not paid.`);
-        }
-      }
-    });
-
-    if (fee > 0 && !paidAdmitCardItem) {
-      reasons.push(`Admit Card fee (BDT ${fee.toLocaleString("en-BD")}) for "${exam.examName}" not paid.`);
-    }
+    const reasons = await evaluateAdmitCardEligibility(exam, student);
 
     return res.status(200).json({
       success: true,
       eligible: reasons.length === 0,
       reasons,
-      fee,
-      feePaid: fee > 0 ? Boolean(paidAdmitCardItem) : true,
-      windowOpen,
+      fee: Number(exam.admitCardFee || 0),
+      feePaid: true,
       exam: {
         _id: exam._id,
         examName: exam.examName,
         academicSession: exam.academicSession,
-        admitCardFee: fee,
-        admitCardStart: exam.admitCardStart,
-        admitCardEnd: exam.admitCardEnd,
+        admitCardFee: Number(exam.admitCardFee || 0),
         isActive: exam.isActive,
       },
       student: {
@@ -834,6 +887,68 @@ const checkAdmitCardEligibility = async (req, res) => {
         fatherName: student.fatherName,
         fatherMobile: student.fatherMobile,
       },
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================
+// ELIGIBLE STUDENTS FOR PRINT-ALL ADMIT CARDS
+// Returns every active student who has cleared this exam's required fees.
+// ============================================
+
+const getEligibleStudentsForAdmitCards = async (req, res) => {
+  try {
+    const { examId } = req.query;
+
+    if (!examId) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select an exam from Exam Management.",
+      });
+    }
+
+    const exam = await ExamSetting.findById(examId).populate(
+      "requiredFees.feeCategory",
+      "name applicableTo defaultAmount frequency isActive"
+    );
+    if (!exam) {
+      return res.status(404).json({ success: false, message: "Exam not found." });
+    }
+
+    const students = await Student.find({ status: "Active" })
+      .select("studentId name className section roll photo fatherName fatherMobile")
+      .sort({ className: 1, roll: 1, name: 1 });
+
+    const eligible = [];
+    for (const student of students) {
+      const reasons = await evaluateAdmitCardEligibility(exam, student);
+      if (reasons.length === 0) {
+        eligible.push({
+          _id: student._id,
+          studentId: student.studentId,
+          name: student.name,
+          className: student.className,
+          section: student.section,
+          roll: student.roll,
+          photo: student.photo,
+          fatherName: student.fatherName,
+          fatherMobile: student.fatherMobile,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      exam: {
+        _id: exam._id,
+        examName: exam.examName,
+        academicSession: exam.academicSession,
+      },
+      count: eligible.length,
+      students: eligible,
     });
   } catch (error) {
     console.log(error);
@@ -1246,6 +1361,7 @@ module.exports = {
   updatePayment,
   cancelPayment,
   checkAdmitCardEligibility,
+  getEligibleStudentsForAdmitCards,
   getFeeCategories,
   createFeeCategory,
   updateFeeCategory,

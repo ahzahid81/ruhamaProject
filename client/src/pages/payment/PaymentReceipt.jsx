@@ -87,6 +87,7 @@ export default function PaymentReceipt() {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handlePrint = useReactToPrint({
@@ -142,8 +143,10 @@ export default function PaymentReceipt() {
     amount: paid,
   });
 
+  const session = payment.academicSession || "—";
+
   return (
-    <div className="py-6">
+    <div className="py-6 px-4">
       {/* ACTION BUTTONS */}
       <div className="no-print print:hidden flex justify-end gap-3 mb-6">
         <button
@@ -155,209 +158,241 @@ export default function PaymentReceipt() {
         </button>
         <button
           onClick={handlePrint}
-          className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition"
+          className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-xl hover:opacity-95 transition"
         >
           Print Receipt
         </button>
       </div>
 
-      {/* RECEIPT */}
+      {/* RECEIPT — half-height A4 (210mm × 148mm) STUDENT COPY */}
       <div
         ref={receiptRef}
         id="payment-receipt"
-        className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] min-h-[150mm] print:w-[210mm] print:shadow-none print:border-none"
+        className="bg-white mx-auto w-[210mm] print:w-[210mm] print:shadow-none print:border-none"
       >
-        {/* HEADER */}
-        <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-6 py-4 flex items-center justify-center">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center flex-shrink-0">
-              <img src={logo} alt="School Logo" className="w-14 h-14 object-contain" />
-            </div>
-            <div className="text-center">
-              <h1 className="text-2xl font-black uppercase tracking-wide">Ruhama United School</h1>
-              <p className="text-sm text-yellow-300 font-medium">Change Yourself, Decorate The World</p>
-              <p className="text-xs text-white/70">An English Version School with Tahfizul Quran</p>
-              <p className="text-xs text-white/70 mt-0.5">Ludhi House-101/102, Road-9, Housing Estate, Amberkhana, Sylhet</p>
-            </div>
-          </div>
-        </div>
+        <div className="receipt-card bg-white overflow-hidden w-[210mm] h-[148mm] print:w-[210mm] print:h-[148mm] print:overflow-hidden">
+          {/* PREMIUM LIGHT FRAME */}
+          <div className="h-full w-full bg-white p-[2.5mm]">
+            <div className="h-full w-full border border-neutral-900 rounded-[2mm] overflow-hidden flex flex-col relative bg-white">
 
-        {/* RECEIPT TITLE */}
-        <div className="px-8 pt-5 pb-1 text-center">
-          <div className="inline-flex items-center gap-3">
-            <span className="h-px w-10 bg-emerald-700" />
-            <h2 className="text-2xl font-black tracking-[4px] text-[#07153B] uppercase">Money Receipt</h2>
-            <span className="h-px w-10 bg-emerald-700" />
-          </div>
-        </div>
+              {/* ============ HEADER ============ */}
+              <div className="relative bg-white px-5 pt-[3.5mm] pb-[2.5mm] text-neutral-900 border-b-2 border-neutral-900">
+                {/* copy tag */}
+                <span className="absolute top-[2mm] right-[2.5mm] inline-block bg-white text-neutral-900 text-[6.5px] font-black uppercase tracking-[1.5px] px-1.5 py-[0.5mm] rounded-sm border border-neutral-900 z-10">
+                  Student Copy
+                </span>
 
-        {/* BODY */}
-        <div className="px-8 py-4">
-          <div className="relative">
-            {/* Watermark */}
-            <img
-              src={logo}
-              alt=""
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] opacity-[0.04] pointer-events-none select-none"
-            />
+                {/* brand — logo left of text, whole block centered */}
+                <div className="relative flex items-center justify-center gap-4">
+                  <div className="w-[16mm] h-[16mm] bg-white rounded-full flex items-center justify-center ring-1 ring-neutral-900 flex-shrink-0">
+                    <img src={logo} alt="School Logo" className="w-[14mm] h-[14mm] object-contain" />
+                  </div>
+                  <div className="min-w-0 text-center">
+                    <h1 className="text-[22px] leading-tight font-black uppercase tracking-wide">Ruhama United School</h1>
+                    <p className="text-[9.5px] text-neutral-500 font-bold tracking-wide leading-tight">
+                      ~ Change Yourself, Decorate The World ~
+                    </p>
+                    <p className="text-[8.5px] text-neutral-600 leading-tight mt-[0.5mm]">
+                      An English Version School with Tahfizul Quran
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            {/* RECEIPT META */}
-            <div className="flex justify-between items-center mb-4">
-              <div className="bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-xs font-bold border border-emerald-200">
-                Payment Successful
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Receipt No</p>
-                <p className="text-sm font-mono font-bold text-[#07153B]">{payment.receiptNo}</p>
-              </div>
-            </div>
+              {/* thin divider */}
+              <div className="h-px w-full bg-neutral-900 flex-shrink-0" />
 
-            {/* STUDENT INFO */}
-            <div className="rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-              <div className="bg-gradient-to-r from-indigo-700 to-blue-700 text-white px-5 py-2">
-                <h3 className="text-sm font-bold">Student Information</h3>
+              {/* ============ META STRIP ============ */}
+              <div className="px-[4.5mm] pt-[2mm] flex-shrink-0">
+                <div className="flex items-center justify-between rounded-md border border-neutral-900 bg-white px-4 py-[1.4mm]">
+                  <span className="inline-flex items-center gap-1.5 text-neutral-900 px-2.5 py-[0.6mm] rounded-full text-[8.5px] font-bold border border-neutral-900">
+                    <span className="w-[6px] h-[6px] rounded-full bg-neutral-900" />
+                    Payment Successful
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rotate-45 bg-neutral-900" />
+                    <h2 className="text-[13px] font-black tracking-[3px] uppercase text-neutral-900">Money Receipt</h2>
+                    <span className="w-1.5 h-1.5 rotate-45 bg-neutral-900" />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-[7px] uppercase tracking-[2px] text-neutral-400 font-semibold">Receipt No</p>
+                      <p className="text-[10px] font-mono font-bold tracking-wide leading-tight text-neutral-900">{payment.receiptNo}</p>
+                    </div>
+                    <div className="h-7 w-px bg-neutral-300" />
+                    <div className="text-right">
+                      <p className="text-[7px] uppercase tracking-[2px] text-neutral-400 font-semibold">Date</p>
+                      <p className="text-[10px] font-bold leading-tight text-neutral-900">{date}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 p-4 bg-white">
-                <InfoItem label="Student Name" value={payment.studentName} />
-                <InfoItem label="Student ID" value={payment.studentId} />
-                <InfoItem label="Class" value={payment.className} />
-                <InfoItem label="Date" value={date} />
-              </div>
-            </div>
 
-            {/* FEE BREAKDOWN */}
-            <div className="mt-4 rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-              <div className="bg-gradient-to-r from-indigo-700 to-blue-700 text-white px-5 py-2">
-                <h3 className="text-sm font-bold">Fee Details</h3>
-              </div>
-              {items.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wide">
-                      <th className="px-4 py-2 font-semibold">Description</th>
-                      <th className="px-4 py-2 text-right font-semibold">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {items.map((item, i) => {
-                      const period =
-                        item.applicableType === "Month"
-                          ? `${MonthNames[(item.month || 1) - 1]} ${item.year || ""}`
-                          : item.applicableType === "Exam"
-                          ? item.examName
-                          : item.customTitle || "";
-                      return (
-                        <tr key={i}>
-                          <td className="px-4 py-1.5 text-slate-700">
-                            {item.feeName}
-                            {period ? <span className="text-slate-400"> ({period.trim()})</span> : null}
-                          </td>
-                          <td className="px-4 py-1.5 text-right font-bold text-slate-800">{fmt(item.paidAmount)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-slate-200">
-                      <td className="px-4 py-2 font-bold text-slate-700">Total</td>
-                      <td className="px-4 py-2 text-right font-black text-[#07153B]">{fmt(total)}</td>
-                    </tr>
-                    {discount > 0 && (
-                      <tr>
-                        <td className="px-4 py-1.5 text-slate-600">Discount</td>
-                        <td className="px-4 py-1.5 text-right font-semibold text-green-700">- {fmt(discount)}</td>
-                      </tr>
+              {/* ============ BODY ============ */}
+              <div className="relative flex-1 px-[4.5mm] pt-[2mm] pb-[1.2mm] min-h-0 flex flex-col">
+                {/* Watermark */}
+                <img
+                  src={logo}
+                  alt=""
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110mm] opacity-[0.03] pointer-events-none select-none"
+                />
+
+                {/* STUDENT INFO */}
+                <div className="relative grid grid-cols-5 gap-[1.5mm] flex-shrink-0">
+                  <div className="col-span-2"><Cell label="Student Name" value={payment.studentName} /></div>
+                  <Cell label="Student ID" value={payment.studentId} />
+                  <Cell label="Class" value={payment.className} />
+                  <Cell label="Session" value={session} />
+                </div>
+
+                {/* MAIN ROW: fees + payment card */}
+                <div className="relative mt-[2mm] grid grid-cols-3 gap-[3mm] flex-1 min-h-0">
+                  {/* LEFT: fees */}
+                  <div className="col-span-2 flex flex-col min-h-0">
+                    <div className="flex items-center gap-2 mb-[1mm] flex-shrink-0">
+                      <span className="h-px flex-1 bg-neutral-400" />
+                      <h3 className="text-[9px] font-black uppercase tracking-[2px] text-neutral-900">Fee Details</h3>
+                      <span className="h-px flex-1 bg-neutral-400" />
+                    </div>
+
+                    {items.length > 0 ? (
+                      <table className="w-full text-[9.5px]">
+                        <thead>
+                          <tr className="bg-neutral-100 text-neutral-900">
+                            <th className="text-left px-2 py-[0.8mm] text-[7.5px] uppercase tracking-[1.5px] font-bold">Description</th>
+                            <th className="text-right px-2 py-[0.8mm] text-[7.5px] uppercase tracking-[1.5px] font-bold">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((item, i) => {
+                            const period =
+                              item.applicableType === "Month"
+                                ? `${MonthNames[(item.month || 1) - 1]} ${item.year || ""}`
+                                : item.applicableType === "Exam"
+                                ? item.examName
+                                : item.customTitle || "";
+                            return (
+                              <tr key={i} className="border-b border-neutral-200">
+                                <td className="px-2 py-[0.6mm] text-neutral-700">
+                                  {item.feeName}
+                                  {period ? <span className="text-neutral-400"> ({period.trim()})</span> : null}
+                                </td>
+                                <td className="px-2 py-[0.6mm] text-right font-bold text-neutral-800 whitespace-nowrap">{fmt(item.paidAmount)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-[1.5mm]">
+                        <Cell label="Total Amount" value={fmt(total)} />
+                        <Cell label="Amount Paid" value={fmt(paid)} />
+                        <Cell label="Date" value={date} />
+                      </div>
                     )}
-                    {fine > 0 && (
-                      <tr>
-                        <td className="px-4 py-1.5 text-slate-600">Fine</td>
-                        <td className="px-4 py-1.5 text-right font-semibold text-red-600">{fmt(fine)}</td>
-                      </tr>
-                    )}
-                    <tr className="border-t-2 border-slate-200 bg-slate-50">
-                      <td className="px-4 py-2 font-black text-[#07153B]">Amount Paid</td>
-                      <td className="px-4 py-2 text-right font-black text-emerald-700">{fmt(paid)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              ) : (
-                <div className="p-4 grid grid-cols-2 gap-3">
-                  <InfoItem label="Total Amount" value={fmt(total)} />
-                  <InfoItem label="Amount Paid" value={fmt(paid)} />
-                  {discount > 0 && <InfoItem label="Discount" value={fmt(discount)} />}
-                  {fine > 0 && <InfoItem label="Fine" value={fmt(fine)} />}
-                </div>
-              )}
-            </div>
 
-            {/* AMOUNT IN WORDS */}
-            <div className="mt-4 flex justify-between items-center gap-4 bg-slate-50 rounded-2xl border border-slate-200 px-4 py-3">
-              <span className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide flex-shrink-0">In Words</span>
-              <span className="text-sm font-bold text-[#07153B] italic text-right">{amountInWords(paid)}</span>
-            </div>
-
-            {/* PAYMENT METHOD + QR */}
-            <div className="mt-4 grid grid-cols-3 gap-6 items-center">
-              <div className="space-y-2 text-sm col-span-2">
-                <div className="flex justify-between border-b border-dashed border-slate-200 pb-1.5">
-                  <span className="text-gray-400">Payment Method</span>
-                  <b className="text-slate-800">{payment.paymentMethod || "Cash"}</b>
+                    {/* SUMMARY */}
+                    <div className="mt-[1mm] flex-shrink-0">
+                      <table className="w-full text-[10px] border border-neutral-300">
+                        <tbody>
+                          <tr className="border-b border-neutral-300 bg-white">
+                            <td className="px-2 py-[0.7mm] font-bold text-neutral-600">Total Amount</td>
+                            <td className="px-2 py-[0.7mm] text-right font-black text-neutral-900">{fmt(total)}</td>
+                          </tr>
+                          {discount > 0 && (
+                            <tr className="border-b border-neutral-300 bg-white">
+                              <td className="px-2 py-[0.7mm] text-neutral-600">Discount</td>
+                              <td className="px-2 py-[0.7mm] text-right font-semibold text-neutral-600">- {fmt(discount)}</td>
+                            </tr>
+                          )}
+                          {fine > 0 && (
+                            <tr className="border-b border-neutral-300 bg-white">
+                              <td className="px-2 py-[0.7mm] text-neutral-600">Fine</td>
+                              <td className="px-2 py-[0.7mm] text-right font-semibold text-neutral-700">+ {fmt(fine)}</td>
+                            </tr>
+                          )}
+                          {Number(openingBalance) !== 0 && (
+                            <tr className="border-b border-neutral-300 bg-white">
+                              <td className="px-2 py-[0.7mm] text-neutral-600">Previous Due</td>
+                              <td className="px-2 py-[0.7mm] text-right font-semibold text-neutral-700">{fmt(openingBalance)}</td>
+                            </tr>
+                          )}
+                          <tr className="bg-neutral-100 text-neutral-900">
+                            <td className="px-2 py-[0.8mm] font-black uppercase tracking-wide text-[9.5px]">Amount Paid</td>
+                            <td className="px-2 py-[0.8mm] text-right font-black text-[12px]">{fmt(paid)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                 </div>
-                {payment.transactionId && (
-                  <div className="flex justify-between border-b border-dashed border-slate-200 pb-1.5">
-                    <span className="text-gray-400">Transaction ID</span>
-                    <b className="text-slate-800">{payment.transactionId}</b>
+
+                  {/* RIGHT: payment card */}
+                  <div className="flex flex-col gap-[1.8mm] min-w-0">
+                    {/* in words */}
+                    <div className="rounded-md bg-white border border-neutral-300 px-2.5 py-[1mm] flex-shrink-0">
+                      <p className="text-[7.5px] text-neutral-500 uppercase font-black tracking-[1.5px]">In Words</p>
+                      <p className="text-[9px] font-bold text-neutral-900 italic leading-snug">{amountInWords(paid)}</p>
+                    </div>
+
+                    {/* payment details */}
+                    <div className="rounded-md border border-neutral-300 px-2.5 py-[1mm] flex-1 min-h-0">
+                      <div className="flex justify-between items-center border-b border-dashed border-neutral-300 pb-[0.8mm]">
+                        <span className="text-[8px] text-neutral-400">Payment Method</span>
+                        <b className="text-[9px] text-neutral-800 capitalize">{payment.paymentMethod || "Cash"}</b>
+                      </div>
+                      {payment.transactionId && (
+                        <div className="flex justify-between items-center border-b border-dashed border-neutral-300 py-[0.8mm]">
+                          <span className="text-[8px] text-neutral-400">Transaction ID</span>
+                          <b className="text-[9px] text-neutral-800 font-mono">{payment.transactionId}</b>
+                        </div>
+                      )}
+                      {payment.referenceNo && (
+                        <div className="flex justify-between items-center border-b border-dashed border-neutral-300 py-[0.8mm]">
+                          <span className="text-[8px] text-neutral-400">Reference No</span>
+                          <b className="text-[9px] text-neutral-800 font-mono">{payment.referenceNo}</b>
+                        </div>
+                      )}
+                      {Number(closingBalance) !== 0 && (
+                        <div className="flex justify-between items-center border-b border-dashed border-neutral-300 py-[0.8mm]">
+                          <span className="text-[8px] text-neutral-400">Balance After</span>
+                          <b className="text-[9px] text-neutral-800">{fmt(closingBalance)}</b>
+                        </div>
+                      )}
+                      {payment.receivedBy?.name && (
+                        <div className="flex justify-between items-center pt-[0.8mm]">
+                          <span className="text-[8px] text-neutral-400">Received By</span>
+                          <b className="text-[9px] text-neutral-800">{payment.receivedBy.name}</b>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* QR */}
+                    <div className="rounded-md border-2 border-neutral-900 bg-white py-[1.5mm] flex-shrink-0 flex items-center justify-center">
+                      <QRCodeSVG value={qrData} size={96} includeMargin={false} />
+                    </div>
                   </div>
-                )}
-                {payment.referenceNo && (
-                  <div className="flex justify-between border-b border-dashed border-slate-200 pb-1.5">
-                    <span className="text-gray-400">Reference No</span>
-                    <b className="text-slate-800">{payment.referenceNo}</b>
+                </div>
+                {/* SIGNATURES — pinned to bottom of the frame */}
+                <div className="relative mt-auto pt-[2mm] grid grid-cols-3 gap-12">
+                  <SignatureCard title="Received By" />
+                  <SignatureCard title="Authorized Signature" />
+                </div>
+
+                {/* FOOTER */}
+                <div className="relative flex-shrink-0 flex flex-col items-center pt-[1.5mm]">
+                  <span className="h-px w-full bg-neutral-400" />
+                  <div className="mt-[1mm] w-full text-center py-[0.8mm] rounded-sm border border-neutral-300 bg-neutral-50 flex items-center justify-center gap-3">
+                    <p className="text-[7px] font-bold tracking-[2px] uppercase text-neutral-900">Ruhama United School • {session} Session</p>
+                    <span className="text-[7px] text-neutral-500">Computer generated receipt — no signature needed if QR is verified.</span>
                   </div>
-                )}
-                {Number(openingBalance) !== 0 && (
-                  <div className="flex justify-between border-b border-dashed border-slate-200 pb-1.5">
-                    <span className="text-gray-400">Opening Balance</span>
-                    <b className="text-slate-800">{fmt(openingBalance)}</b>
-                  </div>
-                )}
-                {Number(closingBalance) !== 0 && (
-                  <div className="flex justify-between pb-1.5">
-                    <span className="text-gray-400">Closing Balance</span>
-                    <b className="text-slate-800">{fmt(closingBalance)}</b>
-                  </div>
-                )}
-                {payment.receivedBy?.name && (
-                  <div className="flex justify-between pb-1.5">
-                    <span className="text-gray-400">Received By</span>
-                    <b className="text-slate-800">{payment.receivedBy.name}</b>
-                  </div>
-                )}
+                </div>
               </div>
-
-              {/* QR CODE */}
-              <div className="border rounded-2xl p-3 text-center bg-slate-50">
-                <div className="flex justify-center">
-                  <QRCodeSVG value={qrData} size={105} includeMargin />
-                </div>
-                <p className="mt-1.5 text-[10px] text-slate-500 font-medium">Scan for Verification</p>
-              </div>
             </div>
-
-            {/* SIGNATURES */}
-            <div className="mt-8 grid grid-cols-2 gap-8">
-              <SignatureCard title="Received By" />
-              <SignatureCard title="Authorized Signature" />
-            </div>
-
-            <p className="mt-6 text-center text-[11px] text-slate-400">
-              This is a computer generated receipt and requires no signature if QR code is verified.
-            </p>
           </div>
         </div>
       </div>
 
-      {/* PRINT STYLE */}
+      {/* PRINT + LAYOUT STYLE */}
       <style>
         {`
         @page {
@@ -388,7 +423,6 @@ export default function PaymentReceipt() {
                 left: 0;
                 top: 0;
                 width: 210mm;
-                min-height: 297mm;
                 overflow: hidden;
                 page-break-after: avoid;
                 page-break-inside: avoid;
@@ -397,6 +431,15 @@ export default function PaymentReceipt() {
                 background: white;
                 box-shadow: none !important;
                 border: none !important;
+            }
+
+            #payment-receipt .receipt-card {
+                width: 210mm;
+                height: 148mm;
+                max-height: 148mm;
+                overflow: hidden;
+                page-break-inside: avoid;
+                break-inside: avoid;
             }
 
             .no-print {
@@ -413,6 +456,10 @@ export default function PaymentReceipt() {
 
             #payment-receipt .grid-cols-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+
+            #payment-receipt .grid-cols-5 {
+                grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
             }
 
             #payment-receipt svg {
@@ -433,13 +480,13 @@ export default function PaymentReceipt() {
 }
 
 // ======================================
-// INFO ITEM
+// COMPACT INFO CELL
 // ======================================
-const InfoItem = ({ label, value }) => {
+const Cell = ({ label, value }) => {
   return (
-    <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
-      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{label}</p>
-      <p className="mt-0.5 text-base font-bold text-[#07153B] break-words">{value || "—"}</p>
+    <div className="bg-white rounded-md border border-neutral-300 px-2 py-[1mm]">
+      <p className="text-[7px] text-neutral-400 font-bold uppercase tracking-[1px]">{label}</p>
+      <p className="mt-[0.3mm] text-[10px] font-bold text-neutral-900 break-words truncate">{value || "—"}</p>
     </div>
   );
 };
@@ -450,8 +497,8 @@ const InfoItem = ({ label, value }) => {
 const SignatureCard = ({ title }) => {
   return (
     <div className="text-center">
-      <div className="h-10 border-b-2 border-dashed border-slate-300 mx-6" />
-      <p className="mt-1.5 text-sm font-semibold text-slate-600">{title}</p>
+      <div className="h-[6mm] border-b-[1.5px] border-dotted border-neutral-400 mx-4" />
+      <p className="mt-[0.8mm] text-[9px] font-bold uppercase tracking-wide text-neutral-500">{title}</p>
     </div>
   );
 };

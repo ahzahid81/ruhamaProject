@@ -48,6 +48,8 @@ export default function ExamAttendance() {
 
   const [scanning, setScanning] = useState(false);
   const [cameraError, setCameraError] = useState("");
+  const [devices, setDevices] = useState([]);
+  const [deviceId, setDeviceId] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const [manualId, setManualId] = useState("");
@@ -58,6 +60,7 @@ export default function ExamAttendance() {
 
   const scannerRef = useRef(null);
   const busyRef = useRef(false);
+  const handleDecodedRef = useRef(null);
 
   const selectedExam = exams.find((e) => e._id === selectedExamId) || null;
   const exam = selectedExam
@@ -113,8 +116,22 @@ export default function ExamAttendance() {
 
   // ---------- scanner lifecycle ----------
   const stopScanner = useCallback(() => {
+    const scanner = scannerRef.current;
+    if (scanner) {
+      try {
+        if (scanner.isScanning) scanner.stop();
+        scanner.clear();
+      } catch {
+        // ignore teardown errors
+      }
+    }
+    scannerRef.current = null;
     setScanning(false);
+    setDevices([]);
   }, []);
+
+  // Cleanup camera on unmount.
+  useEffect(() => () => stopScanner(), [stopScanner]);
 
   // ---------- scan handling ----------
   const submitScan = useCallback(
@@ -166,55 +183,93 @@ export default function ExamAttendance() {
     [submitScan]
   );
 
+  useEffect(() => {
+    handleDecodedRef.current = handleDecoded;
+  }, [handleDecoded]);
+
   const startScanner = () => {
     if (!selectedExamId) {
       setToast({ type: "error", text: "Please select an exam first." });
       return;
     }
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      setCameraError(
+        "Camera access requires a secure HTTPS connection. Open this site over https:// (not http:// or an IP address), then try again."
+      );
+      return;
+    }
     setCameraError("");
     setLastResult(null);
+    stopScanner();
+    setDeviceId(null);
     setScanning(true);
-  };
 
-  // Starts/stops the camera whenever `scanning` changes.
-  useEffect(() => {
-    if (!scanning) return;
-
-    let cancelled = false;
+    // Start the camera directly inside the click gesture — mobile/iOS
+    // browsers refuse getUserMedia when it is deferred past the tap.
     const scanner = new Html5Qrcode("qr-region");
     scannerRef.current = scanner;
+    openCamera(scanner, null);
+  };
 
-    (async () => {
+  const openCamera = async (scanner, deviceIdValue) => {
+    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+    const onScan = (text) => handleDecodedRef.current(text);
+    try {
+      await scanner.start(
+        deviceIdValue ? { deviceId: { exact: deviceIdValue } } : { facingMode: "environment" },
+        config,
+        onScan,
+        () => {}
+      );
+      return;
+    } catch {
+      try { scanner.clear(); } catch { /* ignore */ }
+    }
+
+    // Fallback: enumerate the phone's cameras and try each one.
+    let available = [];
+    try {
+      available = await Html5Qrcode.getCameras();
+    } catch {
+      // camera enumeration unsupported
+    }
+    available = (available || []).filter((c) => c && c.id);
+    if (available.length) setDevices(available);
+    for (const cam of available) {
       try {
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
-          (decodedText) => handleDecoded(decodedText),
-          () => {}
-        );
+        await scanner.start({ deviceId: { exact: cam.id } }, config, onScan, () => {});
+        return;
       } catch {
-        if (!cancelled) {
-          setCameraError(
-            "Camera is not available or permission was denied. Use the manual entry below instead."
-          );
-          setScanning(false);
-        }
+        try { scanner.clear(); } catch { /* ignore */ }
       }
-    })();
+    }
 
-    return () => {
-      cancelled = true;
-      if (scanner) {
-        try {
-          if (scanner.isScanning) scanner.stop();
-          scanner.clear();
-        } catch {
-          // ignore teardown errors
-        }
+    const secure = typeof window !== "undefined" && window.isSecureContext === true;
+    setCameraError(
+      secure
+        ? "Could not access any camera. Allow camera access in your browser (check the camera icon / permissions in the address bar); if it still fails, choose a camera below or use the manual entry."
+        : "Camera access requires a secure HTTPS connection. Open this site over https:// (not http:// or an IP address), then try again."
+    );
+    setScanning(false);
+  };
+
+  // Lets the user pick a different camera if the auto one failed.
+  const chooseDevice = (deviceIdValue) => {
+    const old = scannerRef.current;
+    if (old) {
+      try {
+        if (old.isScanning) old.stop();
+        old.clear();
+      } catch {
+        // ignore teardown errors
       }
-      if (scannerRef.current === scanner) scannerRef.current = null;
-    };
-  }, [scanning, handleDecoded]);
+    }
+    setDeviceId(deviceIdValue);
+    setCameraError("");
+    const scanner = new Html5Qrcode("qr-region");
+    scannerRef.current = scanner;
+    openCamera(scanner, deviceIdValue || null);
+  };
 
   const handleManualSubmit = async (e) => {
     e.preventDefault();
@@ -391,6 +446,26 @@ export default function ExamAttendance() {
                   Point the camera at the student's Admit Card QR code.
                 </p>
                 <p className="text-xs text-slate-400 mt-1">Only eligible students will be marked.</p>
+              </div>
+            )}
+
+            {devices.length > 0 && scanning && (
+              <div className="mt-3 flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+                  Camera:
+                </label>
+                <select
+                  value={deviceId || ""}
+                  onChange={(e) => chooseDevice(e.target.value)}
+                  className="flex-1 border border-gray-200 rounded-xl px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/40 transition"
+                >
+                  <option value="">Auto (rear)</option>
+                  {devices.map((cam) => (
+                    <option key={cam.id} value={cam.id}>
+                      {cam.label || `Camera ${cam.id.slice(0, 8)}`}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 

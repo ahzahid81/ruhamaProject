@@ -38,6 +38,7 @@ import StudentAdmission from "./pages/admin/StudentAdmission";
 import StudentDetails from "./pages/admin/StudentDetails";
 import AdmitCard from "./pages/exam/AdmitCard";
 import PrintAllAdmitCards from "./pages/exam/PrintAllAdmitCards";
+import ExamAttendance from "./pages/exam/ExamAttendance";
 import ExamManagement from "./pages/exam/ExamManagement";
 import MarksEntry from "./pages/exam/MarksEntry";
 import ExamResults from "./pages/exam/ExamResults";
@@ -239,6 +240,13 @@ function App() {
             path="/exam/marks-entry"
 
             element={<MarksEntry />}
+
+          />
+          <Route
+
+            path="/exam/attendance"
+
+            element={<ExamAttendance />}
 
           />
           <Route

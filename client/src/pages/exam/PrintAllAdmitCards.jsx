@@ -152,7 +152,7 @@ const PrintAllAdmitCards = () => {
           #print-all-page { position: static !important; margin: 0; padding: 0; }
           #print-all-page .admit-card-page { page-break-after: always; page-break-inside: avoid; break-inside: avoid; margin: 0; }
           #print-all-page .admit-card-page:last-child { page-break-after: auto; }
-          #print-all-page #admit-card { position: static !important; width: 210mm; min-height: 149mm; height: auto; overflow: hidden; box-shadow: none !important; border: none !important; margin: 0 auto; background: white; }
+          #print-all-page #admit-card { position: static !important; width: 210mm; height: 148.5mm; max-height: 148.5mm; overflow: hidden; box-shadow: none !important; border: none !important; margin: 0 auto; background: white; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
           #print-all-page .grid { display: grid !important; }
           #print-all-page .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }

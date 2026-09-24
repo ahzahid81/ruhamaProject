@@ -1367,4 +1367,5 @@ module.exports = {
   updateFeeCategory,
   deleteFeeCategory,
   getStudentDueItems,
+  evaluateAdmitCardEligibility,
 };

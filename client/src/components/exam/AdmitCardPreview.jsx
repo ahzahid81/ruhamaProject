@@ -1,6 +1,7 @@
 import logo from "../../assets/logo.png";
+import signatureController from "../../assets/signature-controller.png";
+import signaturePrincipal from "../../assets/signature-principal.png";
 import { QRCodeSVG } from "qrcode.react";
-import Barcode from "react-barcode";
 
 const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
     if (!student || !exam) return null;
@@ -19,157 +20,147 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
             </div>
             )}
 
-            {/* ADMIT CARD */}
+            {/* ADMIT CARD — A4 width × half A4 height */}
             <div
                 id="admit-card"
-                className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] min-h-[149mm] print:w-[210mm] print:h-[149mm] print:shadow-none print:border-none print:overflow-hidden"
+                className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] h-[148.5mm] flex flex-col print:w-[210mm] print:h-[148.5mm] print:shadow-none print:border-none print:overflow-hidden"
             >
                 {/* HEADER */}
-                <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-6 py-4 flex justify-center items-center">
-                    <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center flex-shrink-0">
-                            <img src={logo} alt="School Logo" className="w-14 h-14 object-contain" />
+                <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-5 py-2.5 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+                            <img src={logo} alt="School Logo" className="w-9 h-9 object-contain" />
                         </div>
                         <div>
-                            <h1 className="text-center text-2xl font-black uppercase tracking-wide">Ruhama United School</h1>
-                            <p className="text-center text-sm text-yellow-300 font-medium">Change Yourself, Decorate The World</p>
-                            <p className="text-center text-xs text-white/70">An English Version School with Tahfizul Quran</p>
+                            <h1 className="text-lg font-black uppercase tracking-wide leading-tight">Ruhama United School</h1>
+                            <p className="text-[10px] text-yellow-300 font-medium leading-tight">Change Yourself, Decorate The World</p>
+                            <p className="text-[9px] text-white/70 leading-tight">An English Version School with Tahfizul Quran</p>
                         </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="bg-yellow-400 text-[#07153B] font-black text-sm px-4 py-1 rounded-md uppercase tracking-widest">
+                            Admit Card
+                        </div>
+                        <p className="text-[9px] text-white/70 mt-1">Session {exam.academicSession}</p>
                     </div>
                 </div>
 
                 {/* BODY */}
-                <div className="px-6 py-4">
-                    <div className="relative">
-                        {/* Watermark Logo */}
-                        <img
-                            src={logo}
-                            alt=""
-                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] opacity-[0.04] pointer-events-none select-none"
-                        />
-                        
-                        {/* STUDENT INFO - GRID */}
-                        <div className="grid grid-cols-12 gap-5">
-                            {/* LEFT - PHOTO & ID */}
-                            <div className="col-span-3">
-                                <div className="bg-gradient-to-b from-slate-50 to-white border rounded-2xl p-4 shadow-sm">
-                                    {student.photo ? (
-                                        <img
-                                            src={student.photo}
-                                            alt={student.name}
-                                            className="w-full aspect-[3/4] object-cover rounded-xl border-4 border-slate-200"
-                                        />
-                                    ) : (
-                                        <div className="aspect-[3/4] rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center text-6xl bg-slate-50">
-                                            👤
-                                        </div>
-                                    )}
-                                    <div className="mt-3 bg-indigo-700 text-white rounded-lg py-2 text-center font-bold tracking-wider text-sm">
-                                        {student.studentId}
-                                    </div>
-                                </div>
-                            </div>
+                <div className="px-5 py-3 relative">
+                    {/* Watermark Logo */}
+                    <img
+                        src={logo}
+                        alt=""
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] opacity-[0.04] pointer-events-none select-none"
+                    />
 
-                            {/* RIGHT - STUDENT DETAILS */}
-                            <div className="col-span-9">
-                                <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 h-full">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h2 className="text-3xl font-black text-[#07153B]">{student.name}</h2>
-                                            <p className="text-sm text-slate-500">Student Profile</p>
-                                        </div>
-                                        <div className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full font-bold text-sm">
-                                            ✅ Eligible
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4 mt-5">
-                                        <InfoItem label="Student ID" value={student.studentId} />
-                                        <InfoItem label="Class" value={student.className} />
-                                        <InfoItem label="Father's Name" value={student.fatherName} />
-                                        <InfoItem label="Guardian Mobile" value={student.fatherMobile} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* EXAM DETAILS */}
-                        <div className="mt-4 rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                            <div className="bg-gradient-to-r from-indigo-700 to-blue-700 text-white px-5 py-2.5">
-                                <h2 className="text-lg font-bold">📋 Examination Information</h2>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 p-4 bg-white">
-                                <InfoItem label="Examination" value={exam.examName} />
-                                <InfoItem label="Academic Session" value={exam.academicSession} />
-                                <InfoItem label="Examination Center" value="Ruhama United School" />
-                            </div>
-                        </div>
-
-                        {/* QR + VERIFICATION + SEAL */}
-                        <div className="mt-4 grid grid-cols-3 gap-6 items-center">
-                            {/* QR Code */}
-                            <div className="border rounded-2xl p-3 text-center bg-slate-50">
-                                <div className="flex justify-center">
-                                    <QRCodeSVG
-                                        value={JSON.stringify({
-                                            id: student.studentId,
-                                            name: student.name,
-                                            class: student.className,
-                                            session: exam.academicSession,
-                                        })}
-                                        size={120}
-                                        includeMargin
+                    {/* TOP ROW: Photo + Student Details + QR */}
+                    <div className="flex gap-3 items-stretch">
+                        {/* PHOTO + ID */}
+                        <div className="w-[105px] flex-shrink-0">
+                            <div className="border border-slate-200 rounded-lg p-1.5 shadow-sm h-full flex flex-col">
+                                {student.photo ? (
+                                    <img
+                                        src={student.photo}
+                                        alt={student.name}
+                                        className="w-full aspect-[3/4] object-cover rounded border-2 border-slate-200"
                                     />
-                                </div>
-                                <p className="mt-2 text-xs text-slate-500 font-medium">🔍 Scan for Verification</p>
-                            </div>
-
-                            {/* Student ID Barcode */}
-                            <div className="flex flex-col justify-center items-center">
-                                <Barcode
-                                    value={student.studentId}
-                                    format="CODE128"
-                                    width={1.6}
-                                    height={55}
-                                    displayValue={false}
-                                    margin={0}
-                                    background="#ffffff"
-                                />
-                                <h3 className="mt-3 text-xl font-black tracking-[4px] text-[#07153B]">
+                                ) : (
+                                    <div className="aspect-[3/4] rounded border-2 border-dashed border-slate-300 flex items-center justify-center text-4xl bg-slate-50">
+                                        👤
+                                    </div>
+                                )}
+                                <div className="mt-1.5 bg-[#07153B] text-white rounded py-1 text-center font-bold tracking-wider text-[10px]">
                                     {student.studentId}
-                                </h3>
-                                <p className="mt-1 text-xs text-slate-500">
-                                    Student Barcode
-                                </p>
+                                </div>
                             </div>
+                        </div>
 
-                            {/* Official Seal */}
-                            <div className="border-2 border-dashed rounded-full w-36 h-36 mx-auto flex flex-col items-center justify-center text-center">
-                                <p className="text-sm font-bold text-slate-400">Official Seal</p>
+                        {/* STUDENT DETAILS */}
+                        <div className="flex-1 min-w-0">
+                            <div className="border border-slate-200 rounded-lg bg-slate-50 p-3 h-full">
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="min-w-0">
+                                        <h2 className="text-xl font-black text-[#07153B] leading-snug break-words">{student.name}</h2>
+                                        <p className="mt-0.5 text-[10px] text-slate-500 uppercase tracking-wide">Candidate Details</p>
+                                    </div>
+                                    <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-bold text-[10px] whitespace-nowrap">
+                                        ✅ Eligible
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-5 gap-y-2 mt-3">
+                                    <InfoItem label="Student ID" value={student.studentId} />
+                                    <InfoItem label="Class" value={student.className} />
+                                    <InfoItem label="Father's Name" value={student.fatherName} />
+                                    <InfoItem label="Guardian Mobile" value={student.fatherMobile} />
+                                </div>
                             </div>
                         </div>
-                        
-                        {/* INSTRUCTIONS */}
-                        <div className="mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
-                            <h3 className="font-bold text-base text-[#07153B] mb-2 flex items-center gap-2">
-                                <span>📌</span> Instructions
-                            </h3>
-                            <ol className="list-decimal ml-5 space-y-1 text-gray-700 text-sm">
-                                <li>Bring this Admit Card on every exam day.</li>
-                                <li>Arrive at least 15 minutes before the examination starts.</li>
-                                <li>Bring a pencil and all necessary equipment.</li>
-                                <li>Keep this Admit Card clean and undamaged.</li>
-                            </ol>
-                        </div>
-                        <br />
-                        <br />
-                        
-                        {/* SIGNATURE SECTION */}
-                        <div className="mt-5 grid grid-cols-3 gap-8">
-                            <SignatureCard title="Student Signature" />
-                            <SignatureCard title="Exam Controller" />
-                            <SignatureCard title="Principal" />
+
+                        {/* QR CODE */}
+                        <div className="w-[112px] flex-shrink-0 border border-slate-200 rounded-lg p-2 text-center bg-white shadow-sm flex flex-col justify-center">
+                            <div className="flex justify-center">
+                                <QRCodeSVG
+                                    value={JSON.stringify({
+                                        id: student.studentId,
+                                        name: student.name,
+                                        class: student.className,
+                                        session: exam.academicSession,
+                                    })}
+                                    size={96}
+                                    includeMargin={false}
+                                />
+                            </div>
                         </div>
                     </div>
+
+                    {/* EXAM DETAILS STRIP */}
+                    <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden shadow-sm flex">
+                        <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-3 py-2 flex items-center flex-shrink-0">
+                            <span className="text-[11px] font-bold whitespace-nowrap">📋 Examination Info</span>
+                        </div>
+                        <div className="flex-1 grid grid-cols-3 divide-x divide-slate-200 bg-white">
+                            <div className="px-3 py-2 min-w-0"><InfoItem label="Examination" value={exam.examName} /></div>
+                            <div className="px-3 py-2 min-w-0"><InfoItem label="Academic Session" value={exam.academicSession} /></div>
+                            <div className="px-3 py-2 min-w-0"><InfoItem label="Center" value="Ruhama United School" /></div>
+                        </div>
+                    </div>
+
+                    {/* INSTRUCTIONS + SEAL */}
+                    <div className="mt-3 flex gap-4 items-center">
+                        {/* Instructions */}
+                        <div className="flex-1 min-w-0 border border-slate-200 rounded-lg bg-slate-50 px-3.5 py-2">
+                            <h3 className="font-bold text-[11px] text-[#07153B] uppercase tracking-wide mb-1">Instructions</h3>
+                            <ol className="list-decimal ml-4 space-y-0.5 text-gray-600 text-[10px] leading-snug">
+                                <li>Bring this Admit Card on every exam day.</li>
+                                <li>Arrive 15 minutes before the examination starts.</li>
+                                <li>Bring pencil &amp; all necessary equipment.</li>
+                                <li>Keep this card clean and undamaged.</li>
+                            </ol>
+                        </div>
+
+                        {/* Official Seal — empty circle, physical seal stamped here */}
+                        <div className="w-[100px] h-[100px] flex-shrink-0 rounded-full border-[2px] border-dashed border-slate-400"></div>
+                    </div>
+
+                    {/* SIGNATURES */}
+                    <div className="mt-3 grid grid-cols-2 gap-16 px-2">
+                        <SignatureBlock image={signatureController} title="Exam Controller" />
+                        <SignatureBlock image={signaturePrincipal} title="Principal" />
+                    </div>
+                </div>
+
+                {/* FOOTER — matches header design */}
+                <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-5 py-2 mt-auto flex justify-between items-center">
+                    <p className="text-[10px] flex items-center gap-1.5">
+                        <span>📍</span>
+                        <span>Ludhi House-101, Road-9, Housing Estate, Amberkhana, Sylhet</span>
+                    </p>
+                    <p className="text-[10px] flex items-center gap-1.5">
+                        <a href="https://ruhamaunitedschool.com" className="text-yellow-300 font-semibold">
+                            www.ruhamaunitedschool.com
+                        </a>
+                    </p>
                 </div>
             </div>
 
@@ -206,7 +197,8 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                         left: 0;
                         top: 0;
                         width: 210mm;
-                        height: 297mm;
+                        height: 148.5mm;
+                        max-height: 148.5mm;
                         overflow: hidden;
                         page-break-after: avoid;
                         page-break-inside: avoid;
@@ -217,7 +209,7 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                         border: none !important;
                     }
 
-                    /* Hide print button */
+                    /* Lower half of the A4 page stays blank like a receipt */
                     .no-print {
                         display: none !important;
                     }
@@ -229,7 +221,6 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                         color-adjust: exact !important;
                     }
 
-                    /* Ensure backgrounds print */
                     .bg-gradient-to-r,
                     .bg-indigo-700,
                     .bg-green-100,
@@ -240,48 +231,10 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                         color-adjust: exact !important;
                     }
 
-                    /* Fix grid in print */
-                    #admit-card .grid {
-                        display: grid !important;
-                    }
-
-                    #admit-card .grid-cols-12 {
-                        grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
-                    }
-
-                    #admit-card .grid-cols-3 {
-                        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-                    }
-
-                    #admit-card .grid-cols-2 {
-                        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-                    }
-
-                    #admit-card .col-span-3 {
-                        grid-column: span 3 / span 3 !important;
-                    }
-
-                    #admit-card .col-span-9 {
-                        grid-column: span 9 / span 9 !important;
-                    }
-
-                    /* Fix barcode printing */
-                    #admit-card .react-barcode svg {
-                        print-color-adjust: exact !important;
-                        -webkit-print-color-adjust: exact !important;
-                    }
-
-                    /* Fix QR code printing */
+                    #admit-card img,
                     #admit-card svg {
                         print-color-adjust: exact !important;
                         -webkit-print-color-adjust: exact !important;
-                    }
-
-                    /* Force single page */
-                    #admit-card .print\\:h-\\[297mm\\] {
-                        height: 297mm !important;
-                        max-height: 297mm !important;
-                        min-height: 297mm !important;
                     }
                 }
                 `}
@@ -296,21 +249,24 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
 // ======================================
 const InfoItem = ({ label, value }) => {
     return (
-        <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm">
-            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{label}</p>
-            <p className="mt-0.5 text-base font-bold text-[#07153B] break-words">{value || "—"}</p>
+        <div className="min-w-0">
+            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide leading-none">{label}</p>
+            <p className="mt-0.5 text-[12px] font-bold text-[#07153B] leading-snug break-words">{value || "—"}</p>
         </div>
     );
 };
 
 // ======================================
-// SIGNATURE CARD
+// SIGNATURE BLOCK (placeholder image for now — swap file for real signature later)
 // ======================================
-const SignatureCard = ({ title }) => {
+const SignatureBlock = ({ image, title }) => {
     return (
         <div className="text-center">
-            <div className="h-10 border-b-2 border-dashed border-slate-300 mx-4" />
-            <p className="mt-1.5 text-sm font-semibold text-slate-600">{title}</p>
+            <div className="h-14 flex items-end justify-center">
+                <img src={image} alt={title} className="h-12 w-auto object-contain max-w-full" />
+            </div>
+            <div className="h-1 border-b-2 border-slate-300 mx-2 mt-1" />
+            <p className="mt-0.5 text-[10px] font-semibold text-slate-600">{title}</p>
         </div>
     );
 };

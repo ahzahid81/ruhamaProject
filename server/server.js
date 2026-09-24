@@ -19,6 +19,7 @@ const feeSettingRoutes = require("./routes/feeSettingRoutes");
 const studentLedgerRoutes = require("./routes/studentLedgerRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
+const examAttendanceRoutes = require("./routes/examAttendanceRoutes");
 const studentPortalRoutes = require("./routes/studentPortalRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const eventRoutes = require("./routes/eventRoutes");
@@ -66,6 +67,8 @@ app.use("/api/ledger", studentLedgerRoutes);
 app.use("/api/settings", settingsRoutes);
 
 app.use("/api/attendance", attendanceRoutes);
+
+app.use("/api/exam-attendance", examAttendanceRoutes);
 
 app.use("/api/student-portal", studentPortalRoutes);
 

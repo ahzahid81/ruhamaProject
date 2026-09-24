@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { bdYear } from "../../utils/bdTime";
-import OpeningCeremony from "../../components/OpeningCeremony";
 import SEO from "../../components/SEO";
 import { SITE_URL, absoluteUrl } from "../../seo/config";
 import {
@@ -40,9 +39,7 @@ export default function LandingPage() {
   const [events, setEvents] = useState([]);
   const [gallery, setGallery] = useState([]);
   const [showAll, setShowAll] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [showCeremony, setShowCeremony] = useState(false);
-  const [siteOpen, setSiteOpen] = useState(null);
+const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     api.get("/public/students").then((res) => setStudents(res.data)).catch(() => {});
@@ -50,52 +47,6 @@ export default function LandingPage() {
     api.get("/events?limit=4").then((res) => setEvents(res.data)).catch(() => {});
     api.get("/gallery?limit=10").then((res) => setGallery(res.data)).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .get("/settings")
-      .then((res) => {
-        if (cancelled) return;
-        const enabled = res.data?.openingCeremony?.enabled === true;
-        setSiteOpen(enabled);
-        if (enabled) {
-          let alreadySeen = false;
-          try {
-            alreadySeen = sessionStorage.getItem("ruhama_opening_ceremony_seen") === "1";
-          } catch { /* ignore */ }
-          if (!alreadySeen) {
-            setShowCeremony(true);
-          }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSiteOpen(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-if (siteOpen === null) {
-    return (
-      <div className="fixed inset-0 bg-[#050014] flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center gap-3">
-          <img src={logo} alt="Ruhama" className="w-16 h-16 object-contain" />
-          <span className="text-white/50 text-xs uppercase tracking-[0.3em]">Loading…</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (siteOpen === false) {
-    return (
-      <>
-        <SEO noindex title="We Will Be Back Soon" />
-        <UnderMaintenance />
-      </>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -105,9 +56,8 @@ if (siteOpen === null) {
         keywords="Ruhama United School, school in Sylhet, Tahfizul Quran Sylhet, English version school Bangladesh, Hifzul Quran school, primary school Sylhet, early childhood education Sylhet, Amberkhana"
         url={SITE_URL}
         image={absoluteUrl("/logo.png")}
-        imageAlt="Ruhama United School logo"
+imageAlt="Ruhama United School logo"
       />
-      {showCeremony && <OpeningCeremony autoPlay onFinish={() => setShowCeremony(false)} />}
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
@@ -686,25 +636,3 @@ function NamesList({ students }) {
   );
 }
 
-// ============ UNDER MAINTENANCE ============
-
-function UnderMaintenance() {
-  return (
-    <div className="min-h-screen bg-[#050014] relative overflow-hidden flex flex-col items-center justify-center text-center px-6">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -left-40 w-[34rem] h-[34rem] rounded-full bg-indigo-600/25 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 w-[34rem] h-[34rem] rounded-full bg-fuchsia-600/20 blur-[120px]" />
-      </div>
-      <img src={logo} alt="Ruhama United School" className="w-20 h-20 object-contain mb-6" />
-      <h1 className="text-3xl sm:text-4xl font-bold text-white">
-        Under <span className="bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-amber-300 bg-clip-text text-transparent">Maintenance</span>
-      </h1>
-      <p className="mt-4 max-w-md text-white/60 text-sm sm:text-base">
-        We are preparing something wonderful for you. The Ruhama United School website will launch very soon &mdash; please check back shortly.
-      </p>
-      <div className="mt-8 flex items-center gap-2 text-white/40 text-sm">
-        <span className="animate-pulse">&bull;</span> Stay tuned
-      </div>
-    </div>
-  );
-}

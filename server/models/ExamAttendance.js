@@ -45,6 +45,17 @@ const examAttendanceSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // Which day of the exam (1..ExamSetting.attendanceDays) this mark is for.
+    day: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    // The calendar date (Asia/Dhaka) of that exam day.
+    attendanceDate: {
+      type: Date,
+      default: Date.now,
+    },
     markedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Teacher",
@@ -66,8 +77,12 @@ const examAttendanceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-examAttendanceSchema.index({ exam: 1, student: 1 }, { unique: true });
-examAttendanceSchema.index({ exam: 1, status: 1 });
+examAttendanceSchema.index(
+  { exam: 1, student: 1, day: 1 },
+  { unique: true }
+);
+examAttendanceSchema.index({ exam: 1, day: 1, status: 1 });
+examAttendanceSchema.index({ exam: 1, day: 1 });
 examAttendanceSchema.index({ student: 1, academicSession: 1 });
 
 module.exports = mongoose.model(

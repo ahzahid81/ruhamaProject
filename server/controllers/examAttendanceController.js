@@ -33,13 +33,32 @@ const parseQrId = (qrData) => {
   return qrData.id || qrData.studentId || null;
 };
 
+const parseDay = (value) => Math.max(1, parseInt(value, 10) || 1);
+
+// Midnight of the current day (server runs in Asia/Dhaka).
+const bdMidnight = () => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+const buildPerDay = (records) => {
+  const map = {};
+  records.forEach((r) => {
+    const day = r.day || 1;
+    map[day] = map[day] || { day, total: 0, present: 0 };
+    map[day].total += 1;
+    if (r.status === "Present") map[day].present += 1;
+  });
+  return Object.values(map).sort((a, b) => a.day - b.day);
+};
+
 // ============================================
-// SCAN ADMIT CARD QR — marks eligible students
+// SCAN ADMIT CARD QR — marks eligible students for the current exam day
 // ============================================
 
 const scanQR = async (req, res) => {
   try {
-    const { examId, qrData, method = "scan" } = req.body;
+    const { examId, qrData, method = "scan", day } = req.body;
 
     if (!examId) {
       return res.status(400).json({
@@ -64,6 +83,15 @@ const scanQR = async (req, res) => {
       return res.status(404).json({ success: false, message: "Exam not found." });
     }
 
+    const attendanceDays = exam.attendanceDays || 1;
+    const dayNumber = parseDay(day);
+    if (dayNumber > attendanceDays) {
+      return res.status(400).json({
+        success: false,
+        message: `This exam only runs for ${attendanceDays} day(s). Received day ${dayNumber}.`,
+      });
+    }
+
     const student = await Student.findOne({ studentId, status: "Active" });
     if (!student) {
       return res.status(404).json({
@@ -79,20 +107,28 @@ const scanQR = async (req, res) => {
         success: true,
         marked: false,
         eligible: false,
+        day: dayNumber,
         reasons,
         student: studentShape(student),
       });
     }
 
+    // A student may be marked once per exam day. Records created before the
+    // multi-day feature have no `day`, which is treated as day 1.
+    const match = [{ day: dayNumber }];
+    if (dayNumber === 1) match.push({ day: { $exists: false } }, { day: null });
+
     const existing = await ExamAttendance.findOne({
       exam: exam._id,
       student: student._id,
+      $or: match,
     });
     if (existing) {
       return res.status(200).json({
         success: true,
         marked: false,
         alreadyMarked: true,
+        day: dayNumber,
         record: existing,
         student: studentShape(student),
       });
@@ -108,6 +144,8 @@ const scanQR = async (req, res) => {
       className: student.className,
       section: student.section || "",
       status: "Present",
+      day: dayNumber,
+      attendanceDate: bdMidnight(),
       markedBy: req.user ? req.user._id : null,
       markedByName: req.user ? req.user.name : "",
       method: method === "manual" ? "manual" : "scan",
@@ -117,6 +155,8 @@ const scanQR = async (req, res) => {
       success: true,
       marked: true,
       eligible: true,
+      day: dayNumber,
+      attendanceDays,
       record,
       student: studentShape(student),
     });
@@ -127,29 +167,28 @@ const scanQR = async (req, res) => {
 };
 
 // ============================================
-// ATTENDANCE RECORDS FOR AN EXAM
+// ATTENDANCE RECORDS FOR AN EXAM (all days)
 // ============================================
 
 const getAttendanceForExam = async (req, res) => {
   try {
     const { examId } = req.params;
 
-    const [records, count] = await Promise.all([
-      ExamAttendance.find({ exam: examId })
-        .sort({ scannedAt: -1 })
-        .lean(),
-      ExamAttendance.countDocuments({ exam: examId }),
+    const [records, exam] = await Promise.all([
+      ExamAttendance.find({ exam: examId }).sort({ scannedAt: -1 }).lean(),
+      ExamSetting.findById(examId).select("attendanceDays examName academicSession").lean(),
     ]);
-    const present = await ExamAttendance.countDocuments({
-      exam: examId,
-      status: "Present",
-    });
+
+    const count = records.length;
+    const present = records.filter((r) => r.status === "Present").length;
 
     return res.status(200).json({
       success: true,
       examId,
+      attendanceDays: exam?.attendanceDays || 1,
       total: count,
       present,
+      perDay: buildPerDay(records),
       records,
     });
   } catch (error) {
@@ -159,12 +198,13 @@ const getAttendanceForExam = async (req, res) => {
 };
 
 // ============================================
-// ELIGIBLE ROSTER + MARKED STATUS FOR AN EXAM
+// ELIGIBLE ROSTER + STATUS FOR AN EXAM DAY
 // ============================================
 
 const getRoster = async (req, res) => {
   try {
     const { examId } = req.params;
+    const day = parseDay(req.query.day);
 
     const exam = await ExamSetting.findById(examId).populate(
       "requiredFees.feeCategory",
@@ -173,19 +213,21 @@ const getRoster = async (req, res) => {
     if (!exam) {
       return res.status(404).json({ success: false, message: "Exam not found." });
     }
+    const attendanceDays = exam.attendanceDays || 1;
 
     const [students, records] = await Promise.all([
       Student.find({ status: "Active" })
         .select("studentId name className section photo fatherName fatherMobile")
         .sort({ className: 1, name: 1 }),
       ExamAttendance.find({ exam: examId })
-        .select("student status scannedAt method markedByName")
+        .select("student status day scannedAt method markedByName")
         .lean(),
     ]);
 
-    const recordMap = {};
+    const recordsByStudent = {};
     records.forEach((r) => {
-      recordMap[String(r.student)] = r;
+      const sid = String(r.student);
+      (recordsByStudent[sid] = recordsByStudent[sid] || []).push(r);
     });
 
     const roster = [];
@@ -194,7 +236,8 @@ const getRoster = async (req, res) => {
       const reasons = await evaluateAdmitCardEligibility(exam, student);
       if (reasons.length > 0) continue;
 
-      const record = recordMap[String(student._id)] || null;
+      const dayRecords = recordsByStudent[String(student._id)] || [];
+      const record = dayRecords.find((r) => (r.day || 1) === day) || null;
       let status = "Not Marked";
       if (record) {
         status = record.status;
@@ -205,15 +248,21 @@ const getRoster = async (req, res) => {
         ...studentShape(student),
         status,
         record,
+        day,
+        daysPresent: dayRecords.filter((r) => r.status === "Present").length,
+        markedDays: dayRecords.length,
       });
     }
 
     return res.status(200).json({
       success: true,
+      day,
+      attendanceDays,
       exam: {
         _id: exam._id,
         examName: exam.examName,
         academicSession: exam.academicSession,
+        attendanceDays,
       },
       total: roster.length,
       present: presentCount,

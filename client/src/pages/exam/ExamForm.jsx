@@ -7,6 +7,7 @@ const emptyExamForm = {
   examName: "",
   examCode: "",
   academicSession: "2026",
+  attendanceDays: 1,
   isActive: true,
   remarks: "",
   requiredFees: [],
@@ -68,6 +69,7 @@ export default function ExamForm() {
     examName: exam.examName,
     examCode: exam.examCode || slugCode(exam.examName),
     academicSession: exam.academicSession || "2026",
+    attendanceDays: exam.attendanceDays || 1,
     isActive: exam.isActive,
     remarks: exam.remarks || "",
     requiredFees: flattenRequired(exam.requiredFees || []),
@@ -268,6 +270,16 @@ export default function ExamForm() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Attendance Days</label>
+            <input type="number" name="attendanceDays" value={form.attendanceDays}
+              onChange={handleChange} min="1" max="30"
+              className={inputClass} />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Over how many days this exam's attendance is taken (scan once per student per day).
+            </p>
           </div>
 
           <div>

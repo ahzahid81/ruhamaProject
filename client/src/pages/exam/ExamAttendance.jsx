@@ -17,6 +17,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { bdDateTime } from "../../utils/bdTime";
+import { initAudio, playBeep } from "../../utils/sound";
 
 const STATUS_STYLES = {
   Present: "bg-emerald-100 text-emerald-700",
@@ -40,6 +41,7 @@ export default function ExamAttendance() {
 
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState("");
+  const [selectedDay, setSelectedDay] = useState(1);
 
   const [roster, setRoster] = useState([]);
   const [rosterLoading, setRosterLoading] = useState(false);
@@ -63,10 +65,13 @@ export default function ExamAttendance() {
   const handleDecodedRef = useRef(null);
 
   const selectedExam = exams.find((e) => e._id === selectedExamId) || null;
+  const attendanceDays = Math.max(1, Number(selectedExam?.attendanceDays) || 1);
+  const safeDay = Math.min(selectedDay, attendanceDays);
   const exam = selectedExam
     ? {
         examName: selectedExam.examName,
         academicSession: selectedExam.academicSession,
+        attendanceDays,
       }
     : null;
 
@@ -88,9 +93,10 @@ export default function ExamAttendance() {
   const loadAttendance = useCallback(async (examId) => {
     if (!examId) return;
     setRosterLoading(true);
+    const day = safeDay;
     try {
       const [rosterRes, recordsRes] = await Promise.all([
-        api.get(`/exam-attendance/exam/${examId}/roster`),
+        api.get(`/exam-attendance/exam/${examId}/roster?day=${day}`),
         api.get(`/exam-attendance/exam/${examId}`),
       ]);
       const rosterData = rosterRes.data?.roster || [];
@@ -108,7 +114,7 @@ export default function ExamAttendance() {
     } finally {
       setRosterLoading(false);
     }
-  }, []);
+  }, [safeDay]);
 
   useEffect(() => {
     loadAttendance(selectedExamId);
@@ -145,9 +151,11 @@ export default function ExamAttendance() {
           examId: selectedExamId,
           qrData,
           method,
+          day: safeDay,
         });
         setLastResult(res.data);
         if (res.data?.marked) {
+          playBeep();
           await loadAttendance(selectedExamId);
         }
       } catch (err) {
@@ -163,7 +171,7 @@ export default function ExamAttendance() {
         }, 800);
       }
     },
-    [selectedExamId, loadAttendance]
+    [selectedExamId, loadAttendance, safeDay]
   );
 
   const handleDecoded = useCallback(
@@ -198,6 +206,7 @@ export default function ExamAttendance() {
       );
       return;
     }
+    initAudio();
     setCameraError("");
     setLastResult(null);
     stopScanner();
@@ -212,7 +221,7 @@ export default function ExamAttendance() {
   };
 
   const openCamera = async (scanner, deviceIdValue) => {
-    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+    const config = { fps: 10, qrbox: { width: 280, height: 280 } };
     const onScan = (text) => handleDecodedRef.current(text);
     try {
       await scanner.start(
@@ -279,6 +288,7 @@ export default function ExamAttendance() {
       setToast({ type: "error", text: "Please select an exam first." });
       return;
     }
+    initAudio();
     setManualBusy(true);
     setManualId("");
     await submitScan({ id }, "manual");
@@ -326,6 +336,8 @@ export default function ExamAttendance() {
   };
 
   // ---------- derived ----------
+  const perDayMap = useMemo(() => {
+
   const filteredRoster = useMemo(() => {
     if (!searchQuery) return roster;
     const q = searchQuery.toLowerCase();
@@ -378,6 +390,17 @@ export default function ExamAttendance() {
                 </option>
               ))}
             </select>
+            <select
+              value={safeDay}
+              onChange={(e) => setSelectedDay(Number(e.target.value))}
+              disabled={!selectedExamId}
+              className="px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 transition bg-white"
+              title="Which exam day you are taking attendance for"
+            >
+              {Array.from({ length: attendanceDays }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>Day {d} of {attendanceDays}</option>
+              ))}
+            </select>
             {isAdmin && (
               <button
                 onClick={handleClearAll}
@@ -401,6 +424,31 @@ export default function ExamAttendance() {
               color="text-sky-600 bg-sky-50"
             />
           </div>
+
+          {/* Per-day overview */}
+          {attendanceDays > 1 && (
+            <div className="flex flex-wrap items-center gap-2 mt-5">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Days:</span>
+              {Array.from({ length: attendanceDays }, (_, i) => i + 1).map((d) => {
+                const pd = perDayMap[d] || { present: 0, total: 0 };
+                const active = d === safeDay;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => setSelectedDay(d)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition ${
+                      active
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300"
+                    }`}
+                    title={`${pd.present}/${pd.total} marked on day ${d}`}
+                  >
+                    Day {d} · {pd.present}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* SCANNER + LAST RESULT */}
@@ -434,7 +482,7 @@ export default function ExamAttendance() {
               id="qr-region"
               className={`w-full rounded-2xl overflow-hidden border ${
                 scanning
-                  ? "h-[320px] border-indigo-200 bg-slate-900"
+                  ? "h-[360px] border-indigo-200 bg-slate-900"
                   : "h-32 border-slate-200 bg-slate-50"
               }`}
             />
@@ -443,9 +491,11 @@ export default function ExamAttendance() {
               <div className="mt-3 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl py-6 text-center">
                 <QrCode className="w-10 h-10 text-slate-300 mb-2" />
                 <p className="text-sm text-slate-500">
-                  Point the camera at the student's Admit Card QR code.
+                  Point the camera at the student's Admit Card QR code (Day {safeDay}).
                 </p>
-                <p className="text-xs text-slate-400 mt-1">Only eligible students will be marked.</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Only eligible students will be marked — each student is marked once per day over {attendanceDays} day(s).
+                </p>
               </div>
             )}
 
@@ -531,16 +581,16 @@ export default function ExamAttendance() {
             )}
 
             {/* Recent scans */}
-            {records.length > 0 && (
+            {dayRecords.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-sm font-bold text-slate-600 mb-2">Recently Marked</h3>
+                <h3 className="text-sm font-bold text-slate-600 mb-2">Recently Marked — Day {safeDay}</h3>
                 <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                  {records.slice(0, 12).map((r) => (
+                  {dayRecords.slice(0, 12).map((r) => (
                     <div key={r._id} className="flex items-center justify-between text-sm bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
                       <div className="min-w-0">
                         <p className="font-semibold text-gray-800 truncate">{r.name}</p>
                         <p className="text-xs text-gray-400">
-                          {r.studentId} · {bdDateTime(r.scannedAt)}
+                          {r.studentId} · Day {r.day || 1} · {bdDateTime(r.scannedAt)}
                         </p>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLES[r.status]}`}>
@@ -559,9 +609,9 @@ export default function ExamAttendance() {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-lg font-bold text-slate-800">Eligible Roster</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {exam ? `${exam.examName} — ${exam.academicSession}` : ""} · Only eligible students can be marked
-              </p>
+<p className="text-xs text-gray-400 mt-0.5">
+                  {exam ? `${exam.examName} — ${exam.academicSession}` : ""} · Only eligible students can be marked · Day {safeDay} of {attendanceDays}
+                </p>
             </div>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -597,6 +647,7 @@ export default function ExamAttendance() {
                     <th className="py-2.5 px-2">ID</th>
                     <th className="py-2.5 px-2">Class</th>
                     <th className="py-2.5 px-2">Status</th>
+                    <th className="py-2.5 px-2">Days Present</th>
                     <th className="py-2.5 px-2">Marked At</th>
                     {isAdmin && <th className="py-2.5 px-2 text-right">Actions</th>}
                   </tr>
@@ -637,6 +688,11 @@ export default function ExamAttendance() {
                             {s.status}
                           </span>
                         )}
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span className={`text-xs font-bold ${s.markedDays ? "text-slate-700" : "text-slate-300"}`}>
+                          {s.markedDays ? `${s.daysPresent ?? 0}/${attendanceDays}` : "—"}
+                        </span>
                       </td>
                       <td className="py-2.5 px-2 text-xs text-gray-400">
                         {s.record ? bdDateTime(s.record.scannedAt) : "—"}
@@ -688,7 +744,7 @@ const ResultCard = ({ result }) => {
           <p className="text-emerald-700 font-bold">Attendance Marked</p>
           <p className="text-sm font-semibold text-gray-800 mt-1">{result.student?.name}</p>
           <p className="text-xs text-gray-500">
-            {result.student?.className} ({result.student?.studentId}) · {bdDateTime(result.record?.scannedAt)}
+            {result.student?.className} ({result.student?.studentId}) · Day {result.day || 1} · {bdDateTime(result.record?.scannedAt)}
           </p>
         </div>
       </div>
@@ -702,7 +758,7 @@ const ResultCard = ({ result }) => {
           <p className="text-sky-700 font-bold">Already Marked</p>
           <p className="text-sm font-semibold text-gray-800 mt-1">{result.student?.name}</p>
           <p className="text-xs text-gray-500">
-            Marked {bdDateTime(result.record?.scannedAt)} as {result.record?.status}
+            Marked {bdDateTime(result.record?.scannedAt)} as {result.record?.status} · Day {result.day || 1}
           </p>
         </div>
       </div>

@@ -80,6 +80,14 @@ const examSettingSchema = new mongoose.Schema(
 
     endDate: Date,
 
+    // How many days this exam's attendance runs (scan marked per day).
+    attendanceDays: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 30,
+    },
+
     // Admit Card Fee (BDT) — the amount a student must pay to obtain the
     // admit card for this exam. Configured here in Exam Management, never
     // hardcoded. 0 means no payment is required for the admit card.

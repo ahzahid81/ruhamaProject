@@ -337,6 +337,20 @@ export default function ExamAttendance() {
 
   // ---------- derived ----------
   const perDayMap = useMemo(() => {
+    const m = {};
+    records.forEach((r) => {
+      const d = r.day || 1;
+      m[d] = m[d] || { present: 0, total: 0 };
+      m[d].total += 1;
+      if (r.status === "Present") m[d].present += 1;
+    });
+    return m;
+  }, [records]);
+
+  const dayRecords = useMemo(
+    () => (records || []).filter((r) => (r.day || 1) === safeDay),
+    [records, safeDay]
+  );
 
   const filteredRoster = useMemo(() => {
     if (!searchQuery) return roster;

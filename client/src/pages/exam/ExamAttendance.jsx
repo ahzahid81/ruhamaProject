@@ -112,31 +112,8 @@ export default function ExamAttendance() {
   }, [selectedExamId, loadAttendance]);
 
   // ---------- scanner lifecycle ----------
-  const stopScanner = useCallback(async () => {
-    const scanner = scannerRef.current;
-    if (!scanner) return;
-    scannerRef.current = null;
-    try {
-      if (scanner.isScanning) await scanner.stop();
-      await scanner.clear();
-    } catch {
-      // ignore teardown errors
-    }
+  const stopScanner = useCallback(() => {
     setScanning(false);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      const scanner = scannerRef.current;
-      if (scanner) {
-        try {
-          if (scanner.isScanning) scanner.stop();
-          scanner.clear();
-        } catch {
-          // ignore
-        }
-      }
-    };
   }, []);
 
   // ---------- scan handling ----------
@@ -189,36 +166,55 @@ export default function ExamAttendance() {
     [submitScan]
   );
 
-  const startScanner = async () => {
+  const startScanner = () => {
     if (!selectedExamId) {
       setToast({ type: "error", text: "Please select an exam first." });
       return;
     }
     setCameraError("");
     setLastResult(null);
+    setScanning(true);
+  };
+
+  // Starts/stops the camera whenever `scanning` changes.
+  useEffect(() => {
+    if (!scanning) return;
+
+    let cancelled = false;
     const scanner = new Html5Qrcode("qr-region");
     scannerRef.current = scanner;
-    setScanning(true);
-    try {
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 220, height: 220 } },
-        (decodedText) => handleDecoded(decodedText),
-        () => {}
-      );
-    } catch {
-      setCameraError(
-        "Camera is not available or permission was denied. Use the manual entry below instead."
-      );
-      setScanning(false);
+
+    (async () => {
       try {
-        await scanner.clear();
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => handleDecoded(decodedText),
+          () => {}
+        );
       } catch {
-        // ignore
+        if (!cancelled) {
+          setCameraError(
+            "Camera is not available or permission was denied. Use the manual entry below instead."
+          );
+          setScanning(false);
+        }
       }
-      scannerRef.current = null;
-    }
-  };
+    })();
+
+    return () => {
+      cancelled = true;
+      if (scanner) {
+        try {
+          if (scanner.isScanning) scanner.stop();
+          scanner.clear();
+        } catch {
+          // ignore teardown errors
+        }
+      }
+      if (scannerRef.current === scanner) scannerRef.current = null;
+    };
+  }, [scanning, handleDecoded]);
 
   const handleManualSubmit = async (e) => {
     e.preventDefault();
@@ -378,16 +374,21 @@ export default function ExamAttendance() {
               )}
             </div>
 
-            {scanning ? (
-              <div
-                id="qr-region"
-                className="w-full h-[320px] rounded-2xl overflow-hidden border border-indigo-200 bg-slate-900"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl py-10 text-center min-h-[160px]">
+            {/* Camera region — always mounted so Html5Qrcode can find it */}
+            <div
+              id="qr-region"
+              className={`w-full rounded-2xl overflow-hidden border ${
+                scanning
+                  ? "h-[320px] border-indigo-200 bg-slate-900"
+                  : "h-32 border-slate-200 bg-slate-50"
+              }`}
+            />
+
+            {!scanning && !cameraError && (
+              <div className="mt-3 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl py-6 text-center">
                 <QrCode className="w-10 h-10 text-slate-300 mb-2" />
                 <p className="text-sm text-slate-500">
-                  {processing ? "Processing QR..." : "Point the camera at the student's Admit Card QR code."}
+                  Point the camera at the student's Admit Card QR code.
                 </p>
                 <p className="text-xs text-slate-400 mt-1">Only eligible students will be marked.</p>
               </div>

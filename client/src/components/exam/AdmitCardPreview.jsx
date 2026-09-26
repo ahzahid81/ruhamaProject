@@ -1,4 +1,4 @@
-import logo from "../../assets/logo.png";
+﻿import logo from "../../assets/logo.png";
 import signatureController from "../../assets/signature-controller.png";
 import signaturePrincipal from "../../assets/signature-principal.png";
 import { QRCodeSVG } from "qrcode.react";
@@ -154,7 +154,7 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                 <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-5 py-2 mt-auto flex justify-between items-center">
                     <p className="text-[10px] flex items-center gap-1.5">
                         <span>📍</span>
-                        <span>Ludhi House-101, Road-9, Housing Estate, Amberkhana, Sylhet</span>
+                        <span>Ludhi House-101, Road-9, Housing Estate, Amberkhana, Sylhet. <span>📞</span> 01805-230146</span>
                     </p>
                     <p className="text-[10px] flex items-center gap-1.5">
                         <a href="https://ruhamaunitedschool.com" className="text-yellow-300 font-semibold">

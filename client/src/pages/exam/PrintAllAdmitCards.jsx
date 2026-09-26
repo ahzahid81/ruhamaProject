@@ -150,9 +150,12 @@ const PrintAllAdmitCards = () => {
           body * { visibility: hidden; }
           #print-all-page, #print-all-page * { visibility: visible; }
           #print-all-page { position: static !important; margin: 0; padding: 0; }
-          #print-all-page .admit-card-page { page-break-after: always; page-break-inside: avoid; break-inside: avoid; margin: 0; }
+          #print-all-page .admit-card-page { position: fixed !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: 148.5mm !important; max-height: 148.5mm !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; background: white; }
+          #print-all-page .admit-card-page { page-break-after: always; page-break-inside: avoid; break-inside: avoid; }
           #print-all-page .admit-card-page:last-child { page-break-after: auto; }
-          #print-all-page #admit-card { position: static !important; width: 210mm; height: 148.5mm; max-height: 148.5mm; overflow: hidden; box-shadow: none !important; border: none !important; margin: 0 auto; background: white; }
+          /* Each card gets its own fixed, A4-half-size print layer (matches the working single-card print) */
+          #print-all-page .admit-card-page { position: fixed !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: 148.5mm !important; max-height: 148.5mm !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; background: white; }
+          #print-all-page #admit-card { position: static !important; width: 210mm !important; height: 148.5mm !important; max-height: 148.5mm !important; overflow: hidden; box-shadow: none !important; border: none !important; margin: 0 !important; background: white; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
           #print-all-page .grid { display: grid !important; }
           #print-all-page .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }

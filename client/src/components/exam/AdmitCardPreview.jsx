@@ -23,10 +23,10 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
             {/* ADMIT CARD — A4 width × half A4 height */}
             <div
                 id="admit-card"
-                className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] h-[148.5mm] flex flex-col print:w-[210mm] print:h-[148.5mm] print:shadow-none print:border-none print:overflow-hidden"
+                className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] h-[140mm] flex flex-col print:w-[210mm] print:h-[140mm] print:shadow-none print:border-none print:overflow-hidden"
             >
                 {/* HEADER */}
-                <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-5 py-2.5 flex justify-between items-center">
+                <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-5 py-2 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0">
                             <img src={logo} alt="School Logo" className="w-9 h-9 object-contain" />
@@ -46,7 +46,7 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                 </div>
 
                 {/* BODY */}
-                <div className="px-5 py-3 relative">
+                <div className="px-5 py-1 relative">
                     {/* Watermark Logo */}
                     <img
                         src={logo}

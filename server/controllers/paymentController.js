@@ -107,6 +107,7 @@ const collectPayment = async (req, res) => {
       bankBranch,
       chequeNo,
       referenceNo,
+      manualReceiptNo,
       remarks,
       receivedBy,
       academicSession,
@@ -202,6 +203,7 @@ const collectPayment = async (req, res) => {
           studentName: studentInfo.name,
           className: studentInfo.className,
           receiptNo,
+          manualReceiptNo: manualReceiptNo?.toString().trim() || "",
           academicSession: academicSession || studentInfo.session,
           totalAmount,
           totalDiscount: totalDiscount || 0,
@@ -377,6 +379,7 @@ const collectPayment = async (req, res) => {
       success: true,
       message: "Payment collected successfully.",
       receiptNo: paymentHeader.receiptNo,
+      manualReceiptNo: paymentHeader.manualReceiptNo || "",
       paymentId: paymentHeader._id,
       totalAmount,
       paidAmount,
@@ -501,6 +504,7 @@ const getAllPayments = async (req, res) => {
         { studentId: re },
         { studentName: re },
         { receiptNo: re },
+        { manualReceiptNo: re },
       ];
     }
 
@@ -559,6 +563,7 @@ const updatePayment = async (req, res) => {
       chequeNo,
       chequeDate,
       referenceNo,
+      manualReceiptNo,
       remarks,
       receivedBy,
       receiveDate,
@@ -584,6 +589,7 @@ const updatePayment = async (req, res) => {
       chequeNo,
       chequeDate,
       referenceNo,
+      manualReceiptNo,
       remarks,
       paymentStatus,
     };

@@ -40,6 +40,12 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
 
+    manualReceiptNo: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     academicSession: {
       type: String,
       default: "2026",

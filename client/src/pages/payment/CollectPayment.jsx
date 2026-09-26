@@ -52,6 +52,7 @@ export default function CollectPayment() {
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentMethodsList, setPaymentMethodsList] = useState(["Cash", "bKash", "Nagad", "Rocket", "Bank", "Cheque", "Card", "Online", "Other"]);
   const [transactionId, setTransactionId] = useState("");
+  const [manualReceiptNo, setManualReceiptNo] = useState("");
   const [fine, setFine] = useState(0);
 
   const [selectedItems, setSelectedItems] = useState([]);
@@ -277,15 +278,16 @@ export default function CollectPayment() {
         receivedBy: JSON.parse(localStorage.getItem("teacher"))?._id,
         paymentMethod,
         transactionId,
+        manualReceiptNo: manualReceiptNo.trim(),
         totalFine: Number(fine),
         paidAmount,
         items,
       };
       const res = await api.post("/payments/collect", payload);
       navigate(`/payment/receipt/${res.data.paymentId}`, {
-        state: { receipt: { ...res.data, paymentMethod, transactionId }, student },
+        state: { receipt: { ...res.data, paymentMethod, transactionId, manualReceiptNo: manualReceiptNo.trim() }, student },
       });
-      setFine(0); setTransactionId("");
+      setFine(0); setTransactionId(""); setManualReceiptNo("");
       loadAllStudentData();
     } catch (error) {
       showToast(error.response?.data?.message || "Payment failed");
@@ -621,6 +623,11 @@ export default function CollectPayment() {
                           <input type="text" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} placeholder={`Required for ${paymentMethod}`} className={inputClass} />
                         </div>
                       )}
+
+                      <div>
+                        <label className={labelClass}>Manual Receipt No.</label>
+                        <input type="text" value={manualReceiptNo} onChange={(e) => setManualReceiptNo(e.target.value)} placeholder="Enter manual receipt no. (optional)" className={inputClass} />
+                      </div>
 
                       <button onClick={submitPayment} disabled={loading}
                         className="w-full px-8 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50 shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"

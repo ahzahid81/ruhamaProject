@@ -359,9 +359,15 @@ export default function PaymentReceipt() {
                         </div>
                       )}
                       {payment.receivedBy?.name && (
-                        <div className="flex justify-between items-center pt-[0.8mm]">
+                        <div className="flex justify-between items-center border-b border-dashed border-neutral-300 py-[0.8mm]">
                           <span className="text-[8px] text-neutral-400">Received By</span>
                           <b className="text-[9px] text-neutral-800">{payment.receivedBy.name}</b>
+                        </div>
+                      )}
+                      {payment.manualReceiptNo && (
+                        <div className="flex justify-between items-center pt-[0.8mm]">
+                          <span className="text-[8px] text-neutral-400">Manual Receipt No.</span>
+                          <b className="text-[9px] text-neutral-800 font-mono">{payment.manualReceiptNo}</b>
                         </div>
                       )}
                     </div>

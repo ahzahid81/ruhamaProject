@@ -22,8 +22,8 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
 
             {/* ADMIT CARD — A4 width × half A4 height */}
             <div
-                id="admit-card"
-                className="bg-white shadow-xl mx-auto overflow-hidden w-[210mm] h-[140mm] flex flex-col print:w-[210mm] print:h-[140mm] print:shadow-none print:border-none print:overflow-hidden"
+                id={bulk ? undefined : "admit-card"}
+                className="admit-card-canvas bg-white shadow-xl mx-auto overflow-hidden w-[210mm] h-[140mm] flex flex-col print:w-[210mm] print:h-[140mm] print:shadow-none print:border-none print:overflow-hidden"
             >
                 {/* HEADER */}
                 <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white px-5 py-2 flex justify-between items-center">
@@ -144,7 +144,7 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                     </div>
 
                     {/* SIGNATURES */}
-                    <div className="mt-1 grid grid-cols-2 gap-16 px-2">
+                    <div className="mt-0 grid grid-cols-2 gap-16 px-2">
                         <SignatureBlock image={signatureController} title="Exam Controller" />
                         <SignatureBlock image={signaturePrincipal} title="Principal" />
                     </div>
@@ -262,7 +262,7 @@ const InfoItem = ({ label, value }) => {
 const SignatureBlock = ({ image, title }) => {
     return (
         <div className="text-center">
-            <div className="h-14 flex items-end justify-center">
+            <div className="h-12 flex items-end justify-center">
                 <img src={image} alt={title} className="h-12 w-auto object-contain max-w-full" />
             </div>
             <div className="h-1 border-b-2 border-slate-300 mx-2 mt-1" />

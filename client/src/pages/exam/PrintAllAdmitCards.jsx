@@ -3,6 +3,98 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import AdmitCardPreview from "../../components/exam/AdmitCardPreview";
 
+// One card per sheet, using the exact same box as the single admit card.
+// Exported so the print regression test renders with this same stylesheet.
+export const PRINT_ALL_STYLES = `
+  .no-print { display: none !important; }
+  @page { size: A4 portrait; margin: 0; }
+
+  @media print {
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      overflow: visible;
+    }
+
+    body * { visibility: hidden; }
+    #print-all-page, #print-all-page * { visibility: visible; }
+
+    #print-all-page {
+      position: static !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: auto !important;
+      background: #fff;
+    }
+
+    /* Drop the screen-only page chrome so card 1 starts at the very top of sheet 1 */
+    #print-all-page .print-reset {
+      margin: 0 !important;
+      padding: 0 !important;
+      max-width: none !important;
+      width: auto !important;
+    }
+
+    /*
+      One card per sheet in normal document flow.
+      position:fixed is deliberately NOT used: Chrome repaints a fixed element on
+      every sheet, which stacks every card on every page instead of one per page.
+    */
+    #print-all-page .admit-card-page {
+      display: block !important;
+      position: static !important;
+      width: 210mm !important;
+      height: 140mm !important;
+      max-height: 140mm !important;
+      overflow: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff;
+      page-break-after: always;
+      break-after: page;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    #print-all-page .admit-card-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    /* Same canvas box as the single admit card - no size override here */
+    #print-all-page .admit-card-canvas {
+      display: block !important;
+      position: static !important;
+      width: 210mm !important;
+      height: 140mm !important;
+      max-height: 140mm !important;
+      overflow: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      background: #fff;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+
+    #print-all-page .grid { display: grid !important; }
+    #print-all-page .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
+    #print-all-page .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    #print-all-page .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    #print-all-page .col-span-3 { grid-column: span 3 / span 3 !important; }
+    #print-all-page .col-span-9 { grid-column: span 9 / span 9 !important; }
+    #print-all-page img { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
+    #print-all-page svg { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
+    #print-all-page .react-barcode { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
+  }
+`;
+
 const PrintAllAdmitCards = () => {
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -57,8 +149,14 @@ const PrintAllAdmitCards = () => {
     setSearchParams({ examId: value }, { replace: true });
   };
 
-  const handlePrint = () => {
-    requestAnimationFrame(() => { setTimeout(() => { window.print(); }, 500); });
+  const handlePrint = async () => {
+    // With 100+ cards, let fonts and layout settle so the whole batch is
+    // painted before Chrome opens the print dialog.
+    if (document.fonts?.ready) {
+      try { await document.fonts.ready; } catch { /* ignore */ }
+    }
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    setTimeout(() => { window.print(); }, 300);
   };
 
   const exam = selectedExam
@@ -68,7 +166,7 @@ const PrintAllAdmitCards = () => {
   return (
     <>
       <div id="print-all-page" className="min-h-screen bg-slate-100">
-        <div className="bg-gradient-to-r from-[#07153B] to-[#12308F] text-white">
+        <div className="no-print bg-gradient-to-r from-[#07153B] to-[#12308F] text-white">
           <div className="max-w-7xl mx-auto px-6 py-10">
             <div className="flex items-center justify-between">
               <div>
@@ -83,7 +181,7 @@ const PrintAllAdmitCards = () => {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="print-reset max-w-7xl mx-auto px-4 py-8">
           {/* TOOLBAR */}
           <div className="bg-white rounded-3xl shadow-xl p-6 no-print">
             <div className="flex flex-wrap items-end gap-4">
@@ -132,7 +230,7 @@ const PrintAllAdmitCards = () => {
               <p className="text-xs text-slate-400 mt-1">Students must clear the exam's required fees before their admit card can be printed.</p>
             </div>
           ) : (
-            <div className="mt-10">
+            <div className="mt-10 space-y-10 print:mt-0 print:space-y-0">
               {cards.map(({ student }) => (
                 <AdmitCardPreview key={student._id} student={student} exam={exam} bulk />
               ))}
@@ -142,32 +240,7 @@ const PrintAllAdmitCards = () => {
       </div>
 
       {/* PRINT STYLE — one card per page */}
-      <style>{`
-        .no-print { display: none !important; }
-        @page { size: A4 portrait; margin: 0; }
-        @media print {
-          html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: white; }
-          body * { visibility: hidden; }
-          #print-all-page, #print-all-page * { visibility: visible; }
-          #print-all-page { position: static !important; margin: 0; padding: 0; }
-          #print-all-page .admit-card-page { position: fixed !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: 148.5mm !important; max-height: 148.5mm !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; background: white; }
-          #print-all-page .admit-card-page { page-break-after: always; page-break-inside: avoid; break-inside: avoid; }
-          #print-all-page .admit-card-page:last-child { page-break-after: auto; }
-          /* Each card gets its own fixed, A4-half-size print layer (matches the working single-card print) */
-          #print-all-page .admit-card-page { position: fixed !important; left: 0 !important; top: 0 !important; width: 210mm !important; height: 148.5mm !important; max-height: 148.5mm !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; background: white; }
-          #print-all-page #admit-card { position: static !important; width: 210mm !important; height: 148.5mm !important; max-height: 148.5mm !important; overflow: hidden; box-shadow: none !important; border: none !important; margin: 0 !important; background: white; }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-          #print-all-page .grid { display: grid !important; }
-          #print-all-page .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
-          #print-all-page .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-          #print-all-page .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-          #print-all-page .col-span-3 { grid-column: span 3 / span 3 !important; }
-          #print-all-page .col-span-9 { grid-column: span 9 / span 9 !important; }
-          #print-all-page img { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
-          #print-all-page svg { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
-          #print-all-page .react-barcode { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
-        }
-      `}</style>
+      <style>{PRINT_ALL_STYLES}</style>
     </>
   );
 };

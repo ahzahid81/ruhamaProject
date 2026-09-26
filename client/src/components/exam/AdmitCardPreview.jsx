@@ -140,7 +140,7 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                         </div>
 
                         {/* Official Seal — empty circle, physical seal stamped here */}
-                        <div className="w-[120px] h-[120px] flex-shrink-0 rounded-full border-[2px] border-dashed border-slate-400"></div>
+                        <div className="w-[120px] h-[120px] flex-shrink-0 border-[2px] border-dashed border-slate-400"></div>
                     </div>
 
                     {/* SIGNATURES */}

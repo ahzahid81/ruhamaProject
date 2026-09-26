@@ -8,6 +8,8 @@ const EligibilityCard = ({
   eligibility,
   loading,
   onGenerate,
+  isAdmin = false,
+  onTemporary,
 }) => {
 
   if (loading) {
@@ -180,6 +182,34 @@ const EligibilityCard = ({
               <Printer size={22} />
 
               Generate Admit Card
+
+            </button>
+
+          ) : isAdmin ? (
+
+            <button
+
+              onClick={onTemporary}
+
+              className="
+              bg-amber-500
+              hover:bg-amber-600
+              transition
+              text-white
+              font-bold
+              px-8
+              py-4
+              rounded-2xl
+              flex
+              items-center
+              gap-3
+              "
+
+            >
+
+              <Printer size={22} />
+
+              Print Temporary Admit Card
 
             </button>
 

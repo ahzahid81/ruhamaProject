@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useSearchParams, useParams, useNavigate } from "react-router-dom";
+import { Printer } from "lucide-react";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
 import { bdYear } from "../../utils/bdTime";
@@ -20,6 +21,7 @@ const AdmitCard = () => {
     const { studentId: studentIdRoute } = useParams();
     const navigate = useNavigate();
     const isDedicated = Boolean(studentIdRoute);
+    const isAdmin = JSON.parse(localStorage.getItem("teacher") || "null")?.role === "admin";
     const studentId = searchParams.get("studentId")
         ? searchParams.get("studentId")
         : studentIdRoute;
@@ -32,6 +34,7 @@ const AdmitCard = () => {
     const [exams, setExams] = useState([]);
     const [selectedExamId, setSelectedExamId] = useState("");
     const [toast, setToast] = useState(null);
+    const [temporaryKey, setTemporaryKey] = useState("");
 
     const [dueItems, setDueItems] = useState([]);
     const [feeLedger, setFeeLedger] = useState([]);
@@ -234,6 +237,36 @@ const AdmitCard = () => {
 
     const showCollectPanel = selectedExam && student && filteredDueItems.length > 0;
 
+    // ==========================================================
+    // ELIGIBILITY vs TEMPORARY PRINT
+    // Eligible student -> normal admit card, anyone may print.
+    // Not eligible     -> only an admin may print a temporary card.
+    // The approval is keyed to student+exam, so it never leaks to another one.
+    // ==========================================================
+    const isEligible = Boolean(eligibility?.eligible);
+    const isTemporary = Boolean(eligibility) && !eligibility.eligible;
+    const canPrintTemporary = isAdmin && isTemporary && temporaryKey === `${student?._id || ""}|${selectedExamId}`;
+    const showPreview = Boolean(selectedExam && student) && (isEligible || canPrintTemporary);
+
+    const scrollToPreview = () => {
+        setTimeout(() => {
+            document.getElementById("admit-preview")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+    };
+
+    const handleTemporaryPrint = () => {
+        if (!isAdmin) {
+            showToast("Only an admin can print a temporary Admit Card.", "error");
+            return;
+        }
+        if (!student || !selectedExamId) {
+            showToast("Select a student and an exam first.", "error");
+            return;
+        }
+        setTemporaryKey(`${student._id}|${selectedExamId}`);
+        scrollToPreview();
+    };
+
     return (
         <>
             <div className="min-h-screen bg-slate-100">
@@ -318,6 +351,8 @@ const AdmitCard = () => {
                         <EligibilityCard
                             eligibility={eligibility}
                             loading={loading}
+                            isAdmin={isAdmin}
+                            onTemporary={handleTemporaryPrint}
                             onGenerate={() => {
                                 setTimeout(() => {
                                     document.getElementById("admit-preview")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -503,15 +538,15 @@ const AdmitCard = () => {
                         </div>
                     )}
 
-                    {/* ADMIT CARD PREVIEW */}
-                    {eligibility?.eligible && student && (
+                    {/* ADMIT CARD PREVIEW — eligible students, or an admin-approved not-eligible student */}
+                    {showPreview && (
                         <div id="admit-preview" className="mt-10">
                             <AdmitCardPreview student={student} exam={exam} onPrint={handlePrint} isPrinting={isPrinting} />
                         </div>
                     )}
 
                     {/* NOT ELIGIBLE MESSAGE */}
-                    {eligibility && !eligibility.eligible && (
+                    {isTemporary && (
                         <div className="mt-8 bg-red-50 border border-red-200 rounded-3xl p-8">
                             <h2 className="text-2xl font-bold text-red-700">Admit Card Cannot Be Generated</h2>
                             <p className="mt-3 text-red-600">Please clear the following issues before generating the Admit Card.</p>
@@ -520,6 +555,21 @@ const AdmitCard = () => {
                                     <li key={index} className="flex items-center gap-3 text-red-700 font-medium">❌ {reason}</li>
                                 ))}
                             </ul>
+
+                            {isAdmin && (
+                                <div className="mt-8 pt-6 border-t border-red-200">
+                                    <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                                        This student is not eligible for a regular Admit Card. As an admin you may issue a
+                                        <span className="font-bold"> temporary </span>
+                                        Admit Card, but it must be claimed before the student is allowed to sit the exam.
+                                    </p>
+                                    <button onClick={handleTemporaryPrint}
+                                        className="mt-4 bg-amber-500 hover:bg-amber-600 transition text-white font-bold px-8 py-3 rounded-2xl shadow-lg flex items-center gap-3">
+                                        <Printer size={20} />
+                                        {canPrintTemporary ? "Temporary Admit Card Ready Below" : "Print Temporary Admit Card"}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

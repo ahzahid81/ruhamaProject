@@ -129,7 +129,7 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                     {/* INSTRUCTIONS + SEAL */}
                     <div className="mt-3 flex gap-4 items-center">
                         {/* Instructions */}
-                        <div className="flex-1 min-w-0 border border-slate-200 rounded-lg bg-slate-50 px-3.5 py-2">
+                        <div className="flex-1 min-w-0 border border-slate-200 rounded-lg bg-slate-50 px-3.5 py-1">
                             <h3 className="font-bold text-[11px] text-[#07153B] uppercase tracking-wide mb-1">Instructions</h3>
                             <ol className="list-decimal ml-4 space-y-0.5 text-gray-600 text-[10px] leading-snug">
                                 <li>Bring this Admit Card on every exam day.</li>
@@ -140,11 +140,11 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                         </div>
 
                         {/* Official Seal — empty circle, physical seal stamped here */}
-                        <div className="w-[100px] h-[100px] flex-shrink-0 rounded-full border-[2px] border-dashed border-slate-400"></div>
+                        <div className="w-[120px] h-[120px] flex-shrink-0 rounded-full border-[2px] border-dashed border-slate-400"></div>
                     </div>
 
                     {/* SIGNATURES */}
-                    <div className="mt-3 grid grid-cols-2 gap-16 px-2">
+                    <div className="mt-1 grid grid-cols-2 gap-16 px-2">
                         <SignatureBlock image={signatureController} title="Exam Controller" />
                         <SignatureBlock image={signaturePrincipal} title="Principal" />
                     </div>
@@ -197,8 +197,8 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
                         left: 0;
                         top: 0;
                         width: 210mm;
-                        height: 148.5mm;
-                        max-height: 148.5mm;
+                        height: 140 mm;
+                        max-height: 140 mm;
                         overflow: hidden;
                         page-break-after: avoid;
                         page-break-inside: avoid;

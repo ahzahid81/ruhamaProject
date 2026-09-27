@@ -4,6 +4,7 @@ import { useReactToPrint } from "react-to-print";
 import { ArrowLeft } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import api from "../../services/api";
+import studentApi from "../../services/studentApi";
 import { bdDate } from "../../utils/bdTime";
 import logo from "../../assets/logo.png";
 
@@ -73,8 +74,12 @@ export default function PaymentReceipt() {
 
   useEffect(() => {
     (async () => {
+      // Reachable from the student portal as well, and the server expects a
+      // student token there, so pick the client that carries the right one.
+      const isStudent = !localStorage.getItem("teacher") && !!localStorage.getItem("studentToken");
+      const client = isStudent ? studentApi : api;
       try {
-        const res = await api.get(`/payments/receipt/${id}`);
+        const res = await client.get(`/payments/receipt/${id}`);
         setPayment(res.data.payment || null);
         setItems(res.data.items || []);
         setOpeningBalance(res.data.openingBalance || 0);

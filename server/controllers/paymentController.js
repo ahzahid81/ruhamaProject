@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Payment = require("../models/Payment");
 const PaymentItem = require("../models/PaymentItem");
 const Student = require("../models/Student");
+const Teacher = require("../models/Teacher");
 const FeeCategory = require("../models/FeeCategory");
 const StudentLedger = require("../models/StudentLedger");
 const ClassFeeSetting = require("../models/ClassFeeSetting");
@@ -436,6 +437,12 @@ const getPaymentReceipt = async (req, res) => {
       return res.status(404).json({ success: false, message: "Receipt not found." });
     }
 
+    // This route accepts a student token as well, so a student may only ever
+    // read their own receipts.
+    if (req.student && payment.student.toString() !== req.student._id.toString()) {
+      return res.status(403).json({ success: false, message: "Access denied." });
+    }
+
     const items = await PaymentItem.find({ payment: payment._id }).populate("feeCategory", "name category");
 
     // Get opening balance at time of payment
@@ -492,7 +499,11 @@ const getAllPayments = async (req, res) => {
   try {
     const { search, className, paymentMethod, status, page = 1, limit = 50 } = req.query;
 
-    const filter = { isVoided: false };
+    /* Cancelled receipts are voided. Hide them by default, but still return
+       them when the caller explicitly filters by status, otherwise the
+       "Cancelled" filter on Payment History could never match anything. */
+    const filter = {};
+    if (!status) filter.isVoided = false;
 
     if (className) filter.className = className;
     if (paymentMethod) filter.paymentMethod = paymentMethod;
@@ -623,32 +634,60 @@ const updatePayment = async (req, res) => {
 // ============================================
 
 const cancelPayment = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const { paymentId } = req.params;
     const { reason } = req.body;
 
-    const payment = await Payment.findById(paymentId);
+    const payment = await Payment.findById(paymentId).session(session);
 
     if (!payment) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ success: false, message: "Receipt not found." });
     }
 
     if (payment.isVoided) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: "Receipt already cancelled." });
+    }
+
+    /* Who is cancelling. This route has no auth middleware, so req.user is
+       always undefined; StudentLedger.createdBy is required, so fall back to
+       the teacher who collected the receipt, then to any admin. Without this
+       the first reversal entry failed validation and the receipt was left
+       voided with no ledger reversal at all. */
+    const actorId =
+      req.user?._id ||
+      payment.receivedBy ||
+      (await Teacher.findOne({ role: "admin" }).select("_id").lean())?._id ||
+      null;
+
+    if (!actorId) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: "Cannot cancel: no teacher is available to record the reversal.",
+      });
     }
 
     payment.isVoided = true;
     payment.paymentStatus = "Cancelled";
     payment.voidReason = reason || "";
-    await payment.save();
+    await payment.save({ session });
 
     await PaymentItem.updateMany(
       { payment: payment._id },
-      { paymentStatus: "Cancelled" }
+      { paymentStatus: "Cancelled" },
+      { session }
     );
 
     // Create reversal ledger entry
-    const reverseEntries = await StudentLedger.find({ payment: payment._id }).sort({ createdAt: -1 });
+    const reverseEntries = await StudentLedger.find({ payment: payment._id })
+      .sort({ createdAt: -1 })
+      .session(session);
 
     for (const entry of reverseEntries) {
       if (entry.transactionType === "Payment" && entry.credit > 0) {
@@ -661,8 +700,9 @@ const cancelPayment = async (req, res) => {
           description: `Payment reversed - ${payment.receiptNo}`,
           debit: entry.credit,
           credit: 0,
-          createdBy: req.user?._id || null,
+          createdBy: actorId,
           remarks: reason || "Receipt cancelled",
+          session,
         });
       } else if (entry.transactionType === "Charge" && entry.debit > 0) {
         await createLedgerEntry({
@@ -674,17 +714,24 @@ const cancelPayment = async (req, res) => {
           description: `Fee reversed - ${payment.receiptNo}`,
           debit: 0,
           credit: entry.debit,
-          createdBy: req.user?._id || null,
+          createdBy: actorId,
           remarks: reason || "Receipt cancelled",
+          session,
         });
       }
     }
+
+    await session.commitTransaction();
+    session.endSession();
 
     return res.status(200).json({
       success: true,
       message: "Receipt cancelled successfully.",
     });
   } catch (error) {
+    // Roll back so a failed reversal never leaves a half-cancelled receipt.
+    await session.abortTransaction().catch(() => {});
+    session.endSession();
     console.log(error);
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -703,46 +750,138 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+// Resolves class fee settings for one student. A setting for the student's own
+// class always wins over the "All Classes" fallback, so the outcome no longer
+// depends on the order Mongo returns matching rows in.
+const buildClassSettingMap = (classSettings, student) => {
+  const map = {};
+  classSettings.forEach((s) => {
+    if (s.className !== student.className && s.className !== "All Classes") return;
+    const id = s.feeCategory ? s.feeCategory.toString() : "";
+    if (!id) return;
+    if (s.className === "All Classes") {
+      if (!map[id]) map[id] = s;
+    } else {
+      map[id] = s;
+    }
+  });
+  return map;
+};
+
+const groupRowsByStudent = (rows) => {
+  const out = new Map();
+  rows.forEach((r) => {
+    const key = r.student ? r.student.toString() : "";
+    if (!key) return;
+    const bucket = out.get(key);
+    if (bucket) bucket.push(r);
+    else out.set(key, [r]);
+  });
+  return out;
+};
+
+// Loads everything needed to evaluate admit-card eligibility for a whole cohort
+// in 4 queries total. Previously this ran 4 queries per student, sequentially
+// (119 students = 476 round-trips before the first card could be listed).
+const loadEligibilityContext = async (students, fallbackSession = "2026") => {
+  const ids = students.map((s) => s._id);
+  const sessionsByStudent = new Map();
+  const classNames = new Set();
+
+  students.forEach((s) => {
+    sessionsByStudent.set(s._id.toString(), s.session || fallbackSession);
+    if (s.className) classNames.add(s.className);
+  });
+
+  const sessions = [...new Set(sessionsByStudent.values())];
+  const classNameFilter = [...classNames, "All Classes"];
+
+  const [paidItems, classSettings, overrides, assignments] = await Promise.all([
+    ids.length
+      ? PaymentItem.find({ student: { $in: ids }, paymentStatus: "Paid" }).lean()
+      : [],
+    classNames.size && sessions.length
+      ? ClassFeeSetting.find({
+          className: { $in: classNameFilter },
+          academicSession: { $in: sessions },
+          isActive: true,
+        }).lean()
+      : [],
+    ids.length
+      ? StudentFeeOverride.find({
+          student: { $in: ids },
+          academicSession: { $in: sessions },
+          isActive: { $ne: false },
+        }).lean()
+      : [],
+    ids.length
+      ? StudentFeeAssignment.find({
+          student: { $in: ids },
+          academicSession: { $in: sessions },
+          isActive: { $ne: false },
+        }).lean()
+      : [],
+  ]);
+
+  const paidByStudent = groupRowsByStudent(paidItems);
+  const overridesByStudent = groupRowsByStudent(overrides);
+  const assignmentsByStudent = groupRowsByStudent(assignments);
+
+  const classSettingsBySession = new Map();
+  classSettings.forEach((s) => {
+    const bucket = classSettingsBySession.get(s.academicSession);
+    if (bucket) bucket.push(s);
+    else classSettingsBySession.set(s.academicSession, [s]);
+  });
+
+  // Class setting maps depend only on session + class, so students sharing
+  // either reuse the same lookup instead of rebuilding it per student.
+  const classMapCache = new Map();
+  const classMapFor = (student, session) => {
+    const cacheKey = `${session}::${student.className}`;
+    if (!classMapCache.has(cacheKey)) {
+      classMapCache.set(
+        cacheKey,
+        buildClassSettingMap(classSettingsBySession.get(session) || [], student)
+      );
+    }
+    return classMapCache.get(cacheKey);
+  };
+
+  const feeMapFor = (rowsByStudent, student) => {
+    const map = {};
+    (rowsByStudent.get(student._id.toString()) || []).forEach((row) => {
+      const id = row.feeCategory ? row.feeCategory.toString() : "";
+      if (id) map[id] = row;
+    });
+    return map;
+  };
+
+  return {
+    paidItemsFor: (student) => paidByStudent.get(student._id.toString()) || [],
+    classSettingMapFor: (student) => classMapFor(student, sessionsByStudent.get(student._id.toString())),
+    overrideMapFor: (student) => feeMapFor(overridesByStudent, student),
+    assignmentMapFor: (student) => feeMapFor(assignmentsByStudent, student),
+  };
+};
+
 const evaluateAdmitCardEligibility = async (exam, student) => {
+  const ctx = await loadEligibilityContext([student], exam.academicSession || "2026");
+  return buildEligibilityReasons(exam, student, {
+    paidItems: ctx.paidItemsFor(student),
+    classSettingMap: ctx.classSettingMapFor(student),
+    overrideMap: ctx.overrideMapFor(student),
+    assignmentMap: ctx.assignmentMapFor(student),
+  });
+};
+
+// Pure, synchronous eligibility evaluation against pre-loaded data.
+const buildEligibilityReasons = (exam, student, { paidItems, classSettingMap, overrideMap, assignmentMap }) => {
   const reasons = [];
 
   if (!exam.isActive) {
     reasons.push(`"${exam.examName}" is not active.`);
   }
-
-  const paidItems = await PaymentItem.find({
-    student: student._id,
-    paymentStatus: "Paid",
-  }).lean();
-
-  // Fee applicability mirrors getStudentDueItems: a fee is required for this
-  // student only if it applies to them (Global/Class Wise with an amount, or
-  // Specific with an assignment/override) for this session.
-  const session = student.session || exam.academicSession || "2026";
-  const [classSettings, overrides, assignments] = await Promise.all([
-    ClassFeeSetting.find({
-      $or: [{ className: student.className }, { className: "All Classes" }],
-      academicSession: session,
-      isActive: true,
-    }),
-    StudentFeeOverride.find({
-      student: student._id,
-      academicSession: session,
-      isActive: { $ne: false },
-    }),
-    StudentFeeAssignment.find({
-      student: student._id,
-      academicSession: session,
-      isActive: { $ne: false },
-    }),
-  ]);
-
-  const classSettingMap = {};
-  classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
-  const overrideMap = {};
-  overrides.forEach((o) => { overrideMap[o.feeCategory.toString()] = o; });
-  const assignmentMap = {};
-  assignments.forEach((a) => { assignmentMap[a.feeCategory.toString()] = a; });
 
   const feeAppliesToStudent = (catId, cat) => {
     const override = overrideMap[catId];
@@ -925,12 +1064,21 @@ const getEligibleStudentsForAdmitCards = async (req, res) => {
     }
 
     const students = await Student.find({ status: "Active" })
-      .select("studentId name className section roll photo fatherName fatherMobile")
+      .select("studentId name className section roll photo fatherName fatherMobile session")
       .sort({ className: 1, roll: 1, name: 1 });
 
+    // One batched load for the whole cohort (4 queries) instead of 4 queries
+    // per student, then evaluate everyone in memory.
+    const ctx = await loadEligibilityContext(students, exam.academicSession || "2026");
+
     const eligible = [];
-    for (const student of students) {
-      const reasons = await evaluateAdmitCardEligibility(exam, student);
+    students.forEach((student) => {
+      const reasons = buildEligibilityReasons(exam, student, {
+        paidItems: ctx.paidItemsFor(student),
+        classSettingMap: ctx.classSettingMapFor(student),
+        overrideMap: ctx.overrideMapFor(student),
+        assignmentMap: ctx.assignmentMapFor(student),
+      });
       if (reasons.length === 0) {
         eligible.push({
           _id: student._id,
@@ -944,7 +1092,7 @@ const getEligibleStudentsForAdmitCards = async (req, res) => {
           fatherMobile: student.fatherMobile,
         });
       }
-    }
+    });
 
     return res.status(200).json({
       success: true,
@@ -1152,8 +1300,7 @@ const getStudentDueItems = async (req, res) => {
     const assignmentMap = {};
     assignments.forEach((a) => { assignmentMap[a.feeCategory.toString()] = a; });
 
-    const classSettingMap = {};
-    classSettings.forEach((s) => { classSettingMap[s.feeCategory.toString()] = s; });
+    const classSettingMap = buildClassSettingMap(classSettings, student);
 
     // Get exam names from the ExamName collection
     const examNameDocs =

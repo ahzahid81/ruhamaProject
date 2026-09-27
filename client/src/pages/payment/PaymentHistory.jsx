@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
+import { invalidate } from "../../services/resources";
 import { Search, Filter, Receipt, Eye, Pencil, Trash2, X, CheckCircle2 } from "lucide-react";
 import { bdDate } from "../../utils/bdTime";
 
@@ -70,7 +71,10 @@ export default function PaymentHistory() {
       if (res.data.success !== false) {
         showToast("Payment cancelled and allocations reversed.");
         setDeleteTarget(null);
-        loadPayments();
+        // Cancelling a receipt changes what the student still owes, so every
+        // cached payment/ledger view has to be rebuilt.
+        await invalidate.payments();
+        await loadPayments();
       }
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to cancel payment", "error");
@@ -86,7 +90,8 @@ export default function PaymentHistory() {
       if (res.data.success !== false) {
         showToast("Payment updated successfully.");
         setEditTarget(null);
-        loadPayments();
+        await invalidate.payments();
+        await loadPayments();
       }
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to update payment", "error");

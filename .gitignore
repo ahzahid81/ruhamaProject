@@ -20,3 +20,6 @@ server/uploads/
 # Stale local artifacts
 backup/
 *.zip
+
+# Payment purge backups (contain real financial records — never commit)
+server/scripts/backups/

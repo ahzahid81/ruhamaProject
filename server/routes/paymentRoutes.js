@@ -17,6 +17,8 @@ const {
     checkAdmitCardEligibility,
     getEligibleStudentsForAdmitCards,
     cancelPayment,
+    previewDeleteAllPayments,
+    deleteAllPayments,
     getFeeCategories,
     createFeeCategory,
     updateFeeCategory,
@@ -120,6 +122,27 @@ router.patch(
     protect,
     authorizeRoles("admin"),
     cancelPayment
+);
+
+// Delete ALL payments — destroys every receipt in the system. Admin only, and
+// deliberately not part of the `finance` group: an account-manager handles
+// day-to-day money, this is a total reset.
+//
+// Split preview/execute so the UI can show real counts before committing, and
+// so the delete cannot be triggered blind. `deleteAllPayments` additionally
+// requires the `confirm` token from the preview.
+router.get(
+    "/delete-all/preview",
+    protect,
+    authorizeRoles("admin"),
+    previewDeleteAllPayments
+);
+
+router.post(
+    "/delete-all",
+    protect,
+    authorizeRoles("admin"),
+    deleteAllPayments
 );
 
 module.exports = router;

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import { getSettings } from "../../services/settingsCache";
 import { invalidate } from "../../services/resources";
-import { Search, Filter, Receipt, Eye, Pencil, Trash2, X, CheckCircle2 } from "lucide-react";
+import { Search, Filter, Receipt, Eye, Pencil, Trash2, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { bdDate } from "../../utils/bdTime";
 
 const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
@@ -30,6 +30,15 @@ export default function PaymentHistory() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // Delete-all state. `preview` holds the server's counts, `typed` is what the
+  // admin must type to enable the button, and it is checked against
+  // `preview.confirm` so the number shown is the number deleted.
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [deletingAll, setDeletingAll] = useState(false);
 
   useEffect(() => {
     getSettings().then((r) => setSettings(r.data)).catch(() => {});
@@ -100,9 +109,61 @@ export default function PaymentHistory() {
     }
   };
 
+  // Turns a failed request into something actionable. A 404 in particular
+  // means the client is newer than the deployed server, which is otherwise
+  // indistinguishable from "no permission" behind a generic message.
+  const describeApiError = (err, fallback) => {
+    const status = err?.response?.status;
+    if (status === 404) {
+      return "Server does not have this endpoint yet. Update the backend (git pull + pm2 restart) and reload.";
+    }
+    if (status === 401 || status === 403) {
+      return "Not permitted. Only an admin can do this.";
+    }
+    return err?.response?.data?.message || (status ? `${fallback} (HTTP ${status})` : fallback);
+  };
+
+  const openDeleteAll = async () => {
+    setDeleteAllOpen(true);
+    setPreview(null);
+    setTyped("");
+    setPreviewLoading(true);
+    try {
+      const res = await api.get("/payments/delete-all/preview");
+      setPreview(res.data);
+    } catch (err) {
+      showToast(describeApiError(err, "Could not load delete preview"), "error");
+      setDeleteAllOpen(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!preview) return;
+    setDeletingAll(true);
+    try {
+      const res = await api.post("/payments/delete-all", { confirm: preview.confirm });
+      showToast(res.data.message || "All payments deleted.");
+      setDeleteAllOpen(false);
+      setPreview(null);
+      setTyped("");
+      // Every student balance and paid/unpaid state just changed.
+      await invalidate.payments();
+      await loadPayments();
+    } catch (err) {
+      showToast(describeApiError(err, "Failed to delete payments"), "error");
+      // The count may have moved on while the modal was open, so drop the
+      // stale token and force a fresh preview on the next attempt.
+      setPreview(null);
+      setTyped("");
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const classes = settings?.classes || [];
   const paymentMethods = settings?.paymentMethods || METHOD_LABELS;
-
   return (
     <div className="min-h-screen bg-gray-50">
       {toast && (
@@ -117,7 +178,15 @@ export default function PaymentHistory() {
             <h1 className="text-2xl font-bold text-slate-800">Payment History</h1>
             <p className="text-sm text-gray-400 mt-0.5">All students · view, edit, or cancel payment records</p>
           </div>
-          <span className="text-xs font-semibold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg">{total} records</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg">{total} records</span>
+            <button
+              onClick={openDeleteAll}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete All
+            </button>
+          </div>
         </div>
       </div>
 
@@ -309,6 +378,91 @@ export default function PaymentHistory() {
                 {busy ? "Cancelling..." : "Cancel Payment"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Payments */}
+      {deleteAllOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !deletingAll && setDeleteAllOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800">Delete all payments?</h3>
+                <p className="text-xs text-gray-400">Removes every receipt in the system</p>
+              </div>
+            </div>
+
+            {previewLoading ? (
+              <p className="text-sm text-gray-500 py-6 text-center">Loading what would be deleted...</p>
+            ) : preview ? (
+              <>
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-4 space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Receipts</span>
+                    <b className="text-slate-800">{preview.counts.payments}</b>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Students affected</span>
+                    <b className="text-slate-800">{preview.counts.students}</b>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total collected</span>
+                    <b className="text-slate-800">{fmt(preview.totals.collected)}</b>
+                  </div>
+                  {preview.totals.outstanding > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Outstanding dues erased</span>
+                      <b className="text-slate-800">{fmt(preview.totals.outstanding)}</b>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-sm text-gray-600 mb-4">
+                  This also clears {preview.counts.items} fee line(s) and{" "}
+                  {preview.counts.ledgerRows} ledger entr{(preview.counts.ledgerRows === 1 ? "y" : "ies")},
+                  so every student balance returns to zero and receipt numbering restarts at 000001.
+                  {preview.counts.preservedLedger > 0 && (
+                    <> {preview.counts.preservedLedger} non-payment ledger entr{(preview.counts.preservedLedger === 1 ? "y" : "ies")} kept.</>
+                  )}{" "}
+                  <b className="text-red-600">This cannot be undone.</b>
+                </p>
+
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Type {preview.counts.payments} to confirm
+                </label>
+                <input
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  disabled={deletingAll}
+                  placeholder={String(preview.counts.payments)}
+                  className="w-full border border-gray-200 rounded-xl p-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-red-500/40 transition disabled:opacity-50"
+                />
+
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={() => setDeleteAllOpen(false)}
+                    disabled={deletingAll}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold hover:bg-gray-200 transition disabled:opacity-50"
+                  >
+                    Keep
+                  </button>
+                  <button
+                    onClick={handleDeleteAll}
+                    disabled={deletingAll || typed.trim() !== String(preview.counts.payments)}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingAll ? "Deleting..." : "Delete Everything"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 py-6 text-center">Preview unavailable.</p>
+            )}
           </div>
         </div>
       )}

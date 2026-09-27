@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const Payment = require("../models/Payment");
 const PaymentItem = require("../models/PaymentItem");
+const PaymentAllocation = require("../models/PaymentAllocation");
 const Student = require("../models/Student");
 const Teacher = require("../models/Teacher");
 const FeeCategory = require("../models/FeeCategory");
@@ -1506,6 +1507,152 @@ const getStudentDueItems = async (req, res) => {
   }
 };
 
+// ============================================
+// DELETE ALL PAYMENTS (preview + execute)
+// ============================================
+//
+// Split into two calls on purpose. `previewDeleteAllPayments` only counts, so
+// the UI can show exactly what a delete would destroy before anyone commits
+// to it. `deleteAllPayments` refuses to run unless the client echoes back the
+// `confirm` token from the preview — a stale count can't be confirmed by
+// accident.
+//
+// The cascade covers four collections, not one. `Payment` alone is not the
+// record: `PaymentItem` drives the "already paid" duplicate check and
+// admit-card eligibility, and `StudentLedger` holds the money-received side
+// of every receipt. Deleting only the header would leave students appearing
+// to still owe money for payments that no longer exist.
+//
+// This deletes every payment-linked ledger row, which is what makes a full
+// reset correct: each student's running balance legitimately returns to 0.
+// Standalone charges and manual adjustments (rows with payment: null) are
+// left alone, so genuine outstanding fees survive.
+
+// Counts what a delete-all would remove. Read only.
+const previewDeleteAllPayments = async (req, res) => {
+  try {
+    const [payments, items, allocations, ledgerRows, students] = await Promise.all([
+      Payment.countDocuments({}),
+      PaymentItem.countDocuments({}),
+      PaymentAllocation.countDocuments({}),
+      StudentLedger.countDocuments({ payment: { $ne: null } }),
+      Payment.distinct("student"),
+    ]);
+
+    const totals = await Payment.aggregate([
+      {
+        $group: {
+          _id: null,
+          collected: { $sum: "$paidAmount" },
+          outstanding: { $sum: "$dueAmount" },
+          advance: { $sum: "$advanceReceived" },
+        },
+      },
+    ]);
+
+    const t = totals[0] || { collected: 0, outstanding: 0, advance: 0 };
+
+    // Non-payment ledger rows are preserved, so say so rather than implying
+    // every ledger entry disappears.
+    const preservedLedger = await StudentLedger.countDocuments({ payment: null });
+
+    return res.status(200).json({
+      success: true,
+      counts: {
+        payments,
+        items,
+        allocations,
+        ledgerRows,
+        preservedLedger,
+        students: students.length,
+      },
+      totals: {
+        collected: t.collected,
+        outstanding: t.outstanding,
+        advance: t.advance,
+      },
+      confirm: String(payments),
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Performs the delete. Admin only, and gated on the preview token.
+const deleteAllPayments = async (req, res) => {
+  try {
+    const confirm = String(req.body?.confirm ?? "").trim();
+
+    // Validate before opening a transaction. A read does not need to be part
+    // of the write transaction, and keeping it outside means the gate still
+    // works on a standalone mongod, where transactions are unavailable.
+    const paymentCount = await Payment.countDocuments({});
+
+    if (paymentCount === 0) {
+      return res.status(400).json({ success: false, message: "There are no payments to delete." });
+    }
+
+    // The client must echo the count it was shown. Guards against confirming
+    // against a stale preview, and makes an accidental call a no-op.
+    if (confirm !== String(paymentCount)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Confirmation does not match the current payment count. Reload the preview and try again.",
+      });
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const itemIds = (await PaymentItem.find({}).select("_id").session(session)).map((i) => i._id);
+
+      // Children first, so a failure can never leave a PaymentItem or ledger
+      // row pointing at a receipt that is already gone.
+      const deletedAllocations = await PaymentAllocation.deleteMany(
+        { paymentItem: { $in: itemIds } },
+        { session }
+      );
+      const deletedLedger = await StudentLedger.deleteMany(
+        { payment: { $ne: null } },
+        { session }
+      );
+      const deletedItems = await PaymentItem.deleteMany({}, { session });
+      const deletedPayments = await Payment.deleteMany({}, { session });
+
+      await session.commitTransaction();
+
+      console.log(
+        `[deleteAllPayments] by ${req.user?._name || req.user?.email || req.user?._id || "unknown"}: ` +
+          `${deletedPayments.deletedCount} payments, ${deletedItems.deletedCount} items, ` +
+          `${deletedAllocations.deletedCount} allocations, ${deletedLedger.deletedCount} ledger rows`
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Deleted ${deletedPayments.deletedCount} payment record(s).`,
+        deleted: {
+          payments: deletedPayments.deletedCount,
+          items: deletedItems.deletedCount,
+          allocations: deletedAllocations.deletedCount,
+          ledgerRows: deletedLedger.deletedCount,
+        },
+      });
+    } catch (txError) {
+      // Roll back so a failure never leaves payments without their items.
+      await session.abortTransaction().catch(() => {});
+      throw txError;
+    } finally {
+      session.endSession();
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   collectPayment,
   getStudentPaymentHistory,
@@ -1513,6 +1660,8 @@ module.exports = {
   getPaymentReceipt,
   updatePayment,
   cancelPayment,
+  previewDeleteAllPayments,
+  deleteAllPayments,
   checkAdmitCardEligibility,
   getEligibleStudentsForAdmitCards,
   getFeeCategories,

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../../services/api";
 import logo from "../../assets/logo.png";
 import { bdYear } from "../../utils/bdTime";
 import SEO from "../../components/SEO";
+import { useLandingData } from "../../services/resources";
 import { SITE_URL, absoluteUrl } from "../../seo/config";
 import {
   Users,
@@ -34,19 +34,15 @@ const getVisibleCount = () => {
 };
 
 export default function LandingPage() {
-  const [students, setStudents] = useState([]);
-  const [counts, setCounts] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [gallery, setGallery] = useState([]);
   const [showAll, setShowAll] = useState(false);
 const [paused, setPaused] = useState(false);
 
-  useEffect(() => {
-    api.get("/public/students").then((res) => setStudents(res.data)).catch(() => {});
-    api.get("/public/counts").then((res) => setCounts(res.data)).catch(() => {});
-    api.get("/events?limit=4").then((res) => setEvents(res.data)).catch(() => {});
-    api.get("/gallery?limit=10").then((res) => setGallery(res.data)).catch(() => {});
-  }, []);
+  const { students, counts: countsQuery, events, gallery } = useLandingData();
+  const studentList = students.data || [];
+  const countData = countsQuery.data;
+  const eventList = events.data || [];
+  const galleryList = gallery.data || [];
+
 
   return (
     <div className="min-h-screen bg-white">
@@ -144,9 +140,9 @@ imageAlt="Ruhama United School logo"
             </p>
             <p className="text-indigo-200/80 mt-6 text-sm leading-relaxed">
               Today Ruhama United School is home to{" "}
-              <span className="font-bold text-white">{counts?.students ?? "—"}</span> young learners, guided by{" "}
-              <span className="font-bold text-white">{counts?.teachers ?? "—"}</span> teachers across{" "}
-              <span className="font-bold text-white">{counts?.classes ?? "—"}</span> classes — a family that keeps
+              <span className="font-bold text-white">{countData?.students ?? "—"}</span> young learners, guided by{" "}
+              <span className="font-bold text-white">{countData?.teachers ?? "—"}</span> teachers across{" "}
+              <span className="font-bold text-white">{countData?.classes ?? "—"}</span> classes — a family that keeps
               growing with every admission season.
             </p>
             <p className="text-indigo-400/70 mt-6 text-sm">&mdash; Ruhama United School</p>
@@ -165,7 +161,7 @@ imageAlt="Ruhama United School logo"
             </p>
           </div>
 
-          <Gallery students={students} paused={paused} setPaused={setPaused} />
+          <Gallery students={studentList} paused={paused} setPaused={setPaused} />
 
           <div className="text-center mt-10">
             <button
@@ -177,7 +173,7 @@ imageAlt="Ruhama United School logo"
             </button>
           </div>
 
-          {showAll && <NamesList students={students} />}
+          {showAll && studentList.length > 0 && <NamesList students={studentList} />}
         </div>
       </section>
 
@@ -208,7 +204,7 @@ imageAlt="Ruhama United School logo"
       </section>
 
       {/* Events */}
-      {events.length > 0 && (
+      {(events.loading || eventList.length > 0) && (
         <section id="events" className="py-20 px-6 bg-gray-50 scroll-mt-20">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
@@ -220,7 +216,18 @@ imageAlt="Ruhama United School logo"
             </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {events.map((event) => (
+              {events.loading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                      <div className="aspect-video bg-gray-100 animate-pulse" />
+                      <div className="p-5 flex flex-col gap-3">
+                        <div className="h-4 w-3/4 rounded bg-gray-100 animate-pulse" />
+                        <div className="h-3 w-full rounded bg-gray-100 animate-pulse" />
+                        <div className="h-3 w-2/3 rounded bg-gray-100 animate-pulse" />
+                      </div>
+                    </div>
+                  ))
+                : eventList.map((event) => (
                 <Link
                   key={event._id}
                   to={`/events/${event._id}`}
@@ -257,20 +264,22 @@ imageAlt="Ruhama United School logo"
               ))}
             </div>
 
-            <div className="text-center mt-10">
-              <Link
-                to="/events"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
-              >
-                See All Events <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
+            {!events.loading && (
+              <div className="text-center mt-10">
+                <Link
+                  to="/events"
+                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+                >
+                  See All Events <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
           </div>
         </section>
       )}
 
       {/* School Gallery */}
-      {gallery.length > 0 && (
+      {(gallery.loading || galleryList.length > 0) && (
         <section id="gallery" className="py-20 px-6 scroll-mt-20">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
@@ -281,16 +290,29 @@ imageAlt="Ruhama United School logo"
               </p>
             </div>
 
-            <GalleryCarousel photos={gallery} />
+            {gallery.loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`bg-gray-100 animate-pulse rounded-2xl ${i % 3 === 0 ? "aspect-[3/4]" : "aspect-square"}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <GalleryCarousel photos={galleryList} />
+            )}
 
-            <div className="text-center mt-10">
-              <Link
-                to="/gallery"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
-              >
-                See All Photos <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
+            {!gallery.loading && (
+              <div className="text-center mt-10">
+                <Link
+                  to="/gallery"
+                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+                >
+                  See All Photos <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
           </div>
         </section>
       )}

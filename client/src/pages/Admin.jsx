@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
+import useQuery from "../hooks/useQuery";
 import {
   FileText,
   ClipboardList,
@@ -13,24 +14,24 @@ import {
 import Toast from "../components/Toast";
 
 const Admin = () => {
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [pendingData, setPendingData] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 
+  const reportsQuery = useQuery("reports:all", () =>
+    api.get("/reports/all").then((res) => res.data || [])
+  );
+  const reports = reportsQuery.data || [];
 
-  const getPending = async (className, date) => {
-    try {
-      const res = await api.get(`/reports/pending?className=${className}&date=${date}`);
-      setPendingData((prev) => ({
-        ...prev,
-        [className + date]: res.data,
-      }));
-    } catch (error) {
-      console.log(error);
-    }
-  };
+  const pairs = reports.map((r) => ({ className: r.className, date: r.date }));
+  const pairKey = JSON.stringify(pairs);
+
+  const pendingQuery = useQuery(
+    pairs.length ? `reports:pending:${pairKey}` : null,
+    () =>
+      api
+        .get(`/reports/pending-summary?pairs=${encodeURIComponent(pairKey)}`)
+        .then((res) => res.data?.summary || {})
+  );
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -38,36 +39,20 @@ const Admin = () => {
       await api.delete(`/reports/${deleteTarget.reportId}/${deleteTarget.entryId}`);
       setToast({ message: "Entry Deleted", type: "success" });
       setDeleteTarget(null);
-      setTimeout(() => window.location.reload(), 800);
+      await reportsQuery.refetch();
+      await pendingQuery.refetch();
     } catch (error) {
       setToast({ message: error.response?.data?.message || "Delete failed", type: "error" });
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const res = await api.get("/reports/all");
-        setReports(res.data);
-        res.data.forEach((report) => {
-          getPending(report.className, report.date);
-        });
-      } catch (error) {
-        console.log(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+  const loading = reportsQuery.loading || (pairs.length > 0 && pendingQuery.loading);
 
   const totalReports = reports.length;
   const totalEntries = reports.reduce((acc, report) => acc + report.entries.length, 0);
   const totalClasses = new Set(reports.map((report) => report.className)).size;
-  const totalPending = Object.values(pendingData).reduce(
-    (acc, item) => acc + item.pendingSubjects.length,
-    0
-  );
+  const pendingSummary = pendingQuery.data || {};
+  const totalPending = Object.values(pendingSummary).reduce((acc, list) => acc + list.length, 0);
 
   const statCards = [
     {
@@ -244,15 +229,15 @@ const Admin = () => {
             </div>
 
             {/* Pending Subjects */}
-            {pendingData[report.className + report.date] && (
+            {pendingSummary[`${report.className}|${report.date}`] && (
               <div className="px-6 py-4 bg-amber-50/50 border-t border-amber-100">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
                   <h3 className="text-sm font-semibold text-amber-800">Pending Subjects</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {pendingData[report.className + report.date]?.pendingSubjects?.length > 0 ? (
-                    pendingData[report.className + report.date].pendingSubjects.map((subject, index) => (
+                  {pendingSummary[`${report.className}|${report.date}`].length > 0 ? (
+                    pendingSummary[`${report.className}|${report.date}`].map((subject, index) => (
                       <span
                         key={index}
                         className="inline-flex items-center px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-xs font-medium"

@@ -7,7 +7,9 @@ const AdmitCardPreview = ({ student, exam, onPrint, bulk = false }) => {
     if (!student || !exam) return null;
 
     return (
-        <div className={bulk ? "admit-card-page" : "mt-8"}>
+        /* In bulk mode every card sits in its own sheet; the sheet owns the page break
+           so the card itself is never resized, wrapped or scaled. */
+        <div className={bulk ? "admit-card-sheet bg-white" : "mt-8"}>
             {/* ACTION BUTTONS */}
             {!bulk && (
             <div className="no-print print:hidden flex justify-end gap-4 mb-6">

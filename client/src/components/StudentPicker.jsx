@@ -1,21 +1,16 @@
-import { useEffect, useState } from "react";
-import api from "../services/api";
-import { getSettings } from "../services/settingsCache";
+import { useState } from "react";
+import { useSettings, useStudents } from "../services/resources";
+import { PageLoader } from "./Loader";
 
 const StudentPicker = ({ onSelect, onOpen, selectedId, title = "Select Student", navigateOnClick = true }) => {
-  const [classes, setClasses] = useState([]);
-  const [students, setStudents] = useState([]);
   const [classFilter, setClassFilter] = useState("");
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getSettings().then((r) => setClasses(r.data?.classes || [])).catch(() => {});
-    api.get("/students")
-      .then((res) => setStudents(res.data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const settings = useSettings();
+  const studentsQuery = useStudents();
+
+  const classes = settings.data?.classes || [];
+  const students = studentsQuery.data || [];
 
   const q = query.trim().toLowerCase();
   const filtered = students.filter((s) => {
@@ -49,9 +44,14 @@ const StudentPicker = ({ onSelect, onOpen, selectedId, title = "Select Student",
       </div>
 
       <div className="text-xs text-gray-400 mb-2">
-        {loading ? "Loading students..." : `${filtered.length} student${filtered.length !== 1 ? "s" : ""}`}
+        {studentsQuery.loading
+          ? "Loading students..."
+          : `${filtered.length} student${filtered.length !== 1 ? "s" : ""}`}
       </div>
 
+      {studentsQuery.loading ? (
+        <PageLoader />
+      ) : (
       <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-white">
@@ -109,6 +109,7 @@ const StudentPicker = ({ onSelect, onOpen, selectedId, title = "Select Student",
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 };

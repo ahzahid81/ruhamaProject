@@ -1,25 +1,31 @@
 import api from "./api";
+import queryCache from "./queryClient";
 
-let settingsPromise = null;
+const SETTINGS_KEY = "settings";
 
-export function getSettings() {
-  if (!settingsPromise) {
-    settingsPromise = api
-      .get("/settings")
-      .then((res) => ({ data: res.data }))
-      .catch((err) => {
-        settingsPromise = null;
-        throw err;
-      });
-  }
-  return settingsPromise;
+const fetchSettings = () => api.get("/settings").then((res) => res.data);
+
+const settle = (entry) => {
+  if (entry.status === "error") throw entry.error;
+  return { data: entry.data };
+};
+
+export function getSettings({ force = false } = {}) {
+  return queryCache
+    .ensure(SETTINGS_KEY, fetchSettings, { force, staleTime: 5 * 60_000 })
+    .then(settle);
 }
 
 export function refreshSettings() {
-  settingsPromise = null;
-  return getSettings();
+  return getSettings({ force: true });
 }
 
 export function clearSettingsCache() {
-  settingsPromise = null;
+  queryCache.remove(SETTINGS_KEY);
 }
+
+export function invalidateSettings() {
+  return queryCache.invalidate(SETTINGS_KEY);
+}
+
+export { SETTINGS_KEY, fetchSettings };

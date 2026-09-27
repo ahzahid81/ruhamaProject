@@ -144,6 +144,10 @@ const paymentItemSchema = new mongoose.Schema(
     }
 );
 
+// Admit-card eligibility loads paid items for a whole cohort at once
+// ({ student: { $in: ids }, paymentStatus: "Paid" }).
+paymentItemSchema.index({ student: 1, paymentStatus: 1 });
+
 module.exports = mongoose.model(
     "PaymentItem",
     paymentItemSchema

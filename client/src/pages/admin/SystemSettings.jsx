@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import api from "../../services/api";
-import { getSettings, clearSettingsCache } from "../../services/settingsCache";
+import useQuery from "../../hooks/useQuery";
+import { useSettings } from "../../services/resources";
+import { PageLoader } from "../../components/Loader";
 
 const STRING_KEYS = ["sections", "subjects", "paymentMethods", "academicSessions"];
 
@@ -23,9 +25,11 @@ const HELPERS = {
 };
 
 export default function SystemSettings() {
-  const [settings, setSettings] = useState(null);
-  const [examNames, setExamNames] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const settingsQuery = useSettings();
+  const examNamesQuery = useQuery("exam-names", () =>
+    api.get("/exam-names").then((res) => res.data || [])
+  );
+
   const [message, setMessage] = useState(null);
   const [activeTab, setActiveTab] = useState("classes");
 
@@ -36,19 +40,8 @@ export default function SystemSettings() {
   const [newExamName, setNewExamName] = useState("");
   const [editExam, setEditExam] = useState(null);
 
-  useEffect(() => {
-    getSettings()
-      .then((res) => setSettings(res.data))
-      .catch(() => setMessage({ text: "Failed to load settings from the server.", type: "error" }))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    api
-      .get("/exam-names")
-      .then((res) => setExamNames(res.data))
-      .catch(() => {});
-  }, []);
+  const settings = settingsQuery.data;
+  const examNames = examNamesQuery.data || [];
 
   const showMessage = (text, type = "success") => {
     setMessage({ text, type });
@@ -56,10 +49,9 @@ export default function SystemSettings() {
   };
 
   const applySettings = (doc) => {
-    setSettings(doc);
+    settingsQuery.setData(doc);
     setEditClass(null);
     setEditItem(null);
-    clearSettingsCache();
   };
 
   const addItem = async (key) => {
@@ -126,7 +118,7 @@ export default function SystemSettings() {
     if (!name) return;
     try {
       const res = await api.post("/exam-names", { name });
-      setExamNames([...examNames, res.data]);
+      examNamesQuery.setData((prev) => [...(prev || []), res.data]);
       setNewExamName("");
       showMessage("Exam name added");
     } catch (err) {
@@ -137,7 +129,9 @@ export default function SystemSettings() {
   const saveExamName = async () => {
     try {
       const res = await api.put(`/exam-names/${editExam.id}`, { name: editExam.name });
-      setExamNames(examNames.map((e) => (e._id === editExam.id ? { ...e, name: res.data.name } : e)));
+      examNamesQuery.setData((prev) =>
+        (prev || []).map((e) => (e._id === editExam.id ? { ...e, name: res.data.name } : e))
+      );
       setEditExam(null);
       showMessage("Exam name updated");
     } catch (err) {
@@ -149,7 +143,7 @@ export default function SystemSettings() {
     if (!window.confirm(`Delete exam name "${name}"?\n\nExam fees already recorded keep their name.`)) return;
     try {
       await api.delete(`/exam-names/${id}`);
-      setExamNames(examNames.filter((e) => e._id !== id));
+      examNamesQuery.setData((prev) => (prev || []).filter((e) => e._id !== id));
       showMessage("Exam name deleted");
     } catch (err) {
       showMessage(err.response?.data?.message || "Failed to delete", "error");
@@ -157,22 +151,18 @@ export default function SystemSettings() {
   };
 
   const changeCurrentSession = async (value) => {
-    setSettings({ ...settings, currentSession: value });
+    settingsQuery.setData((prev) => ({ ...prev, currentSession: value }));
     try {
       const res = await api.put("/settings/current-session", { currentSession: value });
-      setSettings(res.data);
+      settingsQuery.setData(res.data);
       showMessage("Active session updated");
     } catch (err) {
       showMessage(err.response?.data?.message || "Failed to update session", "error");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Loading from database...</p>
-      </div>
-    );
+  if (settingsQuery.loading) {
+    return <PageLoader label="Loading from database..." />;
   }
 
   if (!settings) {

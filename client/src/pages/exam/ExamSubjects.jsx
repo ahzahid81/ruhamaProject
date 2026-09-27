@@ -1,75 +1,66 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
+import useQuery from "../../hooks/useQuery";
+import { useExams, useSettings } from "../../services/resources";
+import { PageLoader } from "../../components/Loader";
 
 const emptySubjectRow = { subjectName: "", subjectCode: "", fullMarks: 100, passMarks: 33 };
+
+const toRow = (s) => ({
+  _id: s._id,
+  subjectName: s.subjectName,
+  subjectCode: s.subjectCode || "",
+  fullMarks: s.fullMarks,
+  passMarks: s.passMarks,
+});
 
 export default function ExamSubjects() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [exam, setExam] = useState(location.state?.exam || null);
-  const [systemSettings, setSystemSettings] = useState(null);
   const [subjectClass, setSubjectClass] = useState("");
-  const [subjectRows, setSubjectRows] = useState([]);
   const [subjectSaving, setSubjectSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const sres = await getSettings();
-        setSystemSettings(sres.data);
-      } catch {
-        setSystemSettings({ classes: [], subjects: [] });
-      }
-      if (!location.state?.exam) {
-        try {
-          const eres = await api.get("/exams");
-          const exams = eres.data.exams || [];
-          const found = exams.find((e) => e._id === id);
-          if (found) setExam(found);
-        } catch {
-          // silent
-        }
-      }
-      setLoading(false);
-    })();
-  }, [id]);
+  /* Edits are per class and survive revalidation: the server rows are the
+     source, the draft only takes over once the user actually changes a row. */
+  const [drafts, setDrafts] = useState({});
+
+  const settingsQuery = useSettings();
+  const systemSettings = settingsQuery.data;
+  const examsQuery = useExams();
+  const exams = useMemo(() => examsQuery.data || [], [examsQuery.data]);
+  const exam = location.state?.exam || exams.find((e) => e._id === id) || null;
+
+  const subjectsQuery = useQuery(
+    subjectClass ? `exams:${id}:subjects:${subjectClass}` : null,
+    () =>
+      api
+        .get(`/exams/${id}/subjects?className=${encodeURIComponent(subjectClass)}`)
+        .then((res) => (res.data.subjects || []).map(toRow))
+  );
+
+  const serverRows = useMemo(() => {
+    if (!subjectClass) return [];
+    if (!subjectsQuery.data) return null;
+    return subjectsQuery.data.length > 0 ? subjectsQuery.data : [{ ...emptySubjectRow }];
+  }, [subjectClass, subjectsQuery.data]);
+
+  const subjectRows = (subjectClass && drafts[subjectClass]) ?? serverRows ?? [];
+
+  const writeRows = (rows) => {
+    setDrafts((prev) => ({ ...prev, [subjectClass]: rows }));
+  };
 
   const showToast = (text, type = "success") => {
     setToast({ text, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  const loadSubjects = async (className) => {
-    try {
-      const res = await api.get(`/exams/${id}/subjects?className=${encodeURIComponent(className)}`);
-      const existing = res.data.subjects || [];
-      if (existing.length > 0) {
-        setSubjectRows(
-          existing.map((s) => ({
-            _id: s._id,
-            subjectName: s.subjectName,
-            subjectCode: s.subjectCode || "",
-            fullMarks: s.fullMarks,
-            passMarks: s.passMarks,
-          }))
-        );
-      } else {
-        setSubjectRows([{ ...emptySubjectRow }]);
-      }
-    } catch {
-      setSubjectRows([{ ...emptySubjectRow }]);
-    }
-  };
-
   const handleClassChange = (className) => {
     setSubjectClass(className);
-    if (className) loadSubjects(className);
   };
 
   const updateSubjectRow = (index, field, value) => {
@@ -79,7 +70,7 @@ export default function ExamSubjects() {
       updated.subjectCode = value.trim().toUpperCase().replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
     }
     rows[index] = updated;
-    setSubjectRows(rows);
+    writeRows(rows);
   };
 
   const saveSubjects = async () => {
@@ -102,8 +93,11 @@ export default function ExamSubjects() {
         className: subjectClass,
         subjects: clean,
       });
+      // The rows just persisted are the truth for this class; the refetch only
+      // refreshes the shared cache in the background.
+      writeRows(clean);
       showToast("Subjects saved");
-      await loadSubjects(subjectClass);
+      await subjectsQuery.refetch();
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to save subjects", "error");
     } finally {
@@ -111,14 +105,8 @@ export default function ExamSubjects() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-        </div>
-      </div>
-    );
+  if (settingsQuery.loading || examsQuery.loading) {
+    return <PageLoader label="Loading exam subjects..." />;
   }
 
   return (
@@ -149,7 +137,7 @@ export default function ExamSubjects() {
             </select>
           </div>
           {subjectClass && (
-            <button type="button" onClick={() => setSubjectRows([...subjectRows, { ...emptySubjectRow }])}
+            <button type="button" onClick={() => writeRows([...subjectRows, { ...emptySubjectRow }])}
               className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition self-end">
               + Add Subject
             </button>
@@ -158,8 +146,15 @@ export default function ExamSubjects() {
 
         {subjectClass && (
           <>
-            <p className="text-sm text-gray-500 mb-3">{subjectRows.length} subject{subjectRows.length !== 1 && "s"}</p>
-            <div className="space-y-2 mb-4">
+            {subjectsQuery.loading ? (
+              <p className="text-sm text-gray-400 py-6 text-center flex items-center justify-center gap-2">
+                <span className="animate-spin w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full" />
+                Loading subjects...
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 mb-3">{subjectRows.length} subject{subjectRows.length !== 1 && "s"}</p>
+                <div className="space-y-2 mb-4">
               {subjectRows.map((row, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-center bg-gray-50/50 rounded-xl p-2 border border-gray-100">
                   <select value={row.subjectName} onChange={(e) => updateSubjectRow(i, "subjectName", e.target.value)}
@@ -175,19 +170,21 @@ export default function ExamSubjects() {
                     placeholder="Full Marks" className="col-span-2 border border-gray-200 rounded-lg p-2 text-sm outline-none" />
                   <input type="number" value={row.passMarks} onChange={(e) => updateSubjectRow(i, "passMarks", e.target.value)}
                     placeholder="Pass Marks" className="col-span-2 border border-gray-200 rounded-lg p-2 text-sm outline-none" />
-                  <button type="button" onClick={() => setSubjectRows(subjectRows.filter((_, ri) => ri !== i))}
+                  <button type="button" onClick={() => writeRows(subjectRows.filter((_, ri) => ri !== i))}
                     className="col-span-2 text-xs text-red-600 hover:text-red-800 font-semibold">Remove</button>
                 </div>
               ))}
-            </div>
-            <div className="flex gap-3">
-              <button type="button" onClick={saveSubjects} disabled={subjectSaving}
-                className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50">
-                {subjectSaving ? "Saving..." : "Save Subjects"}
-              </button>
-              <button type="button" onClick={() => navigate("/exam/management")}
-                className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition">Cancel</button>
-            </div>
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={saveSubjects} disabled={subjectSaving}
+                    className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50">
+                    {subjectSaving ? "Saving..." : "Save Subjects"}
+                  </button>
+                  <button type="button" onClick={() => navigate("/exam/management")}
+                    className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 transition">Cancel</button>
+                </div>
+              </>
+            )}
           </>
         )}
 

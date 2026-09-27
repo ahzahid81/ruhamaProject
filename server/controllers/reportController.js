@@ -147,6 +147,71 @@ const getAllReports = async (
 
 const Teacher = require("../models/Teacher");
 
+// Collects pending-subject counts for many class/date pairs at once.
+// The dashboard used to call /reports/pending once per report, and every one of
+// those calls re-read the whole Teacher collection.
+const collectAssignedSubjects = (teachers) => {
+    const byClass = new Map();
+    teachers.forEach((teacher) => {
+        if (!teacher.assignments) return;
+        teacher.assignments.forEach((assignment) => {
+            if (!assignment.className || !assignment.subject) return;
+            const bucket = byClass.get(assignment.className) || new Set();
+            bucket.add(assignment.subject);
+            byClass.set(assignment.className, bucket);
+        });
+    });
+    return byClass;
+};
+
+const getPendingSummary = async (req, res) => {
+    try {
+        let pairs = [];
+        if (req.query.pairs) {
+            pairs = JSON.parse(req.query.pairs);
+        } else if (Array.isArray(req.body?.pairs)) {
+            pairs = req.body.pairs;
+        }
+
+        const normalized = pairs
+            .filter((p) => p && p.className && p.date)
+            .map((p) => ({ className: String(p.className), date: String(p.date) }));
+
+        if (!normalized.length) {
+            return res.status(200).json({ summary: {} });
+        }
+
+        const [teachers, reports] = await Promise.all([
+            Teacher.find().lean(),
+            Report.find({
+                $or: normalized.map((p) => ({ className: p.className, date: p.date })),
+            }).lean(),
+        ]);
+
+        const assignedByClass = collectAssignedSubjects(teachers);
+        const submittedByPair = new Map();
+        reports.forEach((report) => {
+            const key = `${report.className}|${report.date}`;
+            const bucket = submittedByPair.get(key) || new Set();
+            (report.entries || []).forEach((entry) => bucket.add(entry.subject));
+            submittedByPair.set(key, bucket);
+        });
+
+        const summary = {};
+        normalized.forEach((pair) => {
+            const key = `${pair.className}|${pair.date}`;
+            const assigned = assignedByClass.get(pair.className) || new Set();
+            const submitted = submittedByPair.get(key) || new Set();
+            summary[key] = [...assigned].filter((subject) => !submitted.has(subject));
+        });
+
+        return res.status(200).json({ summary });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: error.message });
+    }
+};
+
 const getPendingSubjects = async (
     req,
     res
@@ -339,6 +404,7 @@ module.exports = {
     getClassReport,
     getAllReports,
     getPendingSubjects,
+    getPendingSummary,
     deleteEntry,
     updateEntry,
 };

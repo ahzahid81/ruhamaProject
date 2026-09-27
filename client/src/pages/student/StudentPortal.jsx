@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../services/api";
+import studentApi from "../../services/studentApi";
+import useQuery from "../../hooks/useQuery";
+import { PageLoader } from "../../components/Loader";
 import logo from "../../assets/logo.png";
 import { bdDate, bdWeekday, bdMonth, bdYear, bdDateLong } from "../../utils/bdTime";
 import {
@@ -20,36 +22,28 @@ const tabs = [
 const hifzTab = { id: "hifz", label: "Hifz Progress", icon: GraduationCap };
 
 export default function StudentPortal() {
-  const [student, setStudent] = useState(null);
+  const [student] = useState(() => {
+    const stored = localStorage.getItem("student");
+    return stored ? JSON.parse(stored) : null;
+  });
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isHifzStudent, setIsHifzStudent] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const stored = localStorage.getItem("student");
-    const token = localStorage.getItem("studentToken");
-    if (!stored || !token) {
-      navigate("/student-login");
-      return;
-    }
-    const parsed = JSON.parse(stored);
-    setStudent(parsed);
-    setIsHifzStudent(parsed.studentType === "Hifzul Quran");
+  const hasSession = Boolean(student && localStorage.getItem("studentToken"));
 
-    api
-      .get("/student-portal/dashboard", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        const type = res.data?.student?.studentType;
-        if (type) {
-          setIsHifzStudent(type === "Hifzul Quran");
-          setStudent((prev) => (prev ? { ...prev, studentType: type } : prev));
-        }
-      })
-      .catch(() => { /* silent */ });
-  }, [navigate]);
+  const dashboardQuery = useQuery(
+    hasSession ? "student:dashboard" : null,
+    () => studentApi.get("/student-portal/dashboard").then((res) => res.data)
+  );
+
+  useEffect(() => {
+    if (!hasSession) navigate("/student-login");
+  }, [hasSession, navigate]);
+
+  const isHifzStudent =
+    dashboardQuery.data?.student?.studentType === "Hifzul Quran" ||
+    student?.studentType === "Hifzul Quran";
 
   const activeTabs = isHifzStudent ? [...tabs, hifzTab] : tabs;
 
@@ -170,23 +164,11 @@ export default function StudentPortal() {
 
 // ============ DASHBOARD ============
 function Dashboard({ fmt, setActiveTab }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error } = useQuery("student:dashboard", () =>    studentApi.get("/student-portal/dashboard").then((res) => res.data)
+  );
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await api.get("/student-portal/dashboard", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
-        });
-        setData(res.data);
-      } catch { /* silent */ } finally { setLoading(false); }
-    };
-    load();
-  }, []);
-
-  if (loading) return <div className="text-center py-20"><div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>;
-  if (!data) return <div className="text-center py-20 text-gray-400">Unable to load dashboard</div>;
+  if (loading) return <PageLoader />;
+  if (error || !data) return <div className="text-center py-20 text-gray-400">Unable to load dashboard</div>;
 
   const stats = [
     { label: "Attendance", value: `${data.attendance?.percentage || 0}%`, tone: "bg-blue-50 text-blue-600", sub: "Overall" },
@@ -319,24 +301,17 @@ function Profile({ student }) {
 
 // ============ ATTENDANCE ============
 function Attendance() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(bdMonth());
   const [year, setYear] = useState(bdYear());
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(`/student-portal/attendance?month=${month}&year=${year}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
-        });
-        setData(res.data);
-      } catch { /* silent */ } finally { setLoading(false); }
-    };
-    load();
-  }, [month, year]);
+  const { data, loading } = useQuery(
+    `student:attendance:${month}:${year}`,
+    () =>
+      studentApi
+        .get(`/student-portal/attendance?month=${month}&year=${year}`)
+        .then((res) => res.data)
+  );
 
   return (
     <div className="space-y-5">
@@ -423,22 +398,13 @@ function Attendance() {
 
 // ============ RESULTS ============
 function Results() {
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading } = useQuery("student:results", () =>
+    studentApi.get("/student-portal/results").then((res) => res.data?.results || [])
+  );
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await api.get("/student-portal/results", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
-        });
-        setResults(res.data.results || []);
-      } catch { /* silent */ } finally { setLoading(false); }
-    };
-    load();
-  }, []);
+  const results = data || [];
 
-  if (loading) return <div className="text-center py-20"><div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>;
+  if (loading) return <PageLoader />;
 
   return (
     <div className="space-y-5">
@@ -500,24 +466,14 @@ function Results() {
 }
 
 // ============ PAYMENTS ============
-function Payments({ student, fmt }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+function Payments({ fmt }) {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await api.get("/student-portal/payments", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
-        });
-        setData(res.data);
-      } catch { /* silent */ } finally { setLoading(false); }
-    };
-    load();
-  }, []);
+  const { data, loading } = useQuery("student:payments", () =>
+    studentApi.get("/student-portal/payments").then((res) => res.data)
+  );
 
-  if (loading) return <div className="text-center py-20"><div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>;
+  if (loading) return <PageLoader />;
 
   return (
     <div className="space-y-5">
@@ -598,21 +554,9 @@ function Payments({ student, fmt }) {
 
 // ============ HIFZ PROGRESS (own reports) ============
 function HifzPortal() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get("/student-portal/hifz", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
-        });
-        setData(res.data);
-      } catch { /* silent */ } finally { setLoading(false); }
-    };
-    load();
-  }, []);
+  const { data, loading } = useQuery("student:hifz", () =>
+    studentApi.get("/student-portal/hifz").then((res) => res.data)
+  );
 
   const cls = (l) => {
     const parts = [];
@@ -688,23 +632,14 @@ function HifzPortal() {
 }
 
 // ============ DAILY DIARY ============
-function Diary({ student }) {
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
+function Diary() {
+  const { data, loading } = useQuery("student:diary", () =>
+    studentApi.get("/student-portal/diary").then((res) => res.data?.reports || [])
+  );
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await api.get("/student-portal/diary", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("studentToken")}` },
-        });
-        setReports(res.data.reports || []);
-      } catch { /* silent */ } finally { setLoading(false); }
-    };
-    load();
-  }, []);
+  const reports = data || [];
 
-  if (loading) return <div className="text-center py-20"><div className="animate-spin w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full mx-auto" /></div>;
+  if (loading) return <PageLoader />;
 
   return (
     <div className="space-y-4">

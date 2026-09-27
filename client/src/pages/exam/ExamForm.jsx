@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { invalidate, useExams, useFeeCategories, useSettings } from "../../services/resources";
+import { PageLoader } from "../../components/Loader";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
 
 const emptyExamForm = {
   examName: "",
@@ -59,11 +60,16 @@ export default function ExamForm() {
   const editing = Boolean(id);
 
   const [form, setForm] = useState(emptyExamForm);
-  const [categories, setCategories] = useState([]);
-  const [systemSettings, setSystemSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+
+  const settingsQuery = useSettings();
+  const categoriesQuery = useFeeCategories();
+  const examsQuery = useExams();
+
+  const categories = useMemo(() => categoriesQuery.data || [], [categoriesQuery.data]);
+  const systemSettings = settingsQuery.data;
+  const exams = useMemo(() => examsQuery.data || [], [examsQuery.data]);
 
   const mapExam = (exam) => ({
     examName: exam.examName,
@@ -75,43 +81,27 @@ export default function ExamForm() {
     requiredFees: flattenRequired(exam.requiredFees || []),
   });
 
-  useEffect(() => {
-    (async () => {
-      let currentSession = "2026";
-      try {
-        const sres = await getSettings();
-        setSystemSettings(sres.data);
-        currentSession = sres.data.currentSession || "2026";
-      } catch {
-        setSystemSettings({ academicSessions: ["2025", "2026", "2027"], currentSession: "2026", classes: [] });
-      }
-      try {
-        const cres = await api.get("/payments/fee-categories");
-        setCategories(cres.data);
-      } catch {
-        // silent
-      }
+  // The exam to edit comes from the navigation state, or from the shared exam
+  // list (already cached by the list page) when the page was opened directly.
+  const sourceExam = editing ? location.state?.exam || exams.find((e) => e._id === id) || null : null;
 
-      try {
-        if (editing) {
-          const exam = location.state?.exam;
-          if (exam) {
-            setForm(mapExam(exam));
-          } else {
-            const eres = await api.get("/exams");
-            const exams = eres.data.exams || [];
-            const found = exams.find((e) => e._id === id);
-            if (found) setForm(mapExam(found));
-          }
-        } else {
-          setForm({ ...emptyExamForm, academicSession: currentSession });
-        }
-      } catch {
-        // silent
-      }
-      setLoading(false);
-    })();
-  }, [id]);
+  /* Seed the form once, when the data it depends on has actually arrived.
+     Adjusting state during render (instead of inside an effect) keeps this to
+     exactly one pass per mount — no refetch loop, no StrictMode double write. */
+  const [hydrated, setHydrated] = useState(false);
+  const settingsReady = !settingsQuery.loading;
+  const examReady = !editing || Boolean(sourceExam) || !examsQuery.loading;
+  if (!hydrated && settingsReady && examReady) {
+    setHydrated(true);
+    if (editing) {
+      if (sourceExam) setForm(mapExam(sourceExam));
+    } else {
+      setForm({ ...emptyExamForm, academicSession: systemSettings?.currentSession || "2026" });
+    }
+  }
+
+  const loading = !hydrated;
+  const loadError = settingsQuery.error || categoriesQuery.error || (editing && !sourceExam && !examsQuery.loading && !examsQuery.error ? "Exam not found." : null);
 
   const showToast = (text, type = "success") => {
     setToast({ text, type });
@@ -216,6 +206,7 @@ export default function ExamForm() {
         await api.post("/exams", form);
         showToast("Exam created");
       }
+      await invalidate.exams();
       setTimeout(() => navigate("/exam/management"), 400);
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to save", "error");
@@ -224,11 +215,13 @@ export default function ExamForm() {
     }
   };
 
-  if (loading || !systemSettings) {
+  if (loading) return <PageLoader label="Loading exam form..." />;
+
+  if (loadError) {
     return (
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+          {loadError}
         </div>
       </div>
     );

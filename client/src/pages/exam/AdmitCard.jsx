@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useParams, useNavigate } from "react-router-dom";
 import { Printer } from "lucide-react";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
+import useQuery from "../../hooks/useQuery";
+import { invalidate, useExams, useSettings } from "../../services/resources";
 import { bdYear } from "../../utils/bdTime";
 import Toast from "../../components/Toast";
 
@@ -26,42 +27,86 @@ const AdmitCard = () => {
         ? searchParams.get("studentId")
         : studentIdRoute;
 
-    const [student, setStudent] = useState(null);
-    const [eligibility, setEligibility] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [pickedStudent, setPickedStudent] = useState(null);
     const [isPrinting, setIsPrinting] = useState(false);
-    const [systemSettings, setSystemSettings] = useState(null);
-    const [exams, setExams] = useState([]);
-    const [selectedExamId, setSelectedExamId] = useState("");
     const [toast, setToast] = useState(null);
     const [temporaryKey, setTemporaryKey] = useState("");
 
-    const [dueItems, setDueItems] = useState([]);
-    const [feeLedger, setFeeLedger] = useState([]);
-    const [loadingData, setLoadingData] = useState(false);
     const [selectedItems, setSelectedItems] = useState([]);
+    const [selectionOwner, setSelectionOwner] = useState(null);
     const [fine, setFine] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState("Cash");
-    const [paymentMethodsList, setPaymentMethodsList] = useState(["Cash"]);
     const [transactionId, setTransactionId] = useState("");
     const [collecting, setCollecting] = useState(false);
 
     const printTimeoutRef = useRef(null);
 
-    useEffect(() => {
-        getSettings().then((res) => {
-            setSystemSettings(res.data);
-            if (res.data.paymentMethods?.length) setPaymentMethodsList(res.data.paymentMethods);
-        }).catch(() => {
-            setSystemSettings({ currentSession: "", academicSessions: [], paymentMethods: ["Cash"] });
-        });
-        api.get("/exams").then((res) => {
-            const list = res.data?.exams || [];
-            setExams(list);
-            const active = list.find((e) => e.isActive);
-            setSelectedExamId((prev) => prev || active?._id || list[0]?._id || "");
-        }).catch(() => setExams([]));
-    }, []);
+    const settingsQuery = useSettings();
+    const systemSettings = settingsQuery.data;
+    const paymentMethodsList = systemSettings?.paymentMethods?.length
+        ? systemSettings.paymentMethods
+        : ["Cash"];
+
+    const examsQuery = useExams();
+    const exams = useMemo(() => examsQuery.data || [], [examsQuery.data]);
+
+    const [chosenExamId, setChosenExamId] = useState("");
+    const selectedExamId = chosenExamId || exams.find((e) => e.isActive)?._id || exams[0]?._id || "";
+
+    // Deep link (/admit-card/:studentId)
+    const linkedStudentQuery = useQuery(
+        studentId ? `students:link:${studentId}` : null,
+        async () => {
+            if (/^[0-9a-fA-F]{24}$/.test(studentId)) {
+                try { return await api.get(`/students/${studentId}`).then((res) => res.data); }
+                catch { /* fall through to search */ }
+            }
+            try { const res = await api.get(`/students/search?q=${studentId}`); return res.data?.[0] || null; }
+            catch { const res = await api.get(`/students?search=${encodeURIComponent(studentId)}`); return res.data?.[0] || null; }
+        }
+    );
+
+    const student = pickedStudent || linkedStudentQuery.data || null;
+
+    const eligibilityQuery = useQuery(
+        student?.studentId && selectedExamId ? `payments:admit-card:${student.studentId}:${selectedExamId}` : null,
+        () =>
+            api
+                .get(`/payments/admit-card/${student.studentId}?examId=${selectedExamId}`)
+                .then((res) => ({ reasons: [], ...res.data }))
+    );
+    const dueQuery = useQuery(
+        student?._id ? `payments:due-items:${student._id}` : null,
+        () =>
+            api.get(`/payments/due-items/${student._id}`).then((res) =>
+                res.data.success
+                    ? { dueItems: res.data.dueItems || [], feeLedger: res.data.feeLedger || [] }
+                    : { dueItems: [], feeLedger: [] }
+            )
+    );
+
+    const eligibility = eligibilityQuery.data || null;
+    const dueItems = useMemo(() => dueQuery.data?.dueItems || [], [dueQuery.data]);
+    const feeLedger = useMemo(() => dueQuery.data?.feeLedger || [], [dueQuery.data]);
+    const loading = Boolean(student) && eligibilityQuery.loading;
+    const loadingData = Boolean(student) && dueQuery.loading;
+
+    const reloadStudentData = useCallback(async () => {
+        await Promise.all([eligibilityQuery.refetch(), dueQuery.refetch()]);
+        await invalidate.payments();
+    }, [eligibilityQuery, dueQuery]);
+
+    // Per-student selections never survive a student change.
+    if (student && selectionOwner !== student._id) {
+        setSelectionOwner(student._id);
+        setSelectedItems([]);
+        setFine(0);
+    }
+    if (!student && selectionOwner !== null) {
+        setSelectionOwner(null);
+        setSelectedItems([]);
+        setFine(0);
+    }
 
     const selectedExam = exams.find((e) => e._id === selectedExamId) || null;
 
@@ -85,67 +130,10 @@ const AdmitCard = () => {
     const labelClass = "block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5";
 
     // ==========================
-    // LOAD ELIGIBILITY
+    // ELIGIBILITY + DUE ITEMS
     // ==========================
-    const loadEligibility = async (selectedStudent) => {
-        try {
-            setLoading(true);
-            setStudent(selectedStudent);
-            if (!selectedExamId) { setLoading(false); return; }
-            const res = await api.get(
-                `/payments/admit-card/${selectedStudent.studentId}?examId=${selectedExamId}`
-            );
-            setEligibility({ reasons: [], ...res.data });
-        }
-        catch (error) {
-            console.log(error);
-            setToast({ message: error.response?.data?.message || "Failed to check eligibility.", type: "error" });
-        }
-        finally { setLoading(false); }
-    };
-
-    const loadDueItems = async (selectedStudent) => {
-        if (!selectedStudent?._id) return;
-        setLoadingData(true);
-        try {
-            const res = await api.get(`/payments/due-items/${selectedStudent._id}`);
-            if (res.data.success) {
-                setDueItems(res.data.dueItems || []);
-                setFeeLedger(res.data.feeLedger || []);
-            }
-        } catch { /* silent */ }
-        finally { setLoadingData(false); }
-    };
-
-    useEffect(() => {
-        if (!studentId) { setStudent(null); setEligibility(null); setDueItems([]); return; }
-        const loadStudent = async () => {
-            if (/^[0-9a-fA-F]{24}$/.test(studentId)) {
-                try {
-                    const res = await api.get(`/students/${studentId}`);
-                    setStudent(res.data);
-                    await Promise.all([loadEligibility(res.data), loadDueItems(res.data)]);
-                    return;
-                } catch { /* fall through */ }
-            }
-            let list = [];
-            try { const res = await api.get(`/students/search?q=${studentId}`); list = res.data || []; }
-            catch { const res = await api.get(`/students?search=${encodeURIComponent(studentId)}`); list = res.data || []; }
-            if (list.length > 0) {
-                setStudent(list[0]);
-                await Promise.all([loadEligibility(list[0]), loadDueItems(list[0])]);
-            }
-        };
-        loadStudent();
-    }, [studentId, selectedExamId]);
-
     const handleStudentSelect = (s) => {
-        setStudent(s);
-        setSelectedItems([]);
-        setFine(0);
-        setDueItems([]);
-        loadEligibility(s);
-        loadDueItems(s);
+        setPickedStudent(s);
     };
 
     const toggleSelectAll = () => {
@@ -203,7 +191,7 @@ const AdmitCard = () => {
             setFine(0);
             setTransactionId("");
             setSelectedItems([]);
-            await Promise.all([loadEligibility(student), loadDueItems(student)]);
+            await reloadStudentData();
         }
         catch (error) {
             console.log(error);
@@ -232,7 +220,8 @@ const AdmitCard = () => {
     }, []);
 
     useEffect(() => {
-        return () => { if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current); };
+        const timeoutRef = printTimeoutRef;
+        return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
     }, []);
 
     const showCollectPanel = selectedExam && student && filteredDueItems.length > 0;
@@ -295,12 +284,11 @@ const AdmitCard = () => {
                             <div className="min-w-[280px] flex-1">
                                 <label className="block text-sm font-bold text-slate-600 mb-2">Select Exam</label>
                                 <select value={selectedExamId} onChange={(e) => {
-                                    setSelectedExamId(e.target.value);
+                                    setChosenExamId(e.target.value);
                                     setSelectedItems([]);
-                                    setDueItems([]);
-                                    if (student) { loadEligibility(student); loadDueItems(student); }
                                 }} className="w-full border border-gray-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 transition">
-                                    {exams.length === 0 && <option value="">No exams found</option>}
+                                    {examsQuery.loading && <option value="">Loading exams...</option>}
+                                    {!examsQuery.loading && exams.length === 0 && <option value="">No exams found</option>}
                                     {exams.map((ex) => (
                                         <option key={ex._id} value={ex._id}>
                                             {ex.examName}{ex.examCode ? ` (${ex.examCode})` : ""} — {ex.academicSession}{ex.isActive ? "" : " (inactive)"}
@@ -348,6 +336,11 @@ const AdmitCard = () => {
 
                     {/* ELIGIBILITY */}
                     <div className="mt-8">
+                        {eligibilityQuery.error && student && (
+                            <div className="mb-3 px-5 py-3 rounded-2xl text-sm font-semibold bg-red-50 text-red-700 border border-red-200">
+                                {eligibilityQuery.error}
+                            </div>
+                        )}
                         <EligibilityCard
                             eligibility={eligibility}
                             loading={loading}
@@ -377,7 +370,7 @@ const AdmitCard = () => {
                                                 }
                                             </p>
                                         </div>
-                                        <button onClick={() => loadDueItems(student)}
+                                        <button onClick={() => reloadStudentData()}
                                             className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition flex items-center gap-1.5">
                                             ↻ Refresh
                                         </button>

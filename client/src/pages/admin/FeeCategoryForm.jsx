@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
+import useQuery from "../../hooks/useQuery";
+import { invalidate, useFeeCategories, useSettings } from "../../services/resources";
+import { PageLoader } from "../../components/Loader";
 
 const toCode = (name) =>
   name.trim().toUpperCase().replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
@@ -15,75 +17,33 @@ const fallbackSettings = {
 const TYPES = ["Monthly", "One Time"];
 const APPLIES_TO = ["Global", "Class Wise", "Specific"];
 
-export default function FeeCategoryForm() {
-  const { id } = useParams();
+const toAmountMap = (rates) => {
+  const map = {};
+  (rates || []).forEach((rate) => { map[rate.className] = rate.amount; });
+  return map;
+};
+
+function FeeCategoryFormView({ id, editing, category, settings, categories, classAmounts: initialClassAmounts }) {
   const navigate = useNavigate();
-  const location = useLocation();
-  const editing = Boolean(id);
 
-  const [systemSettings, setSystemSettings] = useState(fallbackSettings);
-  const [categories, setCategories] = useState([]);
-
-  const [form, setForm] = useState({ name: "", code: "", description: "" });
-  const [type, setType] = useState("Monthly");
-  const [applicableTo, setApplicableTo] = useState("Global");
-  const [session, setSession] = useState("");
-  const [amount, setAmount] = useState("");
-  const [classAmounts, setClassAmounts] = useState({});
+  const [form, setForm] = useState(() => ({
+    name: category?.name || "",
+    code: category?.code || "",
+    description: category?.description || "",
+  }));
+  const [type, setType] = useState(category?.frequency === "One Time" ? "One Time" : "Monthly");
+  const [applicableTo, setApplicableTo] = useState(
+    category?.applicableTo || (category?.defaultAmount > 0 ? "Global" : "Class Wise")
+  );
+  const [session, setSession] = useState(settings?.currentSession || "");
+  const [amount, setAmount] = useState(category?.defaultAmount || "");
+  const [classAmounts, setClassAmounts] = useState(() => initialClassAmounts || {});
 
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const classes = systemSettings.classes || [];
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const sres = await getSettings();
-        const data = sres.data || {};
-        setSystemSettings({ ...fallbackSettings, ...data });
-        setSession(data.currentSession || fallbackSettings.currentSession || "");
-      } catch {
-        setSession(fallbackSettings.currentSession || "");
-      }
-
-      try {
-        const res = await api.get("/payments/fee-categories");
-        setCategories(res.data);
-      } catch {
-        // silent
-      }
-
-      if (!editing) return;
-
-      const cat = location.state?.category || categories.find((c) => c._id === id);
-      if (!cat) return;
-
-      setForm({ name: cat.name, code: cat.code, description: cat.description || "" });
-      setType(cat.frequency === "One Time" ? "One Time" : "Monthly");
-      setAmount(cat.defaultAmount || "");
-      setApplicableTo(cat.applicableTo || (cat.defaultAmount > 0 ? "Global" : "Class Wise"));
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, categories.length]);
-
-  useEffect(() => {
-    if (!editing) return;
-    const cat = location.state?.category || categories.find((c) => c._id === id);
-    if (!cat) return;
-
-    if (cat.applicableTo === "Class Wise") {
-      api.get(`/fees/settings?feeCategory=${cat._id}`)
-        .then((r) => {
-          const rates = r.data.settings || r.data || [];
-          const map = {};
-          rates.forEach((rate) => { map[rate.className] = rate.amount; });
-          setClassAmounts(map);
-        })
-        .catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, categories.length]);
+  const classes = settings?.classes || [];
+  const systemSettings = settings;
 
   const showToast = (text, type = "success") => {
     setToast({ text, type });
@@ -144,6 +104,8 @@ export default function FeeCategoryForm() {
       }
 
       showToast(editing ? "Fee updated" : "Fee created");
+      await invalidate.feeCategories();
+      await invalidate.fees();
       setTimeout(() => navigate("/fees/settings"), 500);
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to save", "error");
@@ -299,5 +261,58 @@ export default function FeeCategoryForm() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function FeeCategoryForm() {
+  const { id } = useParams();
+  const location = useLocation();
+  const editing = Boolean(id);
+
+  const settingsQuery = useSettings();
+  const categoriesQuery = useFeeCategories();
+
+  const categories = categoriesQuery.data || [];
+  const preloaded = location.state?.category;
+  const category = preloaded || categories.find((c) => c._id === id);
+  const isClassWise = editing && category?.applicableTo === "Class Wise";
+
+  const classRatesQuery = useQuery(
+    isClassWise ? `fees:settings:${id}` : null,
+    () => api.get(`/fees/settings?feeCategory=${id}`).then((r) => r.data?.settings || r.data || [])
+  );
+
+  const settings = settingsQuery.data;
+  const waitingForCategory = editing && !category && categoriesQuery.data !== undefined;
+  const loadError = settingsQuery.error || categoriesQuery.error || classRatesQuery.error;
+  const ready =
+    !loadError &&
+    settings !== undefined &&
+    categoriesQuery.data !== undefined &&
+    !waitingForCategory &&
+    (!isClassWise || classRatesQuery.data !== undefined);
+
+  if (loadError) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+          {loadError}
+        </div>
+      </div>
+    );
+  }
+
+  if (!ready) return <PageLoader />;
+
+  return (
+    <FeeCategoryFormView
+      key={id || "new"}
+      id={id}
+      editing={editing}
+      category={category}
+      settings={{ ...fallbackSettings, ...settings }}
+      categories={categories}
+      classAmounts={toAmountMap(classRatesQuery.data)}
+    />
   );
 }

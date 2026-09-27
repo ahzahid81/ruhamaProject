@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
+import useQuery from "../../hooks/useQuery";
+import { invalidate, useFeeCategories, useSettings } from "../../services/resources";
 import { bdDateInput } from "../../utils/bdTime";
+import { PageLoader } from "../../components/Loader";
 
 const emptyRateForm = {
   className: "", academicSession: "", feeCategory: "",
@@ -24,69 +26,21 @@ const fallbackSettings = {
   currentSession: "2026",
 };
 
-export default function ClassRateForm() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const editing = Boolean(id);
+const toRateForm = (rate) => ({
+  className: rate.className,
+  academicSession: rate.academicSession,
+  feeCategory: rate.feeCategory?._id || rate.feeCategory || "",
+  amount: rate.amount,
+  dueDate: rate.dueDate ? bdDateInput(rate.dueDate) : "",
+  description: rate.description || "",
+});
 
-  const [form, setForm] = useState(emptyRateForm);
-  const [categories, setCategories] = useState([]);
-  const [systemSettings, setSystemSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
+function ClassRateFormView({ id, editing, categories, systemSettings, initialForm }) {
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState(() => initialForm);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
-
-  useEffect(() => {
-    (async () => {
-      let currentSession;
-      try {
-        const sres = await getSettings();
-        setSystemSettings(sres.data);
-        currentSession = sres.data.currentSession || "";
-      } catch {
-        setSystemSettings(fallbackSettings);
-        currentSession = fallbackSettings.currentSession || "";
-      }
-      try {
-        const cres = await api.get("/payments/fee-categories");
-        setCategories(cres.data);
-      } catch {
-        // silent
-      }
-
-      try {
-        if (!editing) {
-          setForm({ ...emptyRateForm, academicSession: currentSession });
-        } else {
-          const rate = location.state?.rate;
-          if (rate) {
-            setForm({
-              className: rate.className, academicSession: rate.academicSession,
-              feeCategory: rate.feeCategory?._id || rate.feeCategory || "",
-              amount: rate.amount, dueDate: rate.dueDate ? bdDateInput(rate.dueDate) : "",
-              description: rate.description || "",
-            });
-          } else {
-            const rres = await api.get("/fees/settings");
-            const rates = rres.data.settings || rres.data || [];
-            const found = rates.find((r) => r._id === id);
-            if (found) {
-              setForm({
-                className: found.className, academicSession: found.academicSession,
-                feeCategory: found.feeCategory?._id || found.feeCategory || "",
-                amount: found.amount, dueDate: found.dueDate ? bdDateInput(found.dueDate) : "",
-                description: found.description || "",
-              });
-            }
-          }
-        }
-      } catch {
-        // silent
-      }
-      setLoading(false);
-    })();
-  }, [id]);
 
   const showToast = (text, type = "success") => {
     setToast({ text, type });
@@ -104,6 +58,7 @@ export default function ClassRateForm() {
         await api.post("/fees/settings", form);
         showToast("Rate created");
       }
+      await invalidate.fees();
       setTimeout(() => navigate("/fees/settings"), 400);
     } catch (err) {
       showToast(err.response?.data?.message || "Failed to save", "error");
@@ -111,16 +66,6 @@ export default function ClassRateForm() {
       setSaving(false);
     }
   };
-
-  if (loading || !systemSettings) {
-    return (
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -211,5 +156,60 @@ export default function ClassRateForm() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ClassRateForm() {
+  const { id } = useParams();
+  const location = useLocation();
+  const editing = Boolean(id);
+
+  const settingsQuery = useSettings();
+  const categoriesQuery = useFeeCategories();
+
+  const preloaded = location.state?.rate;
+  const ratesQuery = useQuery(
+    editing && !preloaded ? "fees:settings" : null,
+    () => api.get("/fees/settings").then((res) => res.data?.settings || res.data || [])
+  );
+
+  const rate = preloaded || (ratesQuery.data || []).find((r) => r._id === id);
+  const settings = settingsQuery.data;
+  const categories = categoriesQuery.data || [];
+
+  const loadError = settingsQuery.error || categoriesQuery.error || ratesQuery.error;
+  const ready =
+    !loadError &&
+    settings !== undefined &&
+    categoriesQuery.data !== undefined &&
+    (!editing || preloaded || ratesQuery.data !== undefined);
+
+  if (loadError) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+          {loadError}
+        </div>
+      </div>
+    );
+  }
+
+  if (!ready) return <PageLoader />;
+
+  const systemSettings = settings || fallbackSettings;
+  const initialForm =
+    editing && rate
+      ? toRateForm(rate)
+      : { ...emptyRateForm, academicSession: systemSettings.currentSession || "" };
+
+  return (
+    <ClassRateFormView
+      key={id || "new"}
+      id={id}
+      editing={editing}
+      categories={categories}
+      systemSettings={systemSettings}
+      initialForm={initialForm}
+    />
   );
 }

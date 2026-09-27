@@ -7,6 +7,7 @@ const {
   getClassReport,
   getAllReports,
   getPendingSubjects,
+  getPendingSummary,
   deleteEntry,
   updateEntry,
 } = require("../controllers/reportController");
@@ -26,6 +27,12 @@ router.get(
 router.get(
   "/pending",
   getPendingSubjects
+);
+
+// Must be declared before "/:reportId/:entryId" style routes to stay unambiguous.
+router.get(
+  "/pending-summary",
+  getPendingSummary
 );
 
 router.delete(

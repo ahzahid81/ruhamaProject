@@ -1,29 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
+import { invalidate, useExams } from "../../services/resources";
+import { PageLoader } from "../../components/Loader";
 import Toast from "../../components/Toast";
 
 const ExamManagement = () => {
-  const [exams, setExams] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  const loadAll = async () => {
-    try {
-      const examRes = await api.get("/exams");
-      setExams(examRes.data.exams || []);
-    } catch (error) {
-      setToast({ message: error?.response?.data?.message || "Failed to load data.", type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAll();
-  }, []);
+  const examsQuery = useExams();
+  const exams = examsQuery.data || [];
 
   const showToast = (text, type = "success") => setToast({ text, type });
 
@@ -32,18 +20,14 @@ const ExamManagement = () => {
       await api.delete(`/exams/${id}`);
       showToast("Exam deleted");
       setDeleteConfirm(null);
-      await loadAll();
+      await invalidate.exams();
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to delete exam", "error");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-      </div>
-    );
+  if (examsQuery.loading) {
+    return <PageLoader label="Loading exams..." />;
   }
 
   return (

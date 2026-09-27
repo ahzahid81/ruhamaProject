@@ -1,6 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
+import useQuery from "../../hooks/useQuery";
+import {
+  invalidate,
+  useFeeCategories,
+  useSettings,
+  useStudents,
+} from "../../services/resources";
+import { InlineLoader, PageLoader } from "../../components/Loader";
 
 const fallbackSettings = { classes: [], academicSessions: ["2026"], currentSession: "2026" };
 
@@ -9,80 +16,74 @@ const sortBreakdown = (items) =>
     (a.feeCategory?.name || "").localeCompare(b.feeCategory?.name || "")
   );
 
-export default function StudentWiseFees() {
-  const [students, setStudents] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [systemSettings, setSystemSettings] = useState(fallbackSettings);
+const buildAmounts = (categories, breakdown) => {
+  const map = {};
+  categories.forEach((c) => { map[c._id] = c.defaultAmount || ""; });
+  (breakdown || []).forEach((b) => { map[b.feeCategory._id] = b.effectiveAmount; });
+  return map;
+};
+
+function StudentWiseFeesView({
+  students,
+  categories,
+  systemSettings,
+  session,
+  selected,
+  breakdown,
+  onSelect,
+  breakdownLoading,
+  onReloadBreakdown,
+}) {
+  const [toast, setToast] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [amounts, setAmounts] = useState(() => buildAmounts(categories, breakdown));
 
   const [classFilter, setClassFilter] = useState("");
   const [search, setSearch] = useState("");
 
-  const [selected, setSelected] = useState(null);
-  const [breakdown, setBreakdown] = useState([]);
-  const [amounts, setAmounts] = useState({});
-
-  const [toast, setToast] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const session = systemSettings.currentSession || "";
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const sres = await getSettings();
-        setSystemSettings({ ...fallbackSettings, ...(sres.data || {}) });
-      } catch {
-        // fallback
-      }
-      try {
-        const res = await api.get("/students");
-        setStudents(res.data || []);
-      } catch {
-        // silent
-      }
-      try {
-        const res = await api.get("/payments/fee-categories");
-        setCategories(res.data || []);
-      } catch {
-        // silent
-      }
-      setLoading(false);
-    })();
-  }, []);
-
-  const loadBreakdown = async (studentId) => {
-    try {
-      const res = await api.get(`/fees/student-fees/${studentId}?academicSession=${session}`);
-      const items = sortBreakdown(res.data.breakdown);
-      setBreakdown(items);
-      const map = {};
-      categories.forEach((c) => { map[c._id] = c.defaultAmount || ""; });
-      items.forEach((b) => { map[b.feeCategory._id] = b.effectiveAmount; });
-      setAmounts(map);
-    } catch {
-      setBreakdown([]);
-    }
-  };
-
-  useEffect(() => {
-    if (!selected) return;
-    api.get(`/fees/student-fees/${selected._id}?academicSession=${session}`)
-      .then((r) => {
-        const items = sortBreakdown(r.data.breakdown);
-        setBreakdown(items);
-        const map = {};
-        categories.forEach((c) => { map[c._id] = c.defaultAmount || ""; });
-        items.forEach((b) => { map[b.feeCategory._id] = b.effectiveAmount; });
-        setAmounts(map);
-      })
-      .catch(() => setBreakdown([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, session, categories.length]);
-
   const showToast = (text, type = "success") => {
     setToast({ text, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const refresh = async () => {
+    await onReloadBreakdown();
+    await invalidate.fees();
+  };
+
+  const activateCat = async (cat) => {
+    const amount = Number(amounts[cat._id] || 0);
+    if (!(amount > 0)) return showToast("Enter an amount greater than 0", "error");
+    setSaving(true);
+    try {
+      await api.post("/fees/student-overrides", {
+        student: selected._id,
+        academicSession: session,
+        feeCategory: cat._id,
+        amount,
+        frequency: cat.frequency || "Monthly",
+      });
+      showToast("Override activated for " + selected.name);
+      await refresh();
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to activate", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deactivateOverride = async (b) => {
+    if (!b.overrideId) return;
+    setSaving(true);
+    try {
+      await api.put(`/fees/student-overrides/${b.overrideId}`, { isActive: false });
+      showToast("Override deactivated");
+      await refresh();
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to deactivate", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filtered = students.filter((s) => {
@@ -99,50 +100,7 @@ export default function StudentWiseFees() {
     (c) => c.applicableTo === "Specific" && c.isActive && !activatedCatIds.has(String(c._id))
   );
 
-  const activateCat = async (cat) => {
-    const amount = Number(amounts[cat._id] || 0);
-    if (!(amount > 0)) return showToast("Enter an amount greater than 0", "error");
-    setSaving(true);
-    try {
-      await api.post("/fees/student-overrides", {
-        student: selected._id,
-        academicSession: session,
-        feeCategory: cat._id,
-        amount,
-        frequency: cat.frequency || "Monthly",
-      });
-      showToast("Override activated for " + selected.name);
-      await loadBreakdown(selected._id);
-    } catch (err) {
-      showToast(err.response?.data?.message || "Failed to activate", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deactivateOverride = async (b) => {
-    if (!b.overrideId) return;
-    setSaving(true);
-    try {
-      await api.put(`/fees/student-overrides/${b.overrideId}`, { isActive: false });
-      showToast("Override deactivated");
-      await loadBreakdown(selected._id);
-    } catch (err) {
-      showToast(err.response?.data?.message || "Failed to deactivate", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -198,7 +156,7 @@ export default function StudentWiseFees() {
                     </td>
                     <td className="px-3 py-2.5 text-gray-500">{s.className}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <button onClick={() => setSelected(s)}
+                      <button onClick={() => onSelect(s)}
                         className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition">
                         {(selected?._id === s._id) ? "Viewing" : "Fees"}
                       </button>
@@ -230,7 +188,9 @@ export default function StudentWiseFees() {
                 <p className="text-xs text-gray-400 mt-1">Session: <b>{session}</b></p>
               </div>
 
-              {breakdown.length === 0 ? (
+              {breakdownLoading ? (
+                <InlineLoader label="Loading fee breakdown..." />
+              ) : breakdown.length === 0 ? (
                 <p className="text-sm text-gray-400">No active fees to manage.</p>
               ) : (
                 <div className="space-y-3">
@@ -277,7 +237,7 @@ export default function StudentWiseFees() {
                 </div>
               )}
 
-              {pendingSpecific.length > 0 && (
+              {pendingSpecific.length > 0 && !breakdownLoading && (
                 <div className="mt-5 pt-4 border-t border-gray-100">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
                     Activate a Specific Fee
@@ -312,5 +272,44 @@ export default function StudentWiseFees() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StudentWiseFees() {
+  const [selected, setSelected] = useState(null);
+
+  const settingsQuery = useSettings();
+  const studentsQuery = useStudents();
+  const categoriesQuery = useFeeCategories();
+
+  const session = settingsQuery.data?.currentSession || "";
+
+  const breakdownQuery = useQuery(
+    selected && session ? `fees:student-fees:${selected._id}:${session}` : null,
+    () =>
+      api
+        .get(`/fees/student-fees/${selected._id}?academicSession=${session}`)
+        .then((res) => res.data?.breakdown || [])
+  );
+
+  if (settingsQuery.loading || studentsQuery.loading || categoriesQuery.loading) {
+    return <PageLoader />;
+  }
+
+  const breakdown = sortBreakdown(breakdownQuery.data);
+
+  return (
+    <StudentWiseFeesView
+      key={`${selected?._id || "none"}:${session}`}
+      students={studentsQuery.data || []}
+      categories={categoriesQuery.data || []}
+      systemSettings={{ ...fallbackSettings, ...(settingsQuery.data || {}) }}
+      session={session}
+      selected={selected}
+      breakdown={breakdown}
+      onSelect={setSelected}
+      breakdownLoading={Boolean(selected) && breakdownQuery.loading}
+      onReloadBreakdown={breakdownQuery.refetch}
+    />
   );
 }

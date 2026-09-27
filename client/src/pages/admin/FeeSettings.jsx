@@ -1,54 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
-
-const fallbackSettings = {
-  classes: [],
-  academicSessions: ["2026"],
-  currentSession: "2026",
-};
+import useQuery from "../../hooks/useQuery";
+import { invalidate, useFeeCategories, useSettings } from "../../services/resources";
+import QueryBoundary from "../../components/QueryBoundary";
+import { PageLoader } from "../../components/Loader";
 
 export default function FeeSettings() {
-  const [categories, setCategories] = useState([]);
-  const [rates, setRates] = useState([]);
-  const [overrides, setOverrides] = useState([]);
-  const [systemSettings, setSystemSettings] = useState(fallbackSettings);
   const [toast, setToast] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  const session = systemSettings.currentSession || "";
+  const settingsQuery = useSettings();
+  const categoriesQuery = useFeeCategories();
+  const ratesQuery = useQuery("fees:settings", () =>
+    api.get("/fees/settings").then((res) => res.data?.settings || res.data || [])
+  );
+  const overridesQuery = useQuery("fees:student-overrides", () =>
+    api.get("/fees/student-overrides").then((res) => res.data?.overrides || [])
+  );
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const sres = await getSettings();
-        setSystemSettings(sres.data);
-      } catch {
-        // fallback
-      }
-      try {
-        const res = await api.get("/payments/fee-categories");
-        setCategories(res.data);
-      } catch {
-        // silent
-      }
-      try {
-        const res = await api.get("/fees/settings");
-        setRates(res.data.settings || res.data || []);
-      } catch {
-        // silent
-      }
-      try {
-        const res = await api.get("/fees/student-overrides");
-        setOverrides(res.data.overrides || []);
-      } catch {
-        // silent
-      }
-      setLoading(false);
-    })();
-  }, []);
+  const categories = categoriesQuery.data || [];
+  const rates = ratesQuery.data || [];
+  const overrides = overridesQuery.data || [];
+  const session = settingsQuery.data?.currentSession || "";
 
   const showToast = (text, type = "success") => {
     setToast({ text, type });
@@ -58,8 +32,8 @@ export default function FeeSettings() {
   const toggleActive = async (cat) => {
     try {
       await api.put(`/payments/fee-categories/${cat._id}`, { isActive: !cat.isActive });
-      setCategories((prev) => prev.map((c) => (c._id === cat._id ? { ...c, isActive: !cat.isActive } : c)));
       showToast(cat.isActive ? "Fee deactivated" : "Fee activated");
+      await invalidate.feeCategories();
     } catch {
       showToast("Failed to update status", "error");
     }
@@ -70,7 +44,8 @@ export default function FeeSettings() {
       await api.delete(`/payments/fee-categories/${id}`);
       showToast("Fee deleted");
       setDeleteConfirm(null);
-      setCategories((prev) => prev.filter((c) => c._id !== id));
+      await invalidate.feeCategories();
+      await invalidate.fees();
     } catch {
       showToast("Failed to delete", "error");
     }
@@ -81,13 +56,16 @@ export default function FeeSettings() {
 
   const fmt = (n) => "BDT " + Number(n || 0).toLocaleString("en-BD");
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  const pageState = {
+    loading: categoriesQuery.loading || ratesQuery.loading || overridesQuery.loading,
+    error: categoriesQuery.error,
+    data: categories,
+    refetch: () => {
+      categoriesQuery.refetch();
+      ratesQuery.refetch();
+      overridesQuery.refetch();
+    },
+  };
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -134,6 +112,7 @@ export default function FeeSettings() {
         </div>
       )}
 
+      <QueryBoundary state={pageState} loading={<PageLoader />}>
       {categories.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
           <p className="text-4xl mb-3">💰</p>
@@ -232,6 +211,7 @@ export default function FeeSettings() {
           })}
         </div>
       )}
+      </QueryBoundary>
     </div>
   );
 }

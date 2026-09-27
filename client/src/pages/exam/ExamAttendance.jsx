@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import api from "../../services/api";
+import useQuery from "../../hooks/useQuery";
+import { invalidate, useExams } from "../../services/resources";
 import {
   ScanLine,
   QrCode,
@@ -39,14 +41,8 @@ export default function ExamAttendance() {
   const teacher = JSON.parse(localStorage.getItem("teacher")) || {};
   const isAdmin = teacher.role === "admin";
 
-  const [exams, setExams] = useState([]);
-  const [selectedExamId, setSelectedExamId] = useState("");
+  const [chosenExamId, setChosenExamId] = useState("");
   const [selectedDay, setSelectedDay] = useState(1);
-
-  const [roster, setRoster] = useState([]);
-  const [rosterLoading, setRosterLoading] = useState(false);
-  const [records, setRecords] = useState([]);
-  const [stats, setStats] = useState({ total: 0, present: 0, notMarked: 0 });
 
   const [scanning, setScanning] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -64,6 +60,11 @@ export default function ExamAttendance() {
   const busyRef = useRef(false);
   const handleDecodedRef = useRef(null);
 
+  const examsQuery = useExams();
+  const exams = useMemo(() => examsQuery.data || [], [examsQuery.data]);
+  const selectedExamId =
+    chosenExamId || exams.find((e) => e.isActive)?._id || exams[0]?._id || "";
+
   const selectedExam = exams.find((e) => e._id === selectedExamId) || null;
   const attendanceDays = Math.max(1, Number(selectedExam?.attendanceDays) || 1);
   const safeDay = Math.min(selectedDay, attendanceDays);
@@ -75,50 +76,35 @@ export default function ExamAttendance() {
       }
     : null;
 
-  // ---------- exams ----------
-  useEffect(() => {
-    api
-      .get("/exams")
-      .then((res) => {
-        const list = res.data?.exams || [];
-        setExams(list);
-        setSelectedExamId(
-          (prev) => prev || list.find((e) => e.isActive)?._id || list[0]?._id || ""
-        );
-      })
-      .catch(() => setExams([]));
-  }, []);
+  // ---------- roster + records ----------
+  const attendanceQuery = useQuery(
+    selectedExamId ? `exam-attendance:${selectedExamId}:${safeDay}` : null,
+    () =>
+      Promise.all([
+        api.get(`/exam-attendance/exam/${selectedExamId}/roster?day=${safeDay}`),
+        api.get(`/exam-attendance/exam/${selectedExamId}`),
+      ]).then(([rosterRes, recordsRes]) => ({
+        roster: rosterRes.data?.roster || [],
+        records: recordsRes.data?.records || [],
+      }))
+  );
 
-  // ---------- load roster + records ----------
-  const loadAttendance = useCallback(async (examId) => {
-    if (!examId) return;
-    setRosterLoading(true);
-    const day = safeDay;
-    try {
-      const [rosterRes, recordsRes] = await Promise.all([
-        api.get(`/exam-attendance/exam/${examId}/roster?day=${day}`),
-        api.get(`/exam-attendance/exam/${examId}`),
-      ]);
-      const rosterData = rosterRes.data?.roster || [];
-      const recordList = recordsRes.data?.records || [];
-      setRoster(rosterData);
-      setRecords(recordList);
-      setStats({
-        total: rosterData.length,
-        present: rosterData.filter((s) => s.status === "Present").length,
-        notMarked: rosterData.filter((s) => s.status === "Not Marked").length,
-      });
-    } catch {
-      setRoster([]);
-      setRecords([]);
-    } finally {
-      setRosterLoading(false);
-    }
-  }, [safeDay]);
+  const roster = useMemo(() => attendanceQuery.data?.roster || [], [attendanceQuery.data]);
+  const records = useMemo(() => attendanceQuery.data?.records || [], [attendanceQuery.data]);
+  const rosterLoading = attendanceQuery.loading;
+  const stats = useMemo(
+    () => ({
+      total: roster.length,
+      present: roster.filter((s) => s.status === "Present").length,
+      notMarked: roster.filter((s) => s.status === "Not Marked").length,
+    }),
+    [roster]
+  );
 
-  useEffect(() => {
-    loadAttendance(selectedExamId);
-  }, [selectedExamId, loadAttendance]);
+  const loadAttendance = useCallback(async () => {
+    await attendanceQuery.refetch();
+    await invalidate.attendance();
+  }, [attendanceQuery]);
 
   // ---------- scanner lifecycle ----------
   const stopScanner = useCallback(() => {
@@ -394,10 +380,11 @@ export default function ExamAttendance() {
           <div className="flex flex-wrap items-center gap-3">
             <select
               value={selectedExamId}
-              onChange={(e) => setSelectedExamId(e.target.value)}
+              onChange={(e) => setChosenExamId(e.target.value)}
               className="flex-1 min-w-[260px] border border-gray-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 transition"
             >
-              {exams.length === 0 && <option value="">No exams found</option>}
+              {examsQuery.loading && <option value="">Loading exams...</option>}
+              {!examsQuery.loading && exams.length === 0 && <option value="">No exams found</option>}
               {exams.map((ex) => (
                 <option key={ex._id} value={ex._id}>
                   {ex.examName}{ex.examCode ? ` (${ex.examCode})` : ""} — {ex.academicSession}

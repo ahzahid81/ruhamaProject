@@ -1,7 +1,8 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useSearchParams, useParams, useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
-import { getSettings } from "../../services/settingsCache";
+import useQuery from "../../hooks/useQuery";
+import { invalidate, useSettings } from "../../services/resources";
 import StudentPicker from "../../components/StudentPicker";
 import { bdYear, bdDate } from "../../utils/bdTime";
 
@@ -40,86 +41,72 @@ export default function CollectPayment() {
     ? searchParams.get("studentId")
     : studentIdRoute;
 
-  const [student, setStudent] = useState(null);
-  const [dueItems, setDueItems] = useState([]);
-  const [feeLedger, setFeeLedger] = useState([]);
-  const [feeStructure, setFeeStructure] = useState([]);
-  const [paymentHistory, setPaymentHistory] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [toast, setToast] = useState(null);
 
   const [paymentMethod, setPaymentMethod] = useState("Cash");
-  const [paymentMethodsList, setPaymentMethodsList] = useState(["Cash", "bKash", "Nagad", "Rocket", "Bank", "Cheque", "Card", "Online", "Other"]);
   const [transactionId, setTransactionId] = useState("");
   const [manualReceiptNo, setManualReceiptNo] = useState("");
   const [fine, setFine] = useState(0);
 
   const [selectedItems, setSelectedItems] = useState([]);
+  const [selectionOwner, setSelectionOwner] = useState(null);
+
+  const settingsQuery = useSettings();
+  const paymentMethodsList = settingsQuery.data?.paymentMethods?.length
+    ? settingsQuery.data.paymentMethods
+    : ["Cash", "bKash", "Nagad", "Rocket", "Bank", "Cheque", "Card", "Online", "Other"];
+
+  // Deep link (?studentId=… or /payments/collect/:studentId)
+  const linkedStudentQuery = useQuery(
+    studentIdParam ? `students:link:${studentIdParam}` : null,
+    () => findStudents(studentIdParam).then((list) => list[0] || null)
+  );
+
+  const student = selectedStudent || linkedStudentQuery.data || null;
+
+  const dueQuery = useQuery(
+    student ? `payments:due-items:${student._id}` : null,
+    () => api.get(`/payments/due-items/${student._id}`).then((res) => res.data)
+  );
+  const historyQuery = useQuery(
+    student ? `payments:history:${student._id}` : null,
+    () => api.get(`/payments/history/${student._id}`).then((res) => res.data)
+  );
+
+  const dueItems = useMemo(
+    () => (dueQuery.data?.success ? dueQuery.data.dueItems || [] : []),
+    [dueQuery.data]
+  );
+  const feeLedger = useMemo(
+    () => (dueQuery.data?.success ? dueQuery.data.feeLedger || [] : []),
+    [dueQuery.data]
+  );
+  const feeStructure = dueQuery.data?.success ? dueQuery.data.feeStructure || [] : [];
+  const paymentHistory = Array.isArray(historyQuery.data)
+    ? historyQuery.data.slice(0, 10)
+    : historyQuery.data?.payments?.slice(0, 10) || [];
+  const loadingData = Boolean(student) && dueQuery.loading;
+
+  // Reset per-student selections when the selected student changes.
+  if (student && selectionOwner !== student._id) {
+    setSelectionOwner(student._id);
+    setSelectedItems([]);
+    setFine(0);
+  }
+  if (!student && selectionOwner !== null) {
+    setSelectionOwner(null);
+    setSelectedItems([]);
+    setFine(0);
+  }
+
+  const reloadStudentData = useCallback(async () => {
+    await Promise.all([dueQuery.refetch(), historyQuery.refetch()]);
+    await invalidate.payments();
+  }, [dueQuery, historyQuery]);
 
   // All unpaid items currently selected? (manual selection only)
   const allUnpaidSelected = dueItems.length > 0 && selectedItems.length === dueItems.length;
-
-  useEffect(() => {
-    loadPaymentMethods();
-  }, []);
-
-  useEffect(() => {
-    if (!student) return;
-    loadAllStudentData();
-  }, [student]);
-
-  useEffect(() => {
-    // Whenever the dedicated route changes (or we return to browse mode),
-    // reset the loaded student so stale data doesn't linger.
-    setStudent(null);
-    setDueItems([]);
-    setFeeLedger([]);
-    setFeeStructure([]);
-    setPaymentHistory([]);
-    setSelectedItems([]);
-    setFine(0);
-  }, [studentIdRoute]);
-
-  useEffect(() => {
-    if (!studentIdParam) return;
-    findStudents(studentIdParam).then((list) => {
-      if (list.length > 0) setStudent(list[0]);
-    }).catch(() => {});
-  }, [studentIdParam]);
-
-  const loadAllStudentData = useCallback(async () => {
-    setLoadingData(true);
-    try {
-      const [dueRes, historyRes] = await Promise.allSettled([
-        api.get(`/payments/due-items/${student._id}`),
-        api.get(`/payments/history/${student._id}`),
-      ]);
-
-      if (dueRes.status === "fulfilled" && dueRes.value.data.success) {
-        setDueItems(dueRes.value.data.dueItems || []);
-        setFeeLedger(dueRes.value.data.feeLedger || []);
-        setFeeStructure(dueRes.value.data.feeStructure || []);
-      }
-      if (historyRes.status === "fulfilled") {
-        const hd = historyRes.value.data;
-        setPaymentHistory(Array.isArray(hd) ? hd.slice(0, 10) : (hd.payments?.slice(0, 10) || []));
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoadingData(false);
-    }
-  }, [student]);
-
-  const loadPaymentMethods = async () => {
-    try {
-      const res = await getSettings();
-      if (res.data.paymentMethods?.length) setPaymentMethodsList(res.data.paymentMethods);
-    } catch {
-      // silent
-    }
-  };
 
   const toggleSelectAll = () => {
     if (allUnpaidSelected) {
@@ -153,7 +140,6 @@ export default function CollectPayment() {
   const ledgerRows = useMemo(() => {
     const rows = [];
     (feeLedger || []).forEach((group) => {
-      const isOneTime = group.applicableType !== "Month";
       if (group.applicableType === "Month") {
         (group.months || []).forEach((m) => {
           rows.push({
@@ -233,12 +219,7 @@ export default function CollectPayment() {
   }), [ledgerRows]);
 
   const handleStudentSelect = (studentData) => {
-    setStudent(studentData);
-    setDueItems([]);
-    setFeeLedger([]);
-    setPaymentHistory([]);
-    setSelectedItems([]);
-    setFine(0);
+    setSelectedStudent(studentData);
   };
 
   const showToast = (text, type = "error") => {
@@ -246,12 +227,14 @@ export default function CollectPayment() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const submitPayment = async () => {
     if (!student) return showToast("Select a student first.");
     if (selectedFees.length === 0) return showToast("Select at least one fee item.");
     if (paymentMethod !== "Cash" && !transactionId.trim())
       return showToast("Transaction ID is required for " + paymentMethod + " payments.");
-    setLoading(true);
+    setSubmitting(true);
     try {
       const paidAmount = total;
       let remaining = paidAmount;
@@ -288,11 +271,11 @@ export default function CollectPayment() {
         state: { receipt: { ...res.data, paymentMethod, transactionId, manualReceiptNo: manualReceiptNo.trim() }, student },
       });
       setFine(0); setTransactionId(""); setManualReceiptNo("");
-      loadAllStudentData();
+      await reloadStudentData();
     } catch (error) {
       showToast(error.response?.data?.message || "Payment failed");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -393,7 +376,7 @@ export default function CollectPayment() {
                   >View Profile</Link>
                 </div>
               </div>
-              <button onClick={() => { setStudent(null); setDueItems([]); setFeeLedger([]); setSelectedItems([]); setPaymentHistory([]); }}
+              <button onClick={() => { setSelectedStudent(null); setSelectedItems([]); setFine(0); }}
                 className="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg text-xs font-semibold hover:bg-slate-200 transition flex-shrink-0"
               >Change</button>
             </div>
@@ -426,7 +409,7 @@ export default function CollectPayment() {
                       {dueItems.length === 0 ? "All fees settled" : `${dueItems.length} unpaid item${dueItems.length !== 1 ? "s" : ""} due`}
                     </p>
                   </div>
-                  <button onClick={loadAllStudentData}
+                  <button onClick={reloadStudentData}
                     className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition flex items-center gap-1.5"
                   >↻ Refresh</button>
                 </div>
@@ -629,10 +612,10 @@ export default function CollectPayment() {
                         <input type="text" value={manualReceiptNo} onChange={(e) => setManualReceiptNo(e.target.value)} placeholder="Enter manual receipt no. (optional)" className={inputClass} />
                       </div>
 
-                      <button onClick={submitPayment} disabled={loading}
+                      <button onClick={submitPayment} disabled={submitting}
                         className="w-full px-8 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50 shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
                       >
-                        {loading ? (
+                        {submitting ? (
                           <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> Processing...</>
                         ) : (
                           <>

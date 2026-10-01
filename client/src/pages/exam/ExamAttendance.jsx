@@ -9,7 +9,6 @@ import {
   Camera,
   VideoOff,
   CheckCircle2,
-  XCircle,
   UserX,
   RefreshCw,
   Clock,
@@ -356,7 +355,7 @@ export default function ExamAttendance() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <h1 className="text-3xl md:text-4xl font-black">Exam Attendance</h1>
           <p className="mt-2 text-white/80 text-sm">
-            Scan students' Admit Card QR codes to mark attendance — eligible students only.
+            Scan students' Admit Card QR codes to mark attendance — all active students.
           </p>
         </div>
       </div>
@@ -415,7 +414,7 @@ export default function ExamAttendance() {
 
           {/* STATS */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
-            <StatCard icon={UserCheck} label="Eligible Students" value={stats.total} color="text-indigo-600 bg-indigo-50" />
+            <StatCard icon={UserCheck} label="Students" value={stats.total} color="text-indigo-600 bg-indigo-50" />
             <StatCard icon={CheckCircle2} label="Present" value={stats.present} color="text-emerald-600 bg-emerald-50" />
             <StatCard icon={Clock} label="Not Marked" value={stats.notMarked} color="text-amber-600 bg-amber-50" />
             <StatCard
@@ -495,7 +494,7 @@ export default function ExamAttendance() {
                   Point the camera at the student's Admit Card QR code (Day {safeDay}).
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  Only eligible students will be marked — each student is marked once per day over {attendanceDays} day(s).
+                  Every active student can be marked — each student is marked once per day over {attendanceDays} day(s).
                 </p>
               </div>
             )}
@@ -551,7 +550,7 @@ export default function ExamAttendance() {
             {processing ? (
               <div className="flex flex-col items-center justify-center py-14 text-center">
                 <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
-                <p className="text-sm text-slate-500">Verifying eligibility &amp; marking attendance...</p>
+                <p className="text-sm text-slate-500">Marking attendance...</p>
               </div>
             ) : lastResult ? (
               <div className="space-y-4">
@@ -609,9 +608,9 @@ export default function ExamAttendance() {
         <div className="bg-white rounded-3xl shadow-xl p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Eligible Roster</h2>
+              <h2 className="text-lg font-bold text-slate-800">Student Roster</h2>
 <p className="text-xs text-gray-400 mt-0.5">
-                  {exam ? `${exam.examName} — ${exam.academicSession}` : ""} · Only eligible students can be marked · Day {safeDay} of {attendanceDays}
+                  {exam ? `${exam.examName} — ${exam.academicSession}` : ""} · All active students · Day {safeDay} of {attendanceDays}
                 </p>
             </div>
             <div className="relative">
@@ -633,9 +632,9 @@ export default function ExamAttendance() {
           ) : filteredRoster.length === 0 ? (
             <div className="py-16 text-center">
               <UserCheck className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500 font-semibold">No eligible students found for this exam.</p>
+              <p className="text-slate-500 font-semibold">No active students found.</p>
               <p className="text-xs text-slate-400 mt-1">
-                Students must clear the exam's required fees before being marked present.
+                Only students with an Active status appear on the roster.
               </p>
             </div>
           ) : (
@@ -762,25 +761,6 @@ const ResultCard = ({ result }) => {
             Marked {bdDateTime(result.record?.scannedAt)} as {result.record?.status} · Day {result.day || 1}
           </p>
         </div>
-      </div>
-    );
-  }
-  if (result.eligible === false) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-        <div className="flex items-start gap-3">
-          <XCircle className="w-9 h-9 text-red-500 flex-shrink-0" />
-          <div>
-            <p className="text-red-700 font-bold">Not Eligible</p>
-            <p className="text-sm font-semibold text-gray-800 mt-1">{result.student?.name}</p>
-            <p className="text-xs text-gray-500">{result.student?.className} · {result.student?.studentId}</p>
-          </div>
-        </div>
-        <ul className="mt-3 space-y-1 text-xs text-red-600 list-disc ml-5">
-          {(result.reasons || []).map((r, i) => (
-            <li key={i}>{r}</li>
-          ))}
-        </ul>
       </div>
     );
   }

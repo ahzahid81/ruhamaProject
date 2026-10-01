@@ -1,10 +1,6 @@
 const ExamAttendance = require("../models/ExamAttendance");
 const ExamSetting = require("../models/ExamSetting");
 const Student = require("../models/Student");
-const { evaluateAdmitCardEligibility } = require("./paymentController");
-
-const FULL_CATEGORY =
-  "name applicableTo defaultAmount frequency isActive";
 
 // ============================================
 // HELPERS
@@ -53,7 +49,7 @@ const buildPerDay = (records) => {
 };
 
 // ============================================
-// SCAN ADMIT CARD QR — marks eligible students for the current exam day
+// SCAN ADMIT CARD QR — marks any active student for the current exam day
 // ============================================
 
 const scanQR = async (req, res) => {
@@ -75,10 +71,7 @@ const scanQR = async (req, res) => {
       });
     }
 
-    const exam = await ExamSetting.findById(examId).populate(
-      "requiredFees.feeCategory",
-      FULL_CATEGORY
-    );
+    const exam = await ExamSetting.findById(examId);
     if (!exam) {
       return res.status(404).json({ success: false, message: "Exam not found." });
     }
@@ -97,19 +90,6 @@ const scanQR = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: `No active student found with ID "${studentId}".`,
-      });
-    }
-
-    // Only eligible students may enter the exam hall.
-    const reasons = await evaluateAdmitCardEligibility(exam, student);
-    if (reasons.length > 0) {
-      return res.status(200).json({
-        success: true,
-        marked: false,
-        eligible: false,
-        day: dayNumber,
-        reasons,
-        student: studentShape(student),
       });
     }
 
@@ -154,7 +134,6 @@ const scanQR = async (req, res) => {
     return res.status(200).json({
       success: true,
       marked: true,
-      eligible: true,
       day: dayNumber,
       attendanceDays,
       record,
@@ -198,7 +177,7 @@ const getAttendanceForExam = async (req, res) => {
 };
 
 // ============================================
-// ELIGIBLE ROSTER + STATUS FOR AN EXAM DAY
+// FULL ROSTER + STATUS FOR AN EXAM DAY
 // ============================================
 
 const getRoster = async (req, res) => {
@@ -206,10 +185,7 @@ const getRoster = async (req, res) => {
     const { examId } = req.params;
     const day = parseDay(req.query.day);
 
-    const exam = await ExamSetting.findById(examId).populate(
-      "requiredFees.feeCategory",
-      FULL_CATEGORY
-    );
+    const exam = await ExamSetting.findById(examId);
     if (!exam) {
       return res.status(404).json({ success: false, message: "Exam not found." });
     }
@@ -233,9 +209,6 @@ const getRoster = async (req, res) => {
     const roster = [];
     let presentCount = 0;
     for (const student of students) {
-      const reasons = await evaluateAdmitCardEligibility(exam, student);
-      if (reasons.length > 0) continue;
-
       const dayRecords = recordsByStudent[String(student._id)] || [];
       const record = dayRecords.find((r) => (r.day || 1) === day) || null;
       let status = "Not Marked";

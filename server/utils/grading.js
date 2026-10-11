@@ -19,7 +19,8 @@ const DIVISION_TABLE = [
 ];
 
 const getGrade = (obtained, passMarks = 33, fullMarks = 100) => {
-  const normalized = Math.max(0, Number(obtained) || 0);
+  const raw = Math.max(0, Number(obtained) || 0);
+  const normalized = fullMarks > 0 ? (raw / fullMarks) * 100 : 0;
   const rule = GRADE_TABLE.find((g) => normalized >= g.min);
   const point = rule ? rule.gradePoint : 0;
 
@@ -27,7 +28,7 @@ const getGrade = (obtained, passMarks = 33, fullMarks = 100) => {
     return { grade: "F", gradePoint: 0, status: "Fail" };
   }
 
-  if (passMarks && normalized < passMarks) {
+  if (passMarks && raw < passMarks) {
     return { grade: "F", gradePoint: 0, status: "Fail" };
   }
 

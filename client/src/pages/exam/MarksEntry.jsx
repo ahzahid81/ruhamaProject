@@ -13,13 +13,14 @@ const GRADE_TABLE = [
   { min: 0, grade: "F", gradePoint: 0.0 },
 ];
 
-const previewGrade = (obtained, passMarks) => {
+const previewGrade = (obtained, passMarks, fullMarks = 100) => {
   if (obtained === "" || obtained === null || obtained === undefined) return null;
-  const value = Number(obtained);
+  const raw = Number(obtained);
+  const value = fullMarks > 0 ? (raw / fullMarks) * 100 : 0;
   const rule = GRADE_TABLE.find((g) => value >= g.min);
   if (!rule) return { grade: "F", point: 0, pass: false };
   if (rule.grade === "F") return { grade: "F", point: 0, pass: false };
-  if (passMarks && value < passMarks) return { grade: "F", point: 0, pass: false };
+  if (passMarks && raw < passMarks) return { grade: "F", point: 0, pass: false };
   return { grade: rule.grade, point: rule.gradePoint, pass: true };
 };
 
@@ -30,7 +31,7 @@ const previewSummary = (marks, isHifz) => {
     const isEmpty = raw === "" || raw === null || raw === undefined;
     if (isEmpty && isHifz) return;
     const value = isEmpty ? 0 : Math.min(Number(raw), m.fullMarks);
-    const g = isEmpty ? { grade: "F", point: 0, pass: false } : previewGrade(raw, m.passMarks);
+    const g = isEmpty ? { grade: "F", point: 0, pass: false } : previewGrade(raw, m.passMarks, m.fullMarks);
     if (isEmpty) return;
     allBlank = false;
     entered += 1;
@@ -298,7 +299,7 @@ const MarksEntry = () => {
                         </div>
                       </td>
                       {student.marks.map((m, mi) => {
-                        const g = previewGrade(m.obtainedMarks, m.passMarks);
+                        const g = previewGrade(m.obtainedMarks, m.passMarks, m.fullMarks);
                         return (
                           <td key={mi} className="px-2 py-2 text-center">
                             <input

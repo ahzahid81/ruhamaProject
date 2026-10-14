@@ -88,6 +88,37 @@ const computeResult = (entries) => {
 };
 
 // ==========================================
+// HELPER: apply the Hifz rule on read. For a
+// hifz student, zero-mark subjects are not
+// applicable, so results saved before the
+// skip rule was added are corrected without
+// re-saving marks.
+// ==========================================
+
+const normalizeHifz = (result) => {
+  if (!result || !result.isHifz) return result;
+
+  const entries = result.entries || [];
+  const kept = entries.filter((e) => Number(e.obtainedMarks) !== 0);
+
+  // Nothing to drop, or every subject is zero
+  // (nothing was taken — leave Absent handling alone).
+  if (kept.length === 0 || kept.length === entries.length) return result;
+
+  const summary = computeResult(kept);
+  result.entries = kept;
+  result.totalFullMarks = summary.totalFullMarks;
+  result.totalObtained = summary.totalObtained;
+  result.percentage = summary.percentage;
+  result.gpa = summary.gpa;
+  result.grade = summary.grade;
+  result.division = summary.division;
+  result.status = summary.status;
+
+  return result;
+};
+
+// ==========================================
 // GET STUDENTS FOR MARKS ENTRY
 // ==========================================
 
@@ -120,14 +151,18 @@ const getStudentsForMarks = async (req, res) => {
 
     const rows = students.map((s) => {
       const existing = resultMap[s._id.toString()];
+      const isHifz = existing ? !!existing.isHifz : false;
       const marks = subjects.map((sub) => {
         const entry = existing?.entries?.find((e) => e.subject && e.subject.toString() === sub._id.toString());
+        const obtained = entry ? entry.obtainedMarks : "";
         return {
           subjectId: sub._id,
           subjectName: sub.subjectName,
           fullMarks: sub.fullMarks,
           passMarks: sub.passMarks,
-          obtainedMarks: entry ? entry.obtainedMarks : "",
+          // A zero on a hifz result is "not applicable",
+          // so show it as blank instead of a real 0.
+          obtainedMarks: isHifz && Number(obtained) === 0 ? "" : obtained,
           grade: entry ? entry.grade : "",
           status: entry ? entry.status : "",
         };
@@ -141,7 +176,7 @@ const getStudentsForMarks = async (req, res) => {
         marks,
         saved: !!existing,
         resultId: existing ? existing._id : null,
-        isHifz: existing ? !!existing.isHifz : false,
+        isHifz,
       };
     });
 
@@ -297,7 +332,7 @@ const exportResults = async (req, res) => {
     const filter = { exam: examId };
     if (className) filter.className = className;
 
-    const results = await ExamResult.find(filter);
+    const results = (await ExamResult.find(filter)).map((r) => normalizeHifz(r.toObject()));
 
     results.sort((a, b) => {
       const c = String(a.studentId).localeCompare(String(b.studentId), undefined, { numeric: true, sensitivity: "base" });
@@ -412,7 +447,7 @@ const getResults = async (req, res) => {
     results = results.map((r) => {
       const obj = r.toObject();
       obj.percentage = calcPercentage(obj.totalObtained, obj.totalFullMarks);
-      return normalizeAbsent(obj);
+      return normalizeHifz(normalizeAbsent(obj));
     });
 
     let lastRank = 0;
@@ -462,7 +497,7 @@ const getResult = async (req, res) => {
     if (result) {
       result = result.toObject();
       result.percentage = calcPercentage(result.totalObtained, result.totalFullMarks);
-      result = normalizeAbsent(result);
+      result = normalizeHifz(normalizeAbsent(result));
     } else {
       result = { entries: [], totalObtained: 0, gpa: 0, status: "Not Submitted" };
     }
@@ -523,4 +558,5 @@ module.exports = {
   getResult,
   publishResults,
   exportResults,
+  normalizeHifz,
 };

@@ -9,6 +9,7 @@ const StudentFeeOverride = require("../models/StudentFeeOverride");
 const StudentFeeAssignment = require("../models/StudentFeeAssignment");
 const Report = require("../models/Report");
 const HifzReport = require("../models/HifzReport");
+const { normalizeHifz } = require("./examResultController");
 
 // ============================================
 // STUDENT DASHBOARD
@@ -58,14 +59,17 @@ const getDashboard = async (req, res) => {
         absentDays,
         percentage: totalDays > 0 ? Number(((presentDays / totalDays) * 100).toFixed(1)) : 0,
       },
-      results: resultsRes.map((r) => ({
-        examName: r.exam?.examName || "Exam",
-        percentage: r.percentage,
-        gpa: r.gpa,
-        grade: r.grade,
-        division: r.division,
-        status: r.status,
-      })),
+      results: resultsRes.map((r) => {
+        const result = normalizeHifz(r.toObject());
+        return {
+          examName: result.exam?.examName || "Exam",
+          percentage: result.percentage,
+          gpa: result.gpa,
+          grade: result.grade,
+          division: result.division,
+          status: result.status,
+        };
+      }),
       recentPayments: paymentsRes,
       feeSummary: {
         totalPaid: totalPaid - totalDue > 0 ? totalPaid - totalDue : 0,
@@ -131,9 +135,9 @@ const getResults = async (req, res) => {
     const filter = { student: student._id };
     if (examId) filter.exam = examId;
 
-    const results = await ExamResult.find(filter)
+    const results = (await ExamResult.find(filter)
       .populate("exam", "examName examCode startDate endDate")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })).map((r) => normalizeHifz(r.toObject()));
 
     return res.status(200).json({ success: true, results });
   } catch (error) {

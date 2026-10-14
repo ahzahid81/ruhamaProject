@@ -29,7 +29,7 @@ const previewSummary = (marks, isHifz) => {
   marks.forEach((m) => {
     const raw = m.obtainedMarks;
     const isEmpty = raw === "" || raw === null || raw === undefined;
-    if (isEmpty && isHifz) return;
+    if (isHifz && (isEmpty || Number(raw) === 0)) return;
     const value = isEmpty ? 0 : Math.min(Number(raw), m.fullMarks);
     const g = isEmpty ? { grade: "F", point: 0, pass: false } : previewGrade(raw, m.passMarks, m.fullMarks);
     if (isEmpty) return;
@@ -299,7 +299,10 @@ const MarksEntry = () => {
                         </div>
                       </td>
                       {student.marks.map((m, mi) => {
-                        const g = previewGrade(m.obtainedMarks, m.passMarks, m.fullMarks);
+                        const raw = m.obtainedMarks;
+                        const isEmpty = raw === "" || raw === null || raw === undefined;
+                        const skippedForHifz = student.isHifz && (isEmpty || Number(raw) === 0);
+                        const g = skippedForHifz ? null : previewGrade(raw, m.passMarks, m.fullMarks);
                         return (
                           <td key={mi} className="px-2 py-2 text-center">
                             <input
@@ -312,7 +315,7 @@ const MarksEntry = () => {
                               onChange={(e) => setMark(si, mi, e.target.value)}
                               onKeyDown={(e) => handleCellKeyDown(e, si, mi)}
                               className={`w-20 text-center border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 transition ${
-                                m.obtainedMarks === "" || m.obtainedMarks === null || m.obtainedMarks === undefined
+                                isEmpty || skippedForHifz
                                   ? "border-gray-200 bg-gray-50"
                                   : g.pass
                                   ? "border-emerald-200 bg-emerald-50/40"

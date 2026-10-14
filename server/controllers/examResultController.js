@@ -206,7 +206,9 @@ const saveMarks = async (req, res) => {
           raw === null ||
           raw === undefined;
 
-        if (isEmpty && isHifz) continue;
+        // For a hifz student, a blank or zero subject is
+        // not applicable and is skipped entirely.
+        if (isHifz && (isEmpty || Number(raw) === 0)) continue;
 
         const obtained = isEmpty ? 0 : Math.max(0, Number(raw));
         const capped = Math.min(obtained, sub.fullMarks);

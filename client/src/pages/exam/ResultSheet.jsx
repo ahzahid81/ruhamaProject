@@ -6,13 +6,13 @@ import logo from "../../assets/logo.png";
 import { getRemark } from "../../lib/remarks";
 
 const GRADING_SYSTEM = [
-  { grade: "A+", range: "80 - 100", point: "5.00" },
-  { grade: "A", range: "70 - 79", point: "4.00" },
-  { grade: "A-", range: "60 - 69", point: "3.50" },
-  { grade: "B", range: "50 - 59", point: "3.00" },
-  { grade: "C", range: "40 - 49", point: "2.00" },
-  { grade: "D", range: "33 - 39", point: "1.00" },
-  { grade: "F", range: "00 - 32", point: "0.00" },
+  { grade: "A+", range: "80% - 100%", point: "5.00" },
+  { grade: "A", range: "70% - 79%", point: "4.00" },
+  { grade: "A-", range: "60% - 69%", point: "3.50" },
+  { grade: "B", range: "50% - 59%", point: "3.00" },
+  { grade: "C", range: "40% - 49%", point: "2.00" },
+  { grade: "D", range: "33% - 39%", point: "1.00" },
+  { grade: "F", range: "0% - 32%", point: "0.00" },
 ];
 
 const ResultSheet = () => {
@@ -313,10 +313,10 @@ const ResultSheet = () => {
               <thead>
                 <tr>
                   <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Grade</th>
-                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Marks</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Percentage</th>
                   <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">GPA</th>
                   <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Grade</th>
-                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Marks</th>
+                  <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">Percentage</th>
                   <th className="border-b border-slate-200 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 text-center">GPA</th>
                 </tr>
               </thead>

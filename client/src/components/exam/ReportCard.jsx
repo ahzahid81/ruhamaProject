@@ -3,13 +3,13 @@ import { QRCodeSVG } from "qrcode.react";
 import { getRemark } from "../../lib/remarks";
 
 const GRADING_SYSTEM = [
-  { grade: "A+", range: "80-100", point: "5.00" },
-  { grade: "A", range: "70-79", point: "4.00" },
-  { grade: "A-", range: "60-69", point: "3.50" },
-  { grade: "B", range: "50-59", point: "3.00" },
-  { grade: "C", range: "40-49", point: "2.00" },
-  { grade: "D", range: "33-39", point: "1.00" },
-  { grade: "F", range: "0-32", point: "0.00" },
+  { grade: "A+", range: "80% - 100%", point: "5.00" },
+  { grade: "A", range: "70% - 79%", point: "4.00" },
+  { grade: "A-", range: "60% - 69%", point: "3.50" },
+  { grade: "B", range: "50% - 59%", point: "3.00" },
+  { grade: "C", range: "40% - 49%", point: "2.00" },
+  { grade: "D", range: "33% - 39%", point: "1.00" },
+  { grade: "F", range: "0% - 32%", point: "0.00" },
 ];
 
 const SUBJECT_THEMES = [
@@ -144,6 +144,13 @@ const ReportCard = ({ data, id }) => {
                 <h3 className="text-[10px] font-bold tracking-wide uppercase">Grading System</h3>
               </div>
               <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="bg-slate-100 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="px-2 py-0.5 text-center">Grade</th>
+                    <th className="px-2 py-0.5 text-center">Percentage</th>
+                    <th className="px-2 py-0.5 text-center">Point</th>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-gray-100">
                   {GRADING_SYSTEM.map((row, i) => (
                     <tr key={row.grade} className={i % 2 ? "bg-slate-50/50" : "bg-white"}>

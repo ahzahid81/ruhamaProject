@@ -1,4 +1,6 @@
 import logo from "../../assets/logo.png";
+import signatureController from "../../assets/signature-controller.png";
+import signaturePrincipal from "../../assets/signature-principal.png";
 import { QRCodeSVG } from "qrcode.react";
 import { getRemark } from "../../lib/remarks";
 
@@ -27,10 +29,13 @@ const SUBJECT_THEMES = [
   { soft: "bg-pink-50", text: "text-pink-700", accent: "bg-pink-500" },
 ];
 
-const SignatureCard = ({ title }) => (
+const SignatureBlock = ({ image, title }) => (
   <div className="text-center">
-    <div className="h-8 border-b-2 border-dashed border-slate-300 mx-4" />
-    <p className="mt-1 text-xl font-semibold text-slate-600">{title}</p>
+    <div className="h-12 flex items-end justify-center">
+      <img src={image} alt={title} className="h-12 w-auto object-contain max-w-full" />
+    </div>
+    <div className="h-1 border-b-2 border-slate-300 mx-2 mt-1" />
+    <p className="mt-0.5 text-[10px] font-semibold text-slate-600">{title}</p>
   </div>
 );
 
@@ -243,13 +248,7 @@ const ReportCard = ({ data, id }) => {
           <div className="border rounded-xl p-1.5 text-center bg-slate-50">
             <div className="flex justify-center">
               <QRCodeSVG
-                value={JSON.stringify({
-                  id: student.studentId,
-                  name: student.name,
-                  class: student.className,
-                  session: exam.academicSession,
-                  gpa: isFail || isAbsent ? "0.00" : result.gpa.toFixed(2),
-                })}
+                value={`Ruhama United School\n${student.studentId}\n${student.name}\n${entries.map((e) => `${e.subjectName}:${e.status === "Absent" ? "—" : e.obtainedMarks}/${e.fullMarks}`).join("\n")}\nTotal: ${result.totalObtained}/${result.totalFullMarks}\nGPA: ${isAbsent ? "—" : isFail ? "0.00" : result.gpa.toFixed(2)}\nRemarks: ${isAbsent ? "Absent" : isFail ? "Fail" : getRemark(result.percentage)}`}
                 size={100}
                 includeMargin
               />
@@ -273,10 +272,9 @@ const ReportCard = ({ data, id }) => {
         </div>
 
         {/* SIGNATURES */}
-        <div className="relative mt-20 grid grid-cols-3 gap-6">
-          <SignatureCard title="Class Teacher" />
-          <SignatureCard title="Guardian" />
-          <SignatureCard title="Principal" />
+        <div className="relative mt-20 grid grid-cols-2 gap-12">
+          <SignatureBlock image={signatureController} title="Exam Controller" />
+          <SignatureBlock image={signaturePrincipal} title="Principal" />
         </div>
       </div>
     </div>
